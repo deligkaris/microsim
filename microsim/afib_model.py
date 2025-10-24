@@ -25,7 +25,3 @@ class AFibIncidenceModel(StatsModelLinearRiskFactorModel):
         riskWithResidual = linearRisk + self.draw_from_residual_distribution(person._rng)
         return person._rng.uniform() < riskWithResidual
 
-    def estimate_next_risk_vectorized(self, x, rng=None):
-        linearRisk = super().estimate_next_risk_vectorized(x)
-        riskWithResidual = linearRisk + self.draw_from_residual_distribution(rng)
-        return rng.uniform()  < riskWithResidual

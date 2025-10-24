@@ -205,18 +205,29 @@ class Trial:
             for analysisType in AnalysisType:
                 rep += "\t" + "Analysis: " + f"{analysisType.value}\n"
                 if analysisType == AnalysisType.RELATIVE_RISK:
-                    rep += "\t" +" "*25 + " "*10 + "relRisk" + " "*4 + "treatedRisk" + " "*4 + "controlRisk" + " "*4 + "|diff|*1000\n"
+                    rep += " "*20 + "  " 
+                    rep += " |" + "-"*5 + "relative" + "-"*5 + "|" 
+                    rep += " |" + "-"*12 + "treated" + "-"*13 + "|" 
+                    rep += " |" + "-"*12 + "control" + "-"*13 + "| |diff|\n"
+                    rep += " "*20 + "  " 
+                    rep += " |mle-|" + " |" + "-"*3 + "score" + "-"*3 + "|"
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|" 
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|  *1000\n"
+                    rep += " "*20 + "  " + "   risk" + "  ciLow" + "  ciUpp" + "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp" 
+                    rep += "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp" + "\n"
+                elif analysisType == AnalysisType.COX:
+                    rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue\n"
                 else:
-                    rep += "\t" +" "*25 + " "*16 + "Z" + " "*6 + "Intercept" + " "*11 + "Z SE" + " "*9 + "pValue\n"
+                    rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue" + " "*1 + "Inter.\n" 
                 for key in self.results[analysisType.value].keys():
-                    rep += f"\t{key:>25}: "
+                    rep += f"{key:>20}: "
                     for result in self.results[analysisType.value][key]:
                         if (result is not None) & (result is not float('inf')):
-                            rep += f"{result:>15.2f}"
+                            rep += f"{result:>7.3f}"
                         elif result== float('inf'):
-                            rep += f"{'inf':>15}"
+                            rep += f"{'inf':>7}"
                         else:
-                            rep += " "*15
+                            rep += " "*7
                     rep += "\n"
         return rep
 

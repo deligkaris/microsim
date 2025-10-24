@@ -13,7 +13,7 @@ class CoxRegressionAnalysis(RegressionAnalysis):
         blockFactors = trial.trialDescription.blockFactors
         try:
             self.cph.fit(df.loc[:,["outcome", "outcomeTime", "treatment", *blockFactors]], duration_col=f"outcomeTime", event_col="outcome")
-            return self.cph.params_['treatment'], None, self.cph.standard_errors_['treatment'], self.cph.summary.loc['treatment', 'p']
+            return self.cph.params_['treatment'], self.cph.standard_errors_['treatment'], self.cph.summary.loc['treatment', 'p'], None
         except (LinAlgError, ConvergenceError):
             return np.nan, np.nan, np.nan, np.nan
 

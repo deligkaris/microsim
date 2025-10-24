@@ -12,7 +12,7 @@ class LogisticRegressionAnalysis(RegressionAnalysis):
         for blockFactor in blockFactors:
             formula += f" + {blockFactor}"
         reg = smf.logit(formula, df).fit(disp=False)
-        return reg.params['treatment'], reg.params['Intercept'], reg.bse['treatment'], reg.pvalues['treatment']
+        return reg.params['treatment'], reg.bse['treatment'], reg.pvalues['treatment'], reg.params['Intercept']
 
 
 

@@ -348,6 +348,9 @@ class Population:
     def get_outcome_count(self, outcomeType):
         return sum(self.has_outcome(outcomeType))
 
+    def get_any_outcome_count(self, outcomeTypeList):
+        return sum(self.has_any_outcome(outcomeTypeList, inSim=True))
+
     def has_outcome(self, outcomeType, inSim=True):
         return list(map(lambda x: x.has_outcome(outcomeType, inSim=inSim), self._people))
 
