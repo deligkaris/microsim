@@ -31,4 +31,4 @@ class ContinuousTreatmentStrategiesType(Enum):
 
 class CategoricalTreatmentStrategiesType(Enum):
     BP_MEDS_ADDED = "bpMedsAdded" #found in BP TreatmentStrategiesType
-    STATINS_ADDED = "statinsAdded" 
+    STATIN_MEDS_ADDED = "statinMedsAdded" 

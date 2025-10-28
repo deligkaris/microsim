@@ -6,6 +6,7 @@ from microsim.trials.trial_outcome_assessor import AnalysisType
 
 import pandas as pd
 import random
+import sys
 
 class Trial:
     '''This class stores the trial setup, through the TrialDescription instance, trial populations, and trial results.
@@ -27,6 +28,7 @@ class Trial:
         self.completed = False
         self.analyzed = False
         self.results = dict()
+        self.pythonVersion = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     
     def get_trial_populations(self):
         '''A Population needs two things: People, PopulationModelRepository.
@@ -200,6 +202,7 @@ class Trial:
         rep = self.trialDescription.__str__()
         rep += f"\nTrial\n"
         rep += f"\tTrial completed: {self.completed}\n"
+        rep += f"\tTrial python version: {self.pythonVersion}\n"
         if self.analyzed:
             rep += f"Trial results:\n"
             for analysisType in AnalysisType:
@@ -208,13 +211,13 @@ class Trial:
                     rep += " "*20 + "  " 
                     rep += " |" + "-"*5 + "relative" + "-"*5 + "|" 
                     rep += " |" + "-"*12 + "treated" + "-"*13 + "|" 
-                    rep += " |" + "-"*12 + "control" + "-"*13 + "| |diff|\n"
+                    rep += " |" + "-"*12 + "control" + "-"*13 + "| |diff|" + " |diff|\n"
                     rep += " "*20 + "  " 
                     rep += " |mle-|" + " |" + "-"*3 + "score" + "-"*3 + "|"
                     rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|" 
-                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|  *1000\n"
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|  *1000" + "  *1000\n"
                     rep += " "*20 + "  " + "   risk" + "  ciLow" + "  ciUpp" + "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp" 
-                    rep += "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp" + "\n"
+                    rep += "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp" + " "*7 + " /proportionTreated\n"
                 elif analysisType == AnalysisType.COX:
                     rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue\n"
                 else:

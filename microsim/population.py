@@ -514,6 +514,10 @@ class Population:
     def get_scd_by_modality_group(self):
         return list(map(lambda x: x.get_scd_by_modality_group(), self._people))
 
+    def has_any_meds_added(self):
+        '''It is not reasonable to return True/False, if the person is no longer alive'''
+        return list(map(lambda x: x.has_any_meds_added(), filter(lambda y: y.is_alive, self._people)))
+
     def print_baseline_summary(self):
         self.print_summary_at_index(0)
 
@@ -655,27 +659,39 @@ class Population:
         print(" "*25, "-"*53)
         print(" "*25, "proportions")
         print(" "*25, "-"*11)
+        tsvDict = dict()
         for ts in treatmentStrategies:
-            tsVariables = self._people.iloc[0]._treatmentStrategies[ts].keys()
-            for tsv in tsVariables:
-                if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]) & (tsv!="status"):
-                    alivePeople = filter(lambda x: x.is_alive, self._people)
-                    tsvList = list(map(lambda x: x._treatmentStrategies[ts][tsv], alivePeople))
-                    print(f"{tsv:>23}")
-                    tsvValueCounts = Counter(tsvList)
-                    for key in sorted(tsvValueCounts.keys()):
-                        print(f"{key:>23} {tsvValueCounts[key]/len(tsvList): 6.2f}")
+            #this is another approach that accomplishes the same thing, but it also works when the tsv does not fit the pattern "x" + "MedsAdded" 
+            #tsVariables = self._people.iloc[0]._treatmentStrategies[ts].keys()
+            #for tsv in tsVariables:
+                #if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]) & (tsv!="status"):
+            tsv = ts + "MedsAdded"
+            if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]):
+                alivePeople = filter(lambda x: x.is_alive, self._people)
+                tsvList = list(map(lambda x: x._treatmentStrategies[ts][tsv], alivePeople))
+                tsvDict[tsv] = tsvList 
+                print(f"{tsv:>23}")
+                tsvValueCounts = Counter(tsvList)
+                for key in sorted(tsvValueCounts.keys()):
+                    print(f"{key:>23} {tsvValueCounts[key]/len(tsvList): 6.2f}")
+        #do the statistics for any meds added, I will need to modify this when we start including continuous treatment strategy variables
+        tsv = "any" + "MedsAdded"
+        tsvList = list(map(lambda x: min(max(x),1), zip(*tsvDict.values()))) #list with 0, 1 depending on whether the alive person had any MedsAdded
+        print(f"{tsv:>23}")
+        tsvValueCounts = Counter(tsvList)
+        for key in sorted(tsvValueCounts.keys()):
+            print(f"{key:>23} {tsvValueCounts[key]/len(tsvList): 6.2f}")
 
     def print_lastyear_treatment_strategy_distributions_by_risk(self, wmhSpecific=True):
         ''''''
         popAlive = filter(lambda x: x.is_alive, self._people)
         ts = TreatmentStrategiesType.BP.value
-        tsv = "bpMedsAdded"
+        tsv = ts + "MedsAdded"
         bpMedsAddedList = list(map(lambda x: x._treatmentStrategies[ts][tsv], popAlive))
     
         popAlive = filter(lambda x: x.is_alive, self._people)
         ts = TreatmentStrategiesType.STATIN.value
-        tsv = "statinsAdded"
+        tsv = ts + "MedsAdded"
         statinsAddedList = list(map(lambda x: x._treatmentStrategies[ts][tsv], popAlive))
     
         cvModelRepository = CVModelRepository(wmhSpecific=wmhSpecific)
@@ -706,7 +722,7 @@ class Population:
             printString += f"{bmaProportion:> 7.2f} "
             print(printString)
         
-        print(" "*25, "statinsAdded")
+        print(" "*25, "statinMedsAdded")
         print(" "*28, "0       1       2 ")    
         for ile in sorted(set(cvRiskQuintiles)):  
             printString = f"{ile:>23} "

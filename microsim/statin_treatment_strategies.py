@@ -21,20 +21,20 @@ class StatinTreatmentStrategy():
             cvRisk = self.cvModelRepository.select_outcome_model_for_person(person).get_risk_for_person(person, years=10)
             statin = person.get_last_default_treatment(DefaultTreatmentsType.STATIN.value)
             if (cvRisk>self.cvRiskCutoff) & (not statin):
-                person._treatmentStrategies[TreatmentStrategiesType.STATIN.value]["statinsAdded"]=1
+                person._treatmentStrategies[TreatmentStrategiesType.STATIN.value][TreatmentStrategiesType.STATIN.value + "MedsAdded"]=1
             else:
-                person._treatmentStrategies[TreatmentStrategiesType.STATIN.value]["statinsAdded"]=0
+                person._treatmentStrategies[TreatmentStrategiesType.STATIN.value][TreatmentStrategiesType.STATIN.value + "MedsAdded"]=0
         elif person._treatmentStrategies[TreatmentStrategiesType.STATIN.value]["status"]==TreatmentStrategyStatus.MAINTAIN:
-            if person._treatmentStrategies[TreatmentStrategiesType.STATIN.value]["statinsAdded"]==0:
+            if person._treatmentStrategies[TreatmentStrategiesType.STATIN.value][TreatmentStrategiesType.STATIN.value + "MedsAdded"]==0:
                 cvRisk = self.cvModelRepository.select_outcome_model_for_person(person).get_risk_for_person(person, years=10)
                 statin = person.get_last_default_treatment(DefaultTreatmentsType.STATIN.value)
                 if (cvRisk>self.cvRiskCutoff) & (not statin):
-                    person._treatmentStrategies[TreatmentStrategiesType.STATIN.value]["statinsAdded"]=1
+                    person._treatmentStrategies[TreatmentStrategiesType.STATIN.value][TreatmentStrategiesType.STATIN.value + "MedsAdded"]=1
                 else:
                     pass
         elif person._treatmentStrategies[TreatmentStrategiesType.STATIN.value]["status"]==TreatmentStrategyStatus.END:
-            if "statinsAdded" in person._treatmentStrategies[TreatmentStrategiesType.STATIN.value].keys():
-                del person._treatmentStrategies[TreatmentStrategiesType.STATIN.value]["statinsAdded"]
+            if TreatmentStrategiesType.STATIN.value + "MedsAdded" in person._treatmentStrategies[TreatmentStrategiesType.STATIN.value].keys():
+                del person._treatmentStrategies[TreatmentStrategiesType.STATIN.value][TreatmentStrategiesType.STATIN.value + "MedsAdded"]
         return dict()
 
     def get_updated_risk_factors(self, person):

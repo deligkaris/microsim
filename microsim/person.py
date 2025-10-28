@@ -268,6 +268,15 @@ class Person:
         return ( (self._treatmentStrategies[TreatmentStrategiesType.BP.value]["status"]==TreatmentStrategyStatus.BEGIN) |
                  (self._treatmentStrategies[TreatmentStrategiesType.BP.value]["status"]==TreatmentStrategyStatus.MAINTAIN) )
 
+    def has_any_meds_added(self):
+        for tst in self._treatmentStrategies.keys():
+            status = self._treatmentStrategies[tst]["status"]
+            if (status == TreatmentStrategyStatus.BEGIN) | (status == TreatmentStrategyStatus.MAINTAIN):
+                medsAdded = self._treatmentStrategies[tst][tst+"MedsAdded"]
+                if medsAdded > 0:
+                    return True
+        return False
+
     def _antiHypertensiveCountPlusBPMedsAdded(self):
         antiHypertensiveCount = getattr(self, "_"+DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value)[-1]
         if self.is_in_bp_treatment:

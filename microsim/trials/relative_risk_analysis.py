@@ -41,12 +41,16 @@ class RelativeRiskAnalysis:
         nTotal = trial.treatedPop._n
         tRisk, tRiskCiLower, tRiskCiUpper, tRiskCiLowerWilson, tRiskCiUpperWilson = self.get_absolute_risk(treatedCounts, nTotal) #treated
         cRisk, cRiskCiLower, cRiskCiUpper, cRiskCiLowerWilson, cRiskCiUpperWilson = self.get_absolute_risk(controlCounts, nTotal) #control
+        tAnyMedsAdded = trial.treatedPop.has_any_meds_added() #alive, treated
+        tProportionWithMedsAdded = sum(tAnyMedsAdded)/len(tAnyMedsAdded)
+        diff = abs(tRisk-cRisk)
+        tEfficiency = diff/tProportionWithMedsAdded if tProportionWithMedsAdded!=0 else float('inf') 
         if cRisk!=0.:
             relativeRisk = tRisk/cRisk
             rrCiLow, rrCiUpp = self.get_relative_risk_ci(treatedCounts, nTotal, controlCounts, nTotal)
             return (relativeRisk, rrCiLow, rrCiUpp,
                     tRisk, tRiskCiLower, tRiskCiUpper, tRiskCiLowerWilson, tRiskCiUpperWilson, #treated
                     cRisk, cRiskCiLower, cRiskCiUpper, cRiskCiLowerWilson, cRiskCiUpperWilson, #control
-                    abs(tRisk-cRisk)*1000.)
+                    diff*1000., tEfficiency*1000.)
         else:
-            return float('inf'), tRisk, cRisk, abs(tRisk-cRisk)*1000.
+            return float('inf'), tRisk, cRisk, diff*1000., tEfficiency*1000.
