@@ -29,9 +29,14 @@ class RelativeRiskAnalysis:
             ciLowerWilson, ciUpperWilson = proportion_confint(count=nSuccesses, nobs=nTotal, alpha=0.05, method='wilson')
             return risk, ciLower, ciUpper, ciLowerWilson, ciUpperWilson
 
-    def get_relative_risk_ci(self, nSuccessesTreated, nTotalTreated, nSuccessesControl, nTotalControl):
+    def get_risk_ratio_ci(self, nSuccessesTreated, nTotalTreated, nSuccessesControl, nTotalControl):
         ciLow, ciUpp = confint_proportions_2indep(count1=nSuccessesTreated, nobs1=nTotalTreated, count2=nSuccessesControl, nobs2=nTotalControl,     
                                                   compare='ratio', method='score', alpha=0.05)
+        return ciLow, ciUpp
+
+    def get_risk_difference_ci(self, nSuccessesTreated, nTotalTreated, nSuccessesControl, nTotalControl):
+        ciLow, ciUpp = confint_proportions_2indep(count1=nSuccessesTreated, nobs1=nTotalTreated, count2=nSuccessesControl, nobs2=nTotalControl,
+                                                  compare='diff', method='newcomb', alpha=0.05)
         return ciLow, ciUpp
 
     def analyze(self, trial, assessmentFunctionDict, assessmentAnalysis):
@@ -43,14 +48,19 @@ class RelativeRiskAnalysis:
         cRisk, cRiskCiLower, cRiskCiUpper, cRiskCiLowerWilson, cRiskCiUpperWilson = self.get_absolute_risk(controlCounts, nTotal) #control
         tAnyMedsAdded = trial.treatedPop.has_any_meds_added() #alive, treated
         tProportionWithMedsAdded = sum(tAnyMedsAdded)/len(tAnyMedsAdded)
-        diff = abs(tRisk-cRisk)
+        diff = tRisk-cRisk #definition is treated - control, consistent with confint_proportions_2indep
         tEfficiency = diff/tProportionWithMedsAdded if tProportionWithMedsAdded!=0 else float('inf') 
+        rdCiLow, rdCiUpp = self.get_risk_difference_ci(treatedCounts, nTotal, controlCounts, nTotal)
+        scaleFactor = 100.
         if cRisk!=0.:
             relativeRisk = tRisk/cRisk
-            rrCiLow, rrCiUpp = self.get_relative_risk_ci(treatedCounts, nTotal, controlCounts, nTotal)
+            rrCiLow, rrCiUpp = self.get_risk_ratio_ci(treatedCounts, nTotal, controlCounts, nTotal)
             return (relativeRisk, rrCiLow, rrCiUpp,
                     tRisk, tRiskCiLower, tRiskCiUpper, tRiskCiLowerWilson, tRiskCiUpperWilson, #treated
                     cRisk, cRiskCiLower, cRiskCiUpper, cRiskCiLowerWilson, cRiskCiUpperWilson, #control
-                    diff*1000., tEfficiency*1000.)
+                    diff*scaleFactor, rdCiLow*scaleFactor, rdCiUpp*scaleFactor, tEfficiency*scaleFactor)
         else:
-            return float('inf'), tRisk, cRisk, diff*1000., tEfficiency*1000.
+            return (float('inf'), float('inf'), float('inf'), 
+                   tRisk, tRiskCiLower, tRiskCiUpper, tRiskCiLowerWilson, tRiskCiUpperWilson, #treated
+                   cRisk, cRiskCiLower, cRiskCiUpper, cRiskCiLowerWilson, cRiskCiUpperWilson, #control
+                   diff*scaleFactor, rdCiLow*scaleFactor, rdCiUpp*scaleFactor, tEfficiency*scaleFactor)
