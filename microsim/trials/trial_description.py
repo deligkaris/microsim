@@ -214,5 +214,6 @@ class KaiserTrialDescription(TrialDescription):
 
     def __str__(self):
         rep = super().__str__()
-        rep += f"\n\tPopulation type: {self.popType}"
+        rep += f"\n\twmhSpecific: {self.wmhSpecific}\n"
+        rep += f"\tPopulation type: {self.popType}"
         return rep
