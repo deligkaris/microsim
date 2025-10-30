@@ -11,4 +11,4 @@ class AlcoholCategory(IntEnum):
 
     @staticmethod
     def get_category_for_consumption(drinks_per_week):
-        return AlcoholCategory(pd.cut([drinks_per_week], [-1, 0, 6, 13, np.Infinity]).codes[0])
+        return AlcoholCategory(pd.cut([drinks_per_week], [-1, 0, 6, 13, np.inf]).codes[0])

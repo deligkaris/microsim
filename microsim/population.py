@@ -132,7 +132,9 @@ class Population:
         eg NHANESDirectSamplePopulation. The fact that we are not dividing the NHANESDirectSamplePopulation in smaller
         NHANESDirectSamplePopulation instances for now does not create a problem since we continue to use NHANES Person objects
         and the same population model repositories. Returns a list of Population instances. """
-        peopleParts = np.array_split(self._people, nPieces)
+        #I am assuming that the split will happen at the beginning of the simulation when all person objects are still needed (not dead)
+        #peopleParts = np.array_split(self._people, nPieces) #do not do this, as numpy will no longer allow this
+        peopleParts = [self._people.iloc[indices] for indices in np.array_split(np.arange(self._n), nPieces)]
         modelRepositoryParts = [self.get_pop_model_repository_copy() for x in range(nPieces)]
         return [Population(people, modelRepository) for people, modelRepository in zip(peopleParts, modelRepositoryParts)]
 
