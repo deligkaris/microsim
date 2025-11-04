@@ -209,26 +209,6 @@ class Person:
             else:
                 raise RuntimeError(f"{treatmentStrategyType}: Treatment strategy status None or end are the only ones that can move to status None.")
             
-        #if self._treatmentStrategies[treatmentStrategyType.value]["status"] is None:
-        #    if treatmentStrategy is not None:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.BEGIN
-        #elif self._treatmentStrategies[treatmentStrategyType.value]["status"] == TreatmentStrategyStatus.BEGIN:
-        #    if treatmentStrategy is not None:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.MAINTAIN
-        #    else:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.END
-        #elif self._treatmentStrategies[treatmentStrategyType.value]["status"] == TreatmentStrategyStatus.MAINTAIN:
-        #    if treatmentStrategy is None: 
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.END 
-        #elif self._treatmentStrategies[treatmentStrategyType.value]["status"] == TreatmentStrategyStatus.END:
-        #    if treatmentStrategy is None:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = None
-        #    else:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.BEGIN 
-        #else:
-        #    raise RuntimeError("Unrecognized person treatment strategy status.") 
-        #    #setattr(self,"_"+tsType.value+"TreatmentStatus", ts.status) 
-
     def advance_outcomes(self, outcomeModelRepository):
         """Predict the outcomes of the person for the next year (1 year only)."""
         #With outcomes the situation is complex, because the loop needs to go over the outcomes in a specific order
@@ -268,14 +248,58 @@ class Person:
         return ( (self._treatmentStrategies[TreatmentStrategiesType.BP.value]["status"]==TreatmentStrategyStatus.BEGIN) |
                  (self._treatmentStrategies[TreatmentStrategiesType.BP.value]["status"]==TreatmentStrategyStatus.MAINTAIN) )
 
-    def has_any_meds_added(self):
-        for tst in self._treatmentStrategies.keys():
-            status = self._treatmentStrategies[tst]["status"]
-            if (status == TreatmentStrategyStatus.BEGIN) | (status == TreatmentStrategyStatus.MAINTAIN):
-                medsAdded = self._treatmentStrategies[tst][tst+"MedsAdded"]
-                if medsAdded > 0:
-                    return True
+    def is_in_treatment_strategy(self, tst=TreatmentStrategiesType.BP.value):
+        '''This function checks if a person is part of a treatment strategy but does not check if the person is being assigned
+        additional medications as part of the treatment strategy.'''
+        #TO DO: unclear right now if the status should not be END either (in addition to None)
+        #that means that status should be either BEGIN or MAINTAIN
+        return self._treatmentStrategies[tst]["status"] is not None
+
+    def is_in_any_treatment_strategy(self):
+        for tst in TreatmentStrategiesType:
+            if self.is_in_treatment_strategy(tst.value):
+                return True
         return False
+            
+    def get_treatment_strategies_with_participation(self):
+        '''Returns a list of treatment strategies where the person is participating in, based on the
+        is_in_treatment_strategy function'''
+        tstList = list()
+        for tst in TreatmentStrategiesType:
+            if self.is_in_treatment_strategy(tst.value):
+                tstList += [tst.value]
+        return tstList
+
+    def has_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        '''This function checks if a person is actively receiving additional medications as part of a treatment strategy,
+        ie not just participating in a treatment strategy'''
+        if self.is_in_treatment_strategy(tst):
+            medsAdded = self._treatmentStrategies[tst][tst+"MedsAdded"]
+            return True if medsAdded>0 else False
+        else:
+            return None #because that was a meaningless application of this function
+
+    def has_any_meds_added(self):
+        if self.is_in_any_treatment_strategy():
+            for tst in TreatmentStrategiesType:
+                if self.is_in_treatment_strategy(tst.value):
+                    if self.has_meds_added(tst.value):
+                        return True
+            return False
+        else:
+            return None #that was a meaningless question to ask
+         
+    def get_treatment_strategies_with_meds_added(self):
+        '''Returns a list with the treatment strategies where the person has actually medications for, based on the
+        has_meds_added function'''
+        tstList = list()
+        for tst in TreatmentStrategiesType:
+            if self.has_meds_added(tst.value):
+                tstList += [tst.value]
+        return tstList
+
+    def get_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        return self._treatmentStrategies[tst][tst+"MedsAdded"]
 
     def _antiHypertensiveCountPlusBPMedsAdded(self):
         antiHypertensiveCount = getattr(self, "_"+DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value)[-1]

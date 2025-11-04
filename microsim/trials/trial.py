@@ -195,7 +195,7 @@ class Trial:
 
     def print_treatment_strategy_variables_distributions_by_risk(self):
         '''Prints distribution information about each treatment strategy variable for each CV risk quintile.'''
-        wmhSpecific = self.trialDescription._wmhSpecific if "wmhSpecific" in self.trialDescription.popArgs.keys() else True
+        wmhSpecific = self.trialDescription.wmhSpecific if "wmhSpecific" in self.trialDescription.popArgs.keys() else True
         self.treatedPop.print_lastyear_treatment_strategy_distributions_by_risk(wmhSpecific=wmhSpecific) 
 
     def __string__(self):

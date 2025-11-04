@@ -4,17 +4,12 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-#from pandarallel import pandarallel
+import itertools
 from collections import Counter
 
-#from microsim.alcohol_category import AlcoholCategory
 from microsim.bp_treatment_strategies import *
-#from microsim.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
-#                                                   CohortStaticRiskFactorModelRepository,
-#                                                   CohortDefaultTreatmentModelRepository)
 from microsim.data_loader import (get_absolute_datafile_path,
                                   load_regression_model)
-#from microsim.education import Education
 from microsim.gender import NHANESGender
 from microsim.gfr_equation import GFREquation
 from microsim.initialization_repository import InitializationRepository
@@ -24,14 +19,10 @@ from microsim.outcome_model_repository import OutcomeModelRepository
 from microsim.person import Person
 from microsim.person_factory import PersonFactory
 from microsim.qaly_assignment_strategy import QALYAssignmentStrategy
-#from microsim.race_ethnicity import RaceEthnicity
-#from microsim.smoking_status import SmokingStatus
 from microsim.statsmodel_logistic_risk_factor_model import \
     StatsModelLogisticRiskFactorModel
 from microsim.stroke_outcome import StrokeOutcome
 from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType, CategoricalRiskFactorsType, ContinuousRiskFactorsType
-#from microsim.afib_model import AFibPrevalenceModel
-#from microsim.pvd_model import PVDPrevalenceModel
 from microsim.treatment import DefaultTreatmentsType, TreatmentStrategiesType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType, ContinuousTreatmentStrategiesType, CategoricalTreatmentStrategiesType
 from microsim.population_model_repository import PopulationRepositoryType, PopulationModelRepository
 from microsim.standardized_population import StandardizedPopulation
@@ -513,12 +504,55 @@ class Population:
             rates[i] = 1000. * sum(anyOutcomeForGroup) / sum(personYearsAtRiskForGroup)
         return rates
 
+    def is_in_treatment_strategy(self, tst=TreatmentStrategiesType.BP.value):
+        '''Does not make sense to ask this question a person that is not alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.is_in_treatment_strategy(tst), alivePeople))
+
+    def is_in_any_treatment_strategy(self):
+        '''Does not make sense to ask this question a person that is not alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.is_in_any_treatment_strategy(), alivePeople))        
+
+    def get_treatment_strategies_with_participation(self):
+        '''Returns a list of lists, with each list corresponding to a person alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.get_treatment_strategies_with_participation(), alivePeople))
+
+    def has_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.has_meds_added(tst), alivePeople))
+
+    def has_any_meds_added(self):
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.has_any_meds_added(), alivePeople))         
+
+    def get_treatment_strategies_with_meds_added(self):
+        '''Returns a list of lists, with each list corresponding to a person alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.get_treatment_strategies_with_meds_added(), alivePeople))
+
+    def get_population_set_of_treatment_strategies_with_meds_added(self):
+        '''Returns set of treatment strategies where at least 1 person has meds added'''
+        tstFlattened = list(itertools.chain.from_iterable(self.get_treatment_strategies_with_meds_added()))
+        return set(tstFlattened)
+
+    def get_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        alivePeople = filter(lambda x: x.is_alive, self._people)
+        return list(map(lambda x: x.get_meds_added(tst), alivePeople))
+
     def get_scd_by_modality_group(self):
         return list(map(lambda x: x.get_scd_by_modality_group(), self._people))
 
     def has_any_meds_added(self):
         '''It is not reasonable to return True/False, if the person is no longer alive'''
         return list(map(lambda x: x.has_any_meds_added(), filter(lambda y: y.is_alive, self._people)))
+
+    def get_quintiles(self, variableList):
+        boundaries = np.quantile(variableList, np.linspace(0, 1, 6))
+        quintiles = np.digitize(variableList, boundaries, right=False)
+        quintiles[variableList == boundaries[-1]] = 5
+        return quintiles
 
     def print_baseline_summary(self):
         self.print_summary_at_index(0)
@@ -650,7 +684,9 @@ class Population:
         #print(" "*25, "-"*53)
         #print(" "*25, "min", " "*4, "0.25", " "*2, "med", " "*3, "0.75", " "*3, "max" , " "*2, "mean", " "*3, "sd")
         #print(" "*25, "-"*53)
-        treatmentStrategies = self._people.iloc[0]._treatmentStrategies.keys()
+
+        treatmentStrategies = self.get_population_set_of_treatment_strategies_with_meds_added()
+
         #for ts in treatmentStrategies:
         #    tsVariables = self._people.iloc[0]._treatmentStrategies[ts].keys()
         #    for tsv in tsVariables:
@@ -661,24 +697,21 @@ class Population:
         print(" "*25, "-"*53)
         print(" "*25, "proportions")
         print(" "*25, "-"*11)
-        tsvDict = dict()
         for ts in treatmentStrategies:
             #this is another approach that accomplishes the same thing, but it also works when the tsv does not fit the pattern "x" + "MedsAdded" 
             #tsVariables = self._people.iloc[0]._treatmentStrategies[ts].keys()
             #for tsv in tsVariables:
                 #if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]) & (tsv!="status"):
             tsv = ts + "MedsAdded"
-            if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]):
-                alivePeople = filter(lambda x: x.is_alive, self._people)
-                tsvList = list(map(lambda x: x._treatmentStrategies[ts][tsv], alivePeople))
-                tsvDict[tsv] = tsvList 
+            if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]): 
+                tsvList = self.get_meds_added(tst=ts)
                 print(f"{tsv:>23}")
                 tsvValueCounts = Counter(tsvList)
                 for key in sorted(tsvValueCounts.keys()):
                     print(f"{key:>23} {tsvValueCounts[key]/len(tsvList): 6.2f}")
         #do the statistics for any meds added, I will need to modify this when we start including continuous treatment strategy variables
         tsv = "any" + "MedsAdded"
-        tsvList = list(map(lambda x: min(max(x),1), zip(*tsvDict.values()))) #list with 0, 1 depending on whether the alive person had any MedsAdded
+        tsvList = list(map(lambda x: int(x), self.has_any_meds_added()))
         print(f"{tsv:>23}")
         tsvValueCounts = Counter(tsvList)
         for key in sorted(tsvValueCounts.keys()):
@@ -686,62 +719,36 @@ class Population:
 
     def print_lastyear_treatment_strategy_distributions_by_risk(self, wmhSpecific=True):
         ''''''
-        popAlive = filter(lambda x: x.is_alive, self._people)
-        ts = TreatmentStrategiesType.BP.value
-        tsv = ts + "MedsAdded"
-        bpMedsAddedList = list(map(lambda x: x._treatmentStrategies[ts][tsv], popAlive))
-    
-        popAlive = filter(lambda x: x.is_alive, self._people)
-        ts = TreatmentStrategiesType.STATIN.value
-        tsv = ts + "MedsAdded"
-        statinsAddedList = list(map(lambda x: x._treatmentStrategies[ts][tsv], popAlive))
-    
+        treatmentStrategies = self.get_population_set_of_treatment_strategies_with_meds_added()        
         cvModelRepository = CVModelRepository(wmhSpecific=wmhSpecific)
         popAlive = filter(lambda x: x.is_alive, self._people)
         cvRiskList = list(map(lambda x: cvModelRepository.select_outcome_model_for_person(x).get_risk_for_person(x, years=10), popAlive))
-        cvRiskBoundaries = np.quantile(cvRiskList, np.linspace(0, 1, 6))
-        cvRiskQuintiles = np.digitize(cvRiskList, cvRiskBoundaries, right=False)
-        cvRiskQuintiles[cvRiskList == cvRiskBoundaries[-1]] = 5
+        cvRiskQuintiles = self.get_quintiles(cvRiskList)
     
         print(" "*25, "-"*53)
         print(" "*25, "proportions in each quintile")
         print(" "*25, "-"*53)
-     
-        print(" "*25, "bpMedsAdded")
-        print(" "*6, "CV risk quintile      0       1       2       3       4      >4 ")    
-        for ile in sorted(set(cvRiskQuintiles)):  
-            printString = f"{ile:>23} "
-            bmaForIle = list(map(lambda y: y[1], filter(lambda x: x[0]==ile, zip(cvRiskQuintiles, bpMedsAddedList))))
-            for bmaNumber in range(0,5):
-                #get a list of 0 and 1, 1 when person from specified decile has specified number of meds
-                bmaForIleAndNumber = list(map(lambda x: 1.*(x==bmaNumber), bmaForIle))
-                #get the proportion of the decile people with specified number of meds
-                bmaProportion = np.mean(bmaForIleAndNumber)
-                printString += f"{bmaProportion:> 7.2f} "
-            #same for >4 
-            bmaForIleAndNumber = list(map(lambda x: 1.*(x>4), bmaForIle))
-            bmaProportion = np.mean(bmaForIleAndNumber)
-            printString += f"{bmaProportion:> 7.2f} "
-            print(printString)
-        
-        print(" "*25, "statinMedsAdded")
-        print(" "*28, "0       1       2 ")    
-        for ile in sorted(set(cvRiskQuintiles)):  
-            printString = f"{ile:>23} "
-            saForIle = list(map(lambda y: y[1], filter(lambda x: x[0]==ile, zip(cvRiskQuintiles, statinsAddedList))))    
-            for saNumber in range(0,3):
-                #get a list of 0 and 1, 1 when person from specified decile has specified number of meds
-                saForIleAndNumber = list(map(lambda x: 1.*(x==saNumber), saForIle))
-                #get the proportion of the decile people with specified number of meds
-                saProportion = np.mean(saForIleAndNumber)
-                printString += f"{saProportion:> 7.2f} "
-            #same for >4 
-            #spsaForIleAndNumber = list(map(lambda x: 1.*(x>4), spsaForIle))
-            #spsaProportion = np.mean(spsaForIleAndNumber)
-            #printString += f"{spsaProportion:> 7.2f} "
-            print(printString)
 
-
+        for tst in treatmentStrategies:
+            tsv = tst + "MedsAdded"
+            medsAddedList = self.get_meds_added(tst)
+            print(" "*25, tsv)
+            print(" "*6, "CV risk quintile      0       1       2       3       4      >4 ")
+            for ile in sorted(set(cvRiskQuintiles)):
+                printString = f"{ile:>23} "
+                maForIle = list(map(lambda y: y[1], filter(lambda x: x[0]==ile, zip(cvRiskQuintiles, medsAddedList))))
+                for maNumber in range(0,5):
+                    #get a list of 0 and 1, 1 when person from specified decile has specified number of meds
+                    maForIleAndNumber = list(map(lambda x: 1.*(x==maNumber), maForIle))
+                    #get the proportion of the decile people with specified number of meds
+                    maProportion = np.mean(maForIleAndNumber)
+                    printString += f"{maProportion:> 7.2f} "
+                #same for >4 
+                maForIleAndNumber = list(map(lambda x: 1.*(x>4), maForIle))
+                maProportion = np.mean(maForIleAndNumber)
+                printString += f"{maProportion:> 7.2f} "
+                print(printString)
+    
     def print_cv_standardized_rates(self):
         outcomes = [OutcomeType.MI, OutcomeType.STROKE, OutcomeType.DEATH,
                     OutcomeType.CARDIOVASCULAR, OutcomeType.NONCARDIOVASCULAR, OutcomeType.DEMENTIA]

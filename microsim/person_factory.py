@@ -20,6 +20,7 @@ from microsim.alcohol_model import AlcoholPrevalenceModel
 from microsim.population_type import PopulationType
 from microsim.modality_model import ModalityPrevalenceModel
 from microsim.wmh_model_repository import WMHModelRepository
+from microsim.epilepsy_model import EpilepsyPrevalenceModel
 
 class PersonFactory:
     """A class used to obtain Person-objects using data from a variety of sources."""
@@ -160,6 +161,10 @@ class PersonFactory:
         person._pvd = [imr[DynamicRiskFactorsType.PVD.value].estimate_next_risk(person)]
         person._afib = [imr[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
         person._modality = imr[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
+
+        outcome = EpilepsyPrevalenceModel().get_next_outcome(person)
+        person.add_outcome(outcome)
+
         return person
 
     @staticmethod
@@ -233,7 +238,10 @@ class PersonFactory:
         #the CV risks requires knowledge of wmh severity and the rest of the wmh parameters, so I am adding this outcome here... 
         outcome = WMHModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
         person.add_outcome(outcome)
-        
+ 
+        outcome = EpilepsyPrevalenceModel().get_next_outcome(person)
+        person.add_outcome(outcome)
+       
         return person
 
 

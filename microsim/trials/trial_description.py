@@ -79,7 +79,7 @@ class TrialDescription:
                 return ts
             elif treatmentStrategies=="noTreatment":
                 ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = NoBPTreatment()
+                #ts._repository[TreatmentStrategiesType.BP.value] = NoBPTreatment()
                 return ts
             elif treatmentStrategies=="sprint":
                 ts = TreatmentStrategyRepository()
@@ -206,10 +206,10 @@ class KaiserTrialDescription(TrialDescription):
                  personFilters=None,
                  wmhSpecific=True):
         super().__init__(trialType, blockFactors, sampleSize, duration, treatmentStrategies, nWorkers=nWorkers, personFilters=personFilters)
-        self._wmhSpecific = wmhSpecific
+        self.wmhSpecific = wmhSpecific
         self.popArgs = {"n":self.sampleSize,
                         "personFilters":self.personFilters,
-                        "wmhSpecific": self._wmhSpecific}
+                        "wmhSpecific": self.wmhSpecific}
         self.popType = PopulationType.KAISER
 
     def __str__(self):
