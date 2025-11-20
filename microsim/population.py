@@ -10,7 +10,11 @@ from collections import Counter
 from microsim.bp_treatment_strategies import *
 from microsim.data_loader import (get_absolute_datafile_path,
                                   load_regression_model)
+from microsim.education import Education
+from microsim.alcohol_category import AlcoholCategory
+from microsim.race_ethnicity import RaceEthnicity
 from microsim.gender import NHANESGender
+from microsim.smoking_status import SmokingStatus
 from microsim.gfr_equation import GFREquation
 from microsim.initialization_repository import InitializationRepository
 from microsim.nhanes_risk_model_repository import NHANESRiskModelRepository
@@ -192,11 +196,17 @@ class Population:
     def get_attr(self, attr):
         return list(map(lambda x: getattr(x, "_"+attr), self._people))
 
-    def get_age_counts(self, itemList):
-        counts = dict()
-        for item in range(int(min(itemList)),int(max(itemList)+1)):
-            counts[item] = len(list(filter(lambda x: x==item, itemList)))
-        return counts
+    def get_ages_group_counter(self, agesCounter):
+        '''agesCounter: Counter instance with keys the ages and values the counts for that age.
+        Returns a dictionary with keys the age group string and values the counts for that age group.'''
+        agesGroupCounter = dict()
+        groupSize = 5 #default size of age group
+        for age, count in agesCounter.items():
+            groupStart = (age//groupSize)*groupSize
+            groupEnd = groupStart + groupSize - 1
+            groupKey = f"{groupStart}-{groupEnd}"
+            agesGroupCounter[groupKey] = agesGroupCounter.get(groupKey, 0) + count
+        return Counter(agesGroupCounter)
 
     def get_age_at_first_outcome(self, outcomeType, inSim=True):
         #we get None from Person objects that had no outcome
@@ -217,24 +227,52 @@ class Population:
     def get_min_wave_of_first_outcomes_or_last_wave(self, outcomeTypeList, inSim=True):
         return list(map(lambda x: x.get_min_wave_of_first_outcomes_or_last_wave(outcomeTypeList, inSim=inSim), self._people))
 
-    def get_age_of_all_years_in_sim(self):
-        ages = list(map(lambda x: getattr(x, "_"+DynamicRiskFactorsType.AGE.value), self._people))
-        ages = [x for sublist in ages for x in sublist]
+    def get_ages(self):
+        '''Returns a list with the ages, from all years of the simulation, of the entire population as the elements'''
+        ages = map(lambda x: x.get_ages(), self._people) #nested list of lists with ages
+        ages = list(itertools.chain.from_iterable(ages)) #flattened list of ages
         return ages
 
-    def get_raw_incidence_by_age(self, outcomeType):
-        outcomeIncidenceAges = self.get_age_at_first_outcome(outcomeType)
-        ages = self.get_age_of_all_years_in_sim()
-        outcomeCounts = self.get_age_counts(outcomeIncidenceAges)
-        ageCounts = self.get_age_counts(ages)
-        outcomeIncidenceRate = dict()
-        for age in ageCounts.keys():
-            #second conditional avoids division by 0 
-            if (age in outcomeCounts.keys()) & (ageCounts[age]!=0):
-                outcomeIncidenceRate[age] = outcomeCounts[age]/ageCounts[age]
+    def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
+        '''Returns a list with the outcome ages of the entire population as the elements'''
+        agesWithOutcome = map(lambda x: x.get_ages_with_outcome(outcomeType=outcomeType), self._people) #nested list of lists with ages
+        agesWithOutcome = list(itertools.chain.from_iterable(agesWithOutcome))            #flattened list of ages
+        return agesWithOutcome
+
+    def get_raw_incidence_by_age(self, outcomeType, groups=False):
+        '''Returns a dictionary with the keys being either age (integer, groups=False)
+        or the age group (string, groups=True) and the values being the counts for that age or age group.'''
+        outcomeAges = self.get_age_at_first_outcome(outcomeType) #first incidence of the outcome
+        ages = self.get_ages()
+        agesCounter = Counter(ages)
+        outcomeAgesCounter = Counter(outcomeAges)
+        if groups: #if true, then get the counter for age groups, keys are strings now, values are counts for age group category
+            outcomeAgesCounter = self.get_ages_group_counter(outcomeAgesCounter)
+            agesCounter = self.get_ages_group_counter(agesCounter)
+        incidence = dict()
+        for age in sorted(agesCounter.keys()): #sorting here results in a sorted output while printing the incidence rate
+            if (age in outcomeAgesCounter.keys()) & (agesCounter[age]!=0): #second conditional avoids division by 0
+                incidence[age] = outcomeAgesCounter[age]/agesCounter[age]
             else:
-                outcomeIncidenceRate[age] = 0
-        return outcomeIncidenceRate 
+                incidence[age] = 0
+        return incidence 
+
+    def get_prevalence_by_age(self, outcomeType, groups=False):
+        '''outcomeType: the outcome which you want the prevalence of
+           groups: if the prevalence should be calculated by age, an integer, or age group, a string
+           Returns a Counter object with keys being the ages, or age groups, and the values being the outcome prevalence 
+           for that age or age group.'''
+        ages = self.get_ages()
+        agesCounter = Counter(ages)  #dict of age frequencies
+        agesWithOutcome = self.get_ages_with_outcome(outcomeType=outcomeType)
+        agesWithOutcomeCounter = Counter(agesWithOutcome) #dict of age with outcome frequencies
+        if groups:
+            agesCounter = self.get_ages_group_counter(agesCounter) #converts the Counter of ages to a Counter of age groups
+            agesWithOutcomeCounter = self.get_ages_group_counter(agesWithOutcomeCounter) #same thing
+        prevalence = dict()
+        for key in sorted(agesCounter.keys()): #sorting keys here preserves sorted insertion order for the prevalence as well
+            prevalence[key] = agesWithOutcomeCounter.get(key,0) / agesCounter.get(key,0)
+        return Counter(prevalence)    
 
     def get_gender_age_of_all_outcomes_in_sim(self, outcomeType, personFilter=None):
         #get [(gender, age), ...] for all people and their outcomes
@@ -600,7 +638,7 @@ class Population:
                 dtValueCounts = Counter(dtList)
                 for key in sorted(dtValueCounts.keys()):
                     print(f"{key:>23} {dtValueCounts[key]/len(dtList): 6.2f}")  
-
+        print(Population.get_categorical_variables_key())
 
     def print_baseline_summary_comparison(self, other):
         self.print_summary_at_index_comparison(other, 0)
@@ -675,6 +713,7 @@ class Population:
                 dtValueCountsOther = Counter(dtListOther)
                 for key in sorted(dtValueCounts.keys()):
                     print(f"{key:>23} {dtValueCounts[key]/len(dtList): 6.2f} {dtValueCountsOther[key]/len(dtListOther): 6.2f}")
+        print(Population.get_categorical_variables_key())
 
     def print_lastyear_treatment_strategy_distributions(self):
         '''Prints distributional information about treatment strategy variables, such as bpMedsAdded, statinsAdded,
@@ -763,7 +802,7 @@ class Population:
         for i in range(len(outcomes)):
             print(f"{outcomes[i].value:>30} {standardizedRates[i]:> 10.1f} {standardizedRatesBlack[i]:> 10.1f} {standardizedRatesWhite[i]:> 10.1f}")
 
-    def print_outcome_incidence(self, path=None, outcomeType=OutcomeType.DEMENTIA):
+    def plot_outcome_incidence(self, path=None, outcomeType=OutcomeType.DEMENTIA):
         '''Produces the outcome incidence rate by age.'''
         incidentRate = self.get_raw_incidence_by_age(outcomeType)
         plt.scatter(incidentRate.keys(), incidentRate.values())
@@ -790,6 +829,31 @@ class Population:
             plt.clf()
             print("exported results as PNG figures")
  
+    def print_outcome_incidence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
+        '''Prints the age group and the incidence rate, for the first outcome of outcomeType, of that age group.'''
+        incidentRate = self.get_raw_incidence_by_age(outcomeType, groups=groups)
+        print(" "*25, "-"*53)
+        print(" "*25, f"{outcomeType.value} incidence rate (first incidence only)")
+        print(" "*25, "-"*53)
+        print(" "*19, "age", "  rate")
+        for group, rate in incidentRate.items():
+            print(f"{group:>23} {rate:6.3f}")
+  
+    def print_outcome_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
+        '''Prints the age and the prevalence rate of that age.
+           If groups is True, it calculates the prevalence by age group, a string, not the age (integer).'''
+        prevalence = self.get_prevalence_by_age(outcomeType, groups=groups)
+        print(" "*25, "-"*53)
+        print(" "*25, f"{outcomeType.value} prevalence rate")
+        print(" "*25, "-"*53)
+        print(" "*19, "age", "  rate")
+        for group, rate in prevalence.items():
+            print(f"{group:>23} {rate:6.3f}")
+
+    def print_outcome_incidence_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
+        self.print_outcome_incidence(outcomeType=outcomeType, groups=groups)
+        self.print_outcome_prevalence(outcomeType=outcomeType, groups=groups)
+
     def print_vascular_rfs_over_time(self, other, path=None):
         '''This function takes a population and analyzes the distribution of its risk factors.
            These distributions are then compared to the same distributions from other. 
@@ -891,7 +955,38 @@ class Population:
         print(" "*25, "-"*16)
         print(" "*18,f"TRUE {sum(sbiList)/self._n:>6.2f}")
 
+    @staticmethod
+    def get_categorical_variables_key():
+        '''Returns a string that maps the integer categories to their string, and easily understandable by humans, representations'''
 
+        alcKey = " "*9 +"alcoholPerWeek  "
+        for alc in AlcoholCategory:
+            alcKey += f"{alc.value}: {alc.name}, "
+        alcKey = alcKey[:-2]
+
+        raceKey = "\n" + " "*10 + "raceEthnicity  "
+        for race in RaceEthnicity:
+            raceKey += f"{race.value}: {race.name}, "
+        raceKey = raceKey[:-2]
+
+        edKey = "\n" + " "*14 + "education  "
+        for ed in Education:
+            edKey += f"{ed.value}: {ed.name}, "
+        edKey = edKey[:-2]
+
+        genderKey = "\n" + " "*17 + "gender  "
+        for gender in NHANESGender:
+            genderKey += f"{gender.value}: {gender.name}, "
+        genderKey = genderKey[:-2]
+
+        ssKey = "\n" + " "*10 + "smokingStatus  "
+        for ss in SmokingStatus:
+            ssKey += f"{ss.value}: {ss.name}, "
+        ssKey = ssKey[:-2]
+
+        booleanKey = "\n" + " "*6 + "boolean variables  0: False, 1: True"
+        categoricalKey =  " "*25 + "Categorical Variables Key\n" + " "*25 + "-"*53 + "\n" + alcKey + raceKey + edKey + genderKey + ssKey + booleanKey
+        return categoricalKey
 
 
 

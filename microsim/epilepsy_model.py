@@ -248,8 +248,11 @@ class EpilepsyIncidenceModel():
 
 
     def get_risk_for_person(self, person):
-        #risk is essentially the cumulative distribution function P(T<=t) where T is the time of the outcome and t in our case is 1 year
-        risk = 1. - self.get_survival_function(person) 
+        if person.has_epilepsy(): #if a person had epilepsy in the past they will always have it
+            risk = 1.
+        else:
+            #risk is essentially the cumulative distribution function P(T<=t) where T is the time of the outcome and t in our case is 1 year
+            risk = 1. - self.get_survival_function(person) 
         return risk
 
     def generate_next_outcome(self, person):

@@ -464,6 +464,9 @@ class Person:
     def has_incident_dementia(self):
         return self.has_incident_event(OutcomeType.DEMENTIA)
 
+    def has_epilepsy(self):
+        return self.has_outcome(OutcomeType.EPILEPSY, inSim=False)
+
     @property
     def _black(self):
         return self._raceEthnicity == RaceEthnicity.NON_HISPANIC_BLACK
@@ -795,6 +798,21 @@ class Person:
         #convert ages to waves, keep waves less than max wave set by the argument, count how many
         personYearsAtRisk = len(list(filter(lambda y: y<=wave, map(lambda x: self.get_wave_for_age(x), personAges))))
         return personYearsAtRisk
+
+    def get_ages(self):
+        '''Returns a list with the ages of the person'''
+        return getattr(self, "_"+DynamicRiskFactorsType.AGE.value)
+
+    def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
+        '''Returns a list with the ages of the person that did have outcome'''
+        return list(map(lambda x: x[0], self._outcomes[outcomeType]))
+
+    def get_ages_without_outcome(self, outcomeType=OutcomeType.STROKE):
+        '''Returns a list with the ages of the person that did not have the outcome'''
+        ages = set(self.get_ages())
+        agesWithOutcome = set(self.get_ages_with_outcome(outcomeType=outcomeType))
+        agesWithoutOutcome = ages - agesWithOutcome 
+        return list(agesWithoutOutcome)
 
     def get_scd_group(self):
         '''This function categorizes the Person object based on their WMH outcome.

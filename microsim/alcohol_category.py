@@ -4,6 +4,7 @@ import numpy as np
 
 
 class AlcoholCategory(IntEnum):
+    '''One to six refers here to standardized drinks per week, so the unit here is a drink'''
     NONE = 0
     ONETOSIX = 1
     SEVENTOTHIRTEEN = 2
