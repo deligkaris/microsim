@@ -313,7 +313,8 @@ class PopulationFactory:
         #gender, smoking, raceEthnicity, statin, education, alcoholPerWeek, anyPhysicalActivity, antiHypertensiveCount
         #for ge, sm, ra, st, ed, al, a, an in product(NHANESGender, SmokingStatus, NHANESRaceEthnicity, [True, False], 
         #                                               Education, AlcoholCategory, [True, False], range(7)):
-        for ge, sm, ra, st, ed, al, a, an in product(set(df[StaticRiskFactorsType.GENDER.value].tolist()), 
+        for mo, ge, sm, ra, st, ed, al, a, an in product(set(df[StaticRiskFactorsType.MODALITY.value].tolist()),
+                                                     set(df[StaticRiskFactorsType.GENDER.value].tolist()), 
                                                      set(df[StaticRiskFactorsType.SMOKING_STATUS.value].tolist()),
                                                      set(df[StaticRiskFactorsType.RACE_ETHNICITY.value].tolist()),
                                                      set(df[DefaultTreatmentsType.STATIN.value].tolist()),
@@ -331,7 +332,7 @@ class PopulationFactory:
                                 (df[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]==an), :].copy()
             if dfForGroup.shape[0]>0:
                 #dfForGroups[ge.value, sm.value, ra.value, st, ed.value, al.value, a, an] = dfForGroup
-                dfForGroups[ge, sm, ra, st, ed, al, a, an] = dfForGroup
+                dfForGroups[mo, ge, sm, ra, st, ed, al, a, an] = dfForGroup
         return dfForGroups
 
     @staticmethod
