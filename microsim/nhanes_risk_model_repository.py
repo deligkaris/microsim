@@ -1,6 +1,6 @@
 from microsim.nhanes_linear_risk_factor_model import NHANESLinearRiskFactorModel
 from microsim.log_linear_risk_factor_model import LogLinearRiskFactorModel
-from microsim.risk_model_repository import RiskModelRepository
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
 
 from statsmodels.regression.linear_model import OLSResults
 

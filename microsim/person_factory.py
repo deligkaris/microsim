@@ -1,26 +1,27 @@
 import numpy as np
 import pandas as pd
 
-from microsim.alcohol_category import AlcoholCategory
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.risk_model_repository import RiskModelRepository
-from microsim.outcome import Outcome, OutcomeType
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
+from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.person import Person
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.smoking_status import SmokingStatus
-from microsim.treatment import DefaultTreatmentsType, TreatmentStrategiesType
-from microsim.stroke_outcome import StrokeOutcome
-from microsim.afib_model import AFibPrevalenceModel
-from microsim.pvd_model import PVDPrevalenceModel
-from microsim.waist_model import WaistPrevalenceModel
-from microsim.education_model import EducationPrevalenceModel
-from microsim.alcohol_model import AlcoholPrevalenceModel
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
+from microsim.outcomes.stroke_outcome import StrokeOutcome
+from microsim.risk_factors.afib_model import AFibPrevalenceModel
+from microsim.risk_factors.pvd_model import PVDPrevalenceModel
+from microsim.risk_factors.waist_model import WaistPrevalenceModel
+from microsim.risk_factors.education_model import EducationPrevalenceModel
+from microsim.risk_factors.alcohol_model import AlcoholPrevalenceModel
 from microsim.population_type import PopulationType
-from microsim.modality_model import ModalityPrevalenceModel
-from microsim.wmh_model_repository import WMHModelRepository
-from microsim.epilepsy_model import EpilepsyPrevalenceModel
+from microsim.risk_factors.modality_model import ModalityPrevalenceModel
+from microsim.outcomes.wmh_model_repository import WMHModelRepository
+from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
 
 class PersonFactory:
     """A class used to obtain Person-objects using data from a variety of sources."""

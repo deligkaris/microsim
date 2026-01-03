@@ -1,8 +1,8 @@
 import pandas as pd
 
 from microsim.data_loader import get_absolute_datafile_path
-from microsim.gender import NHANESGender
-from microsim.risk_factor import StaticRiskFactorsType
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType
 
 class StandardizedPopulation:
     '''This class will represent distributions of standardized populations.

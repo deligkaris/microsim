@@ -1,6 +1,6 @@
 import pandas as pd
-from microsim.gender import NHANESGender
-from microsim.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
 import numpy as np
 
 # will use the CKD-EPI equation: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2763564/

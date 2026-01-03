@@ -2,9 +2,9 @@ import numpy as np
 
 from microsim.population_factory import PopulationType
 from microsim.trials.trial_type import TrialType
-from microsim.treatment_strategy_repository import TreatmentStrategyRepository
-from microsim.treatment import TreatmentStrategiesType
-from microsim.bp_treatment_strategies import AddNBPMedsTreatmentStrategy, AddBPTreatmentMedsToGoal120, NoBPTreatment, SprintTreatment
+from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
+from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
+from microsim.treatment_strategies.bp_treatment_strategies import AddNBPMedsTreatmentStrategy, AddBPTreatmentMedsToGoal120, NoBPTreatment, SprintTreatment
 
 class TrialDescription:
     '''This instance will hold information about the setup of a Trial instance, information that is common to all Trials.

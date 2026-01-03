@@ -1,5 +1,5 @@
-from microsim.gcp_model import GCPModel
-from microsim.qaly_assignment_strategy import QALYAssignmentStrategy
+from microsim.outcomes.gcp_model import GCPModel
+from microsim.outcomes.qaly_assignment_strategy import QALYAssignmentStrategy
 
 
 class InitializationRepository:

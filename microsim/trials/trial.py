@@ -1,7 +1,7 @@
 from microsim.population_factory import PopulationFactory
 from microsim.trials.trial_type import TrialType
 from microsim.population import Population
-from microsim.treatment import TreatmentStrategiesType, TreatmentStrategyStatus
+from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
 from microsim.trials.trial_outcome_assessor import AnalysisType
 
 import pandas as pd
@@ -108,7 +108,7 @@ class Trial:
             controlPeople = pd.concat([controlPeople, controlPeopleBlock])
         return treatedPeople, controlPeople
         
-    def run(self):
+    def run(self, notify=True):
         if self.completed:
             print("Cannot run a trial that has already been completed.")
         else:
@@ -128,7 +128,8 @@ class Trial:
                                     nWorkers=self.trialDescription.nWorkers)
 
             self.completed = True
-            print("Trial is completed.")
+            if notify:
+                print("Trial is completed.")
             
     def analyze(self, trialOutcomeAssessor):
         '''Trial outcomes need to be defined in an instance of the TrialOutcomeAssessor class and provided in this function
@@ -145,8 +146,8 @@ class Trial:
             else:
                 self.results[assessmentAnalysis] = {assessmentName: assessmentResults}
     
-    def run_analyze(self, trialOutcomeAssessor):
-        self.run()
+    def run_analyze(self, trialOutcomeAssessor, notify=True):
+        self.run(notify=notify)
         self.analyze(trialOutcomeAssessor)
            
     def print_covariate_distributions(self):

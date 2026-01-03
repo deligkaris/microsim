@@ -3,14 +3,14 @@ import pandas as pd
 
 from microsim.population_factory import PopulationFactory
 from microsim.person_filter_factory import PersonFilterFactory
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.treatment import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.trials.trial_description import NhanesTrialDescription
 from microsim.trials.trial import Trial
 from microsim.trials.trial_outcome_assessor_factory import TrialOutcomeAssessorFactory
 from microsim.trials.trial_outcome_assessor import AnalysisType
 from microsim.trials.trial_type import TrialType
-from microsim.outcome import OutcomeType
+from microsim.outcomes.outcome import OutcomeType
 
 class Validation:
 

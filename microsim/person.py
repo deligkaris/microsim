@@ -7,19 +7,20 @@ import logging
 
 from typing import Callable
 
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.outcome import Outcome, OutcomeType
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.smoking_status import SmokingStatus
-from microsim.alcohol_category import AlcoholCategory
-from microsim.qaly_assignment_strategy import QALYAssignmentStrategy
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.outcomes.outcome import Outcome, OutcomeType
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.outcomes.qaly_assignment_strategy import QALYAssignmentStrategy
 from microsim.gfr_equation import GFREquation
-from microsim.pvd_model import PVDPrevalenceModel
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.treatment import TreatmentStrategiesType, TreatmentStrategyStatus, DefaultTreatmentsType
-from microsim.modality import Modality
-from microsim.wmh_severity import WMHSeverity
+from microsim.risk_factors.pvd_model import PVDPrevalenceModel
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.modality import Modality
+from microsim.outcomes.wmh_severity import WMHSeverity
 
 # luciana-tag...lne thing that tripped me up was probable non clear communication regarding "waves"
 # so, i'm going to spell it out here and try to make the code consistent.
@@ -575,6 +576,18 @@ class Person:
     def has_ci(self):
         return self.has_cognitive_impairement()
 
+    def has_mild_cognitive_impairment(self):
+        '''Assesses if GCP is below 1.5 standard deviations from the average GCP for that age and year in simulation
+        This linear regression model for the average gcp by age and year in simulation was developed by using a simulated NHANES population
+        A similar linear regression model was derived for the standard deviations by age and year in simulation but that showed that the 
+        standard deviations were essentially constant'''
+        gcpMean = 72.3182 + -0.2945 * self._current_age  + -0.5884 * self.get_years_in_simulation() #takes into account years in simulation and age
+        gcpCutoff = gcpMean - 1.5 * 9.05
+        return self.get_outcome_item_last(OutcomeType.COGNITION, "gcp") < gcpCutoff
+
+    def has_mci(self):
+        return self.has_mild_cognitive_impairment()
+
     def get_outcome_item(self, outcomeType, phenotypeItem, inSim=True):
         return list(map(lambda x: getattr(x[1], phenotypeItem), self.get_outcomes(outcomeType, inSim=inSim)))
 
@@ -813,6 +826,14 @@ class Person:
         agesWithOutcome = set(self.get_ages_with_outcome(outcomeType=outcomeType))
         agesWithoutOutcome = ages - agesWithOutcome 
         return list(agesWithoutOutcome)
+
+    def has_wmh(self):
+        '''a person is defined as having wmh if wmh is set to True in the outcome or if sbi is set to True in the outcome
+        For now in the Kaiser population there is only one WMH at most outcome so I am using the first outcome here'''
+        if self.has_outcome(OutcomeType.WMH):
+            return True if (self.get_outcome_item_first(OutcomeType.WMH, "wmh") | self.get_outcome_item_first(OutcomeType.WMH, "sbi")) else False
+        else:
+            return False
 
     def get_scd_group(self):
         '''This function categorizes the Person object based on their WMH outcome.

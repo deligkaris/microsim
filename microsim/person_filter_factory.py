@@ -1,7 +1,7 @@
 from microsim.person_filter import PersonFilter
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.treatment import DefaultTreatmentsType
-from microsim.cv_model_repository import CVModelRepository
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.outcomes.cv_model_repository import CVModelRepository
 
 class PersonFilterFactory:
 

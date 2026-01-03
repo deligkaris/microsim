@@ -1,5 +1,5 @@
-from microsim.smoking_status import SmokingStatus
-from microsim.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
 
 import numpy as np
 

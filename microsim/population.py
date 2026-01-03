@@ -7,31 +7,32 @@ import pandas as pd
 import itertools
 from collections import Counter
 
-from microsim.bp_treatment_strategies import *
+from microsim.treatment_strategies.bp_treatment_strategies import *
 from microsim.data_loader import (get_absolute_datafile_path,
                                   load_regression_model)
-from microsim.education import Education
-from microsim.alcohol_category import AlcoholCategory
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.gender import NHANESGender
-from microsim.smoking_status import SmokingStatus
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.gfr_equation import GFREquation
 from microsim.initialization_repository import InitializationRepository
 from microsim.nhanes_risk_model_repository import NHANESRiskModelRepository
-from microsim.outcome import Outcome, OutcomeType
-from microsim.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome import Outcome, OutcomeType
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.person import Person
 from microsim.person_factory import PersonFactory
-from microsim.qaly_assignment_strategy import QALYAssignmentStrategy
+from microsim.outcomes.qaly_assignment_strategy import QALYAssignmentStrategy
 from microsim.statsmodel_logistic_risk_factor_model import \
     StatsModelLogisticRiskFactorModel
-from microsim.stroke_outcome import StrokeOutcome
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType, CategoricalRiskFactorsType, ContinuousRiskFactorsType
-from microsim.treatment import DefaultTreatmentsType, TreatmentStrategiesType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType, ContinuousTreatmentStrategiesType, CategoricalTreatmentStrategiesType
+from microsim.outcomes.stroke_outcome import StrokeOutcome
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType, CategoricalRiskFactorsType, ContinuousRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType
+from microsim.treatment_strategies.treatment_strategies import ContinuousTreatmentStrategiesType, CategoricalTreatmentStrategiesType, TreatmentStrategiesType
 from microsim.population_model_repository import PopulationRepositoryType, PopulationModelRepository
 from microsim.standardized_population import StandardizedPopulation
-from microsim.risk_model_repository import RiskModelRepository
-from microsim.wmh_severity import WMHSeverity
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
+from microsim.outcomes.wmh_severity import WMHSeverity
 
 class Population:
     """A Population-instance has three main parts:

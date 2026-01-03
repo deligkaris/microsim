@@ -1,5 +1,5 @@
 from microsim.trials.trial_outcome_assessor import TrialOutcomeAssessor, AnalysisType
-from microsim.outcome import OutcomeType
+from microsim.outcomes.outcome import OutcomeType
 
 class TrialOutcomeAssessorFactory:
 
@@ -22,6 +22,12 @@ class TrialOutcomeAssessorFactory:
                                         AnalysisType.LOGISTIC.value)
             toa.add_outcome_assessment("vascEvent", 
                                        {"outcome": lambda x: x.has_any_outcome([OutcomeType.MI, OutcomeType.STROKE])}, 
+                                        AnalysisType.LOGISTIC.value)
+            toa.add_outcome_assessment("strokeOrDementia", 
+                                       {"outcome": lambda x: x.has_any_outcome([OutcomeType.DEMENTIA, OutcomeType.STROKE])},
+                                        AnalysisType.LOGISTIC.value)
+            toa.add_outcome_assessment("strokeOrDementiaOrMci",
+                                       {"outcome": lambda x: x.has_any_outcome([OutcomeType.DEMENTIA, OutcomeType.STROKE, OutcomeType.MCI])},
                                         AnalysisType.LOGISTIC.value)
             toa.add_outcome_assessment("qalys", 
                                        {"outcome": lambda x: x.get_outcome_item_sum(OutcomeType.QUALITYADJUSTED_LIFE_YEARS, "qaly")}, 
@@ -62,8 +68,14 @@ class TrialOutcomeAssessorFactory:
             toa.add_outcome_assessment("ciRR",
                                        {"outcome": lambda x: x.get_outcome_count(OutcomeType.CI)},
                                         AnalysisType.RELATIVE_RISK.value)
+            toa.add_outcome_assessment("mciRR",
+                                       {"outcome": lambda x: x.get_outcome_count(OutcomeType.MCI)},
+                                        AnalysisType.RELATIVE_RISK.value)
             toa.add_outcome_assessment("dementiaOrCiRR",
                                        {"outcome": lambda x: x.get_any_outcome_count([OutcomeType.DEMENTIA, OutcomeType.CI])},
+                                        AnalysisType.RELATIVE_RISK.value)
+            toa.add_outcome_assessment("dementiaOrMciRR",
+                                       {"outcome": lambda x: x.get_any_outcome_count([OutcomeType.DEMENTIA, OutcomeType.MCI])},
                                         AnalysisType.RELATIVE_RISK.value)
             toa.add_outcome_assessment("deathRR",
                                        {"outcome": lambda x: x.get_outcome_count(OutcomeType.DEATH)},

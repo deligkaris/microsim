@@ -1,7 +1,7 @@
-from microsim.cv_model_repository import CVModelRepository
-from microsim.dementia_model_repository import DementiaModelRepository
-from microsim.treatment import DefaultTreatmentsType
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.outcomes.cv_model_repository import CVModelRepository
+from microsim.outcomes.dementia_model_repository import DementiaModelRepository
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 
 class PersonFilter:
     '''This class holds filters for the dataframe with the information used in creating Person objects and filters 

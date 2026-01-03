@@ -1,5 +1,5 @@
 from enum import Enum
-from microsim.risk_factor import StaticRiskFactorsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType
 
 class PopulationRepositoryType(Enum):
     STATIC_RISK_FACTORS = "staticRiskFactors"

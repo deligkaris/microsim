@@ -7,23 +7,23 @@ from enum import Enum
 from microsim.person_factory import PersonFactory
 from microsim.person_filter_factory import PersonFilterFactory
 from microsim.population import Population
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.population_model_repository import PopulationModelRepository, PopulationRepositoryType
-from microsim.outcome_model_repository import OutcomeModelRepository
-from microsim.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
-                                                   CohortStaticRiskFactorModelRepository,
-                                                   CohortDefaultTreatmentModelRepository)
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.smoking_status import SmokingStatus
-from microsim.treatment import DefaultTreatmentsType
-from microsim.alcohol_category import AlcoholCategory
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
+from microsim.risk_factors. cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
+                                                                 CohortStaticRiskFactorModelRepository,
+                                                                 CohortDefaultTreatmentModelRepository)
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.standardized_population import StandardizedPopulation
 from microsim.variable_type import VariableType
-from microsim.outcome import OutcomeType
+from microsim.outcomes.outcome import OutcomeType
 from microsim.population_type import PopulationType
-from microsim.modality import Modality
+from microsim.risk_factors.modality import Modality
 
 class PopulationFactory:
     nhanes_pop_attributes = {PopulationRepositoryType.STATIC_RISK_FACTORS.value: 
