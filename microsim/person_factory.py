@@ -83,10 +83,10 @@ class PersonFactory:
         name = x.name
    
         personStaticRiskFactors = {
-                            StaticRiskFactorsType.RACE_ETHNICITY.value: RaceEthnicity(int(x.raceEthnicity)),
-                            StaticRiskFactorsType.EDUCATION.value: Education(int(x.education)),
-                            StaticRiskFactorsType.GENDER.value: NHANESGender(int(x.gender)),
-                            StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus(int(x.smokingStatus)),
+                            StaticRiskFactorsType.RACE_ETHNICITY.value: RaceEthnicity(x.raceEthnicity),
+                            StaticRiskFactorsType.EDUCATION.value: Education(x.education),
+                            StaticRiskFactorsType.GENDER.value: NHANESGender(x.gender),
+                            StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus(x.smokingStatus),
                             StaticRiskFactorsType.MODALITY.value: None}
    
         #use this to get the bounds imposed on the risk factors in a bit
@@ -110,7 +110,7 @@ class PersonFactory:
         #A: it is ok to leave it out as we do not have a model to update this. It is also very rarely taking place in the population anyway.
         #also: used to have round(x.statin) but NHANES includes statin=2...
         personDefaultTreatments = {
-                            DefaultTreatmentsType.STATIN.value: bool(x.statin),
+                            DefaultTreatmentsType.STATIN.value: x.statin,
                             #DefaultTreatmentsType.OTHER_LIPID_LOWERING_MEDICATION_COUNT.value: x.otherLipidLowering,
                             DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: x.antiHypertensiveCount}
 

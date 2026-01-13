@@ -170,11 +170,18 @@ class PopulationFactory:
         nhanesDf = nhanesDf.rename(columns={"level_0":"name"})
         #rename the columns that have different column names than the ones that appear in Microsim
         nhanesDf = PopulationFactory.rename_df_columns(nhanesDf, PersonFactory.microsimToNhanes)
-        #convert the integers to booleans because in the simulation we always use bool for this rf
-        nhanesDf[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value] = nhanesDf[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value].astype(bool)
+        #convert the integers to booleans because in the simulation we always use bool for these
+        for col in [DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value, DefaultTreatmentsType.STATIN.value]:
+            nhanesDf[col] = nhanesDf[col].astype(bool)
         #convert drinks per week to category
         nhanesDf[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value] = nhanesDf.apply(lambda x:
                                                                                  AlcoholCategory.get_category_for_consumption(x[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value]), axis=1)
+        #convert these columns to int type
+        for col in [StaticRiskFactorsType.RACE_ETHNICITY.value, 
+                    StaticRiskFactorsType.EDUCATION.value,
+                    StaticRiskFactorsType.GENDER.value,
+                    StaticRiskFactorsType.SMOKING_STATUS.value]:
+            nhanesDf[col] = nhanesDf[col].astype(int)
         return nhanesDf
 
     @staticmethod
