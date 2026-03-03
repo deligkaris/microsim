@@ -32,25 +32,25 @@ class DementiaModel(StatsModelCoxModel):
         return self.generate_next_outcome(person) if person._rng.uniform(size=1)<self.get_risk_for_person(person, years=1) else None
 
     def get_risk_for_person(self, person, years=1):
-        cvRisk = super().get_risk_for_person(person, years=1)
+        risk = super().get_risk_for_person(person, years=1)
 
-        cvRisk = (1./3.) * cvRisk
+        risk = (1./3.) * risk
 
         tst = TreatmentStrategiesType.WMD15.value
         if "wmd15MedsAdded" in person._treatmentStrategies[tst]:
             wmd15MedsAdded = person._treatmentStrategies[tst]['wmd15MedsAdded']
-            cvRisk = cvRisk * 0.85 if wmd15MedsAdded>0 else cvRisk
+            risk = risk * 0.85 if wmd15MedsAdded>0 else risk
 
         tst = TreatmentStrategiesType.WMD20.value
         if "wmd20MedsAdded" in person._treatmentStrategies[tst]:
             wmd20MedsAdded = person._treatmentStrategies[tst]['wmd20MedsAdded']
-            cvRisk = cvRisk * 0.775 if wmd20MedsAdded>0 else cvRisk
+            risk = risk * 0.775 if wmd20MedsAdded>0 else risk
 
         tst = TreatmentStrategiesType.WMD25.value
         if "wmd25MedsAdded" in person._treatmentStrategies[tst]:
             wmd25MedsAdded = person._treatmentStrategies[tst]['wmd25MedsAdded']
-            cvRisk = cvRisk * 0.71 if wmd25MedsAdded>0 else cvRisk
-        return cvRisk
+            risk = risk * 0.71 if wmd25MedsAdded>0 else risk
+        return risk
 
     def linear_predictor(self, person):
         return self.linear_predictor_for_patient_characteristics(
