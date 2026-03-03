@@ -4,12 +4,12 @@ from microsim.outcomes.outcome import OutcomeType
 class TrialOutcomeAssessorFactory:
 
     @staticmethod
-    def get_trial_outcome_assessor(addCommonAssessments=True):
+    def get_trial_outcome_assessor(addDefaultAssessments=True):
         '''This function adds some trial outcome assessments that are likely to be interesting from a trial.
         It also serves as an example of how trial outcome assessments can be added.
         To maintain output format quality keep the name of the assessments to 20 or less characters.'''
         toa = TrialOutcomeAssessor()
-        if addCommonAssessments:
+        if addDefaultAssessments:
             toa.add_outcome_assessment("death", 
                                        {"outcome": lambda x: x.has_outcome(OutcomeType.DEATH)}, 
                                         AnalysisType.LOGISTIC.value)
@@ -76,6 +76,9 @@ class TrialOutcomeAssessorFactory:
                                         AnalysisType.RELATIVE_RISK.value)
             toa.add_outcome_assessment("dementiaOrMciRR",
                                        {"outcome": lambda x: x.get_any_outcome_count([OutcomeType.DEMENTIA, OutcomeType.MCI])},
+                                        AnalysisType.RELATIVE_RISK.value)
+            toa.add_outcome_assessment("strokeOrDementiaOrMciRR",
+                                       {"outcome": lambda x: x.get_any_outcome_count([OutcomeType.STROKE, OutcomeType.DEMENTIA, OutcomeType.MCI])},
                                         AnalysisType.RELATIVE_RISK.value)
             toa.add_outcome_assessment("deathRR",
                                        {"outcome": lambda x: x.get_outcome_count(OutcomeType.DEATH)},

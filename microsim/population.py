@@ -489,6 +489,11 @@ class Population:
         Covariates are include via the personFunctionsList argument, the list must include pure functions that can be applied to a person object.'''
         return list(map(lambda x: x.get_outcome_survival_info(outcomesTypeList=outcomesTypeList, personFunctionsList=personFunctionsList), self._people))
 
+    def get_person_years_at_risk_by_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
+        '''Returns a list with all person years at risk for any of the outcomes in the outcome list by end of wave.
+        This includes all person objects in the population even the ones that died during the simulation.'''
+        return list(map(lambda x: x.get_person_years_at_risk_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave), self._people))
+
     def get_outcome_incidence_rates_at_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
         '''Returns outcome incidence rate per 1000 person-years at the end of the wave argument.
         Need to be careful with wave: wave=0 is the first wave, so set the wave to be number of years you want - 1.'''
@@ -498,12 +503,9 @@ class Population:
             raise RuntimeError(f"Population has not advanced enough to reach end of {wave=}")
         #determine if each person in the population had any of the outcomes
         anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[False,True,False,False,True,...]
-        #convert to integer eg [0,0,1,1,0,...1,0]
-        anyOutcome = list(map(lambda y: int(y), anyOutcome))
+        anyOutcome = list(map(lambda y: int(y), anyOutcome)) #convert to integer eg [0,0,1,1,0,...1,0]
         #get the number of years each person in the population was at risk
-        waves = self.get_min_wave_of_first_outcomes_or_last_wave(outcomesTypeList) #[5,1,6,8,0,...]
-        personYearsAtRisk = list(map(lambda x: min(x, wave), waves)) #with wave=3 [3,1,3,3,0,..]
-        personYearsAtRisk = list(map(lambda y: y+1, personYearsAtRisk))
+        personYearsAtRisk = self.get_person_years_at_risk_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[3,4,2,5,...]
         popSize = len(anyOutcome) #how many people are part of the SCD and Modality group
         outcomeCounts = sum(anyOutcome) if popSize>0 else 0 #how many people had any of the outcomes
         rate = 1000. * outcomeCounts / sum(personYearsAtRisk)

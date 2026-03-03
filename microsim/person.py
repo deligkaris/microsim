@@ -805,11 +805,10 @@ class Person:
             raise RuntimeError("{personYearsWithOutcome=} cannot be <0 or >{wave}")
         return personYearsWithOutcome
 
-    def get_person_years_at_risk_by_end_of_wave(self, wave=3):
-        '''Returns the number of person years during which this person could have had an outcome.'''
-        personAges = getattr(self, "_"+DynamicRiskFactorsType.AGE.value)
-        #convert ages to waves, keep waves less than max wave set by the argument, count how many
-        personYearsAtRisk = len(list(filter(lambda y: y<=wave, map(lambda x: self.get_wave_for_age(x), personAges))))
+    def get_person_years_at_risk_by_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
+        '''Returns the person-years that this object could have had an outcome, any outcome in the outcome list.'''
+        minOrLastWave = self.get_min_wave_of_first_outcomes_or_last_wave(outcomesTypeList) # eg 5
+        personYearsAtRisk = min(minOrLastWave, wave) + 1 #with wave=3: 3 + 1
         return personYearsAtRisk
 
     def get_ages(self):

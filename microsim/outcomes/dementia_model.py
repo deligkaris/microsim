@@ -34,6 +34,8 @@ class DementiaModel(StatsModelCoxModel):
     def get_risk_for_person(self, person, years=1):
         cvRisk = super().get_risk_for_person(person, years=1)
 
+        cvRisk = (1./3.) * cvRisk
+
         tst = TreatmentStrategiesType.WMD15.value
         if "wmd15MedsAdded" in person._treatmentStrategies[tst]:
             wmd15MedsAdded = person._treatmentStrategies[tst]['wmd15MedsAdded']
@@ -43,6 +45,11 @@ class DementiaModel(StatsModelCoxModel):
         if "wmd20MedsAdded" in person._treatmentStrategies[tst]:
             wmd20MedsAdded = person._treatmentStrategies[tst]['wmd20MedsAdded']
             cvRisk = cvRisk * 0.775 if wmd20MedsAdded>0 else cvRisk
+
+        tst = TreatmentStrategiesType.WMD25.value
+        if "wmd25MedsAdded" in person._treatmentStrategies[tst]:
+            wmd25MedsAdded = person._treatmentStrategies[tst]['wmd25MedsAdded']
+            cvRisk = cvRisk * 0.71 if wmd25MedsAdded>0 else cvRisk
         return cvRisk
 
     def linear_predictor(self, person):

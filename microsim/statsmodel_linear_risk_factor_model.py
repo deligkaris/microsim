@@ -40,7 +40,6 @@ class StatsModelLinearRiskFactorModel:
         return keysForTransforms
 
     def draw_from_residual_distribution(self, rng=None):
-        #rng = np.random.default_rng(rng)
         if not hasattr(self, "residual_mean") and hasattr(self, "residual_standard_deviation"):
             raise RuntimeError(
                 "Cannot draw from residual distribution: model does not have"
@@ -72,12 +71,8 @@ class StatsModelLinearRiskFactorModel:
     def get_interactions(self, coeff_name):
         return coeff_name.split(INTERACTION_INDICATOR)
 
-    def get_risk_for_person(self, person, rng, years, vectorized=False):
-        linear_predictor = (
-            self.estimate_next_risk_vectorized(person)
-            if vectorized
-            else self.estimate_next_risk(person)
-        )
+    def get_risk_for_person(self, person, rng, years):
+        linear_predictor = self.estimate_next_risk(person)
         return linear_predictor
 
     def estimate_next_risk(self, person, rng=None, withResidual=False):
@@ -105,40 +100,3 @@ class StatsModelLinearRiskFactorModel:
 
         return linearPredictor+self.draw_from_residual_distribution(rng=rng) if withResidual else linearPredictor
 
-    def estimate_next_risk_vectorized(self, x, rng=None, withResidual=False):
-
-        # TODO: think about what to do with teh hard-coded strings for parameters and prefixes
-        linearPredictor = self.get_intercept()
-
-        for coeff_name, coeff_val in self.non_intercept_params.items():
-            if self.contains_interaction(coeff_name):
-                interactions = []
-                for interact in self.get_interactions(coeff_name):
-                    interactions.append(
-                        self.get_model_argument_for_coeff_name_vectorized(interact, x)
-                    )
-                model_argument = reduce(lambda x, y: x * y, interactions, 1)
-            else:
-                model_argument = self.get_model_argument_for_coeff_name_vectorized(coeff_name, x)
-
-            linearPredictor += coeff_val * model_argument
-
-        for coeff_name, manual_tuple in self.get_manual_parameters(True).items():
-            # the tuple gives one item as the regression coefficent and the second item as a method
-            # to get the values from a person
-            linearPredictor += manual_tuple[0] * manual_tuple[1](x)
-
-        if self.log_transform:
-            linearPredictor = np.exp(linearPredictor)
-
-        return linearPredictor+self.draw_from_residual_distribution(rng=rng) if withResidual else linearPredictor
-
-    def get_model_argument_for_coeff_name_vectorized(self, coeff_name, x):
-        if coeff_name not in self.argument_transforms_vectorized:
-            model_argument = x[coeff_name]
-        else:
-            prop_name, transforms = self.argument_transforms_vectorized[coeff_name]
-            for transform in list(transforms):
-                transform.prop_name = prop_name
-            model_argument = reduce(lambda v, t: t.apply(v), transforms, x)
-        return model_argument

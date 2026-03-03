@@ -27,6 +27,9 @@ class Validation:
         pf.add_filter(filterType="df",
                       filterName="lowAntiHypertensiveLimit",
                       filterFunction = lambda x: x[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]>0)
+        pf.add_filter(filterType="df",
+                      filterName="adults",
+                      filterFunction = lambda x: x[DynamicRiskFactorsType.AGE.value]>=18)
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=2013, personFilters=pf, nhanesWeights=True, distributions=False)
         pop.print_baseline_summary()
 

@@ -27,7 +27,10 @@ class PersonFactory:
     """A class used to obtain Person-objects using data from a variety of sources."""
 
     #a dictionary with microsim attributes as keys and dataframe column names as values.
-    #Useful to convert column names from the NHANES data to the names Microsim uses.'''
+    #This maps microsim standardized person attributes to the non-standardized NHANES dataframe.
+    #Useful to convert column names from the NHANES data to the names Microsim uses.
+    #We could avoid the use of this dictionary if we could standardize all inputs coming from 
+    #dataframes but this could be impossible since some dataframes are created by others, with their own codebooks, column names etc.
     #Q: this probably belongs somewhere else...but I also need to avoid circular imports...
     microsimToNhanes = {DynamicRiskFactorsType.SBP.value: "meanSBP",
                     DynamicRiskFactorsType.DBP.value: "meanDBP",
@@ -81,7 +84,9 @@ class PersonFactory:
         rng = np.random.default_rng()
 
         name = x.name
-   
+ 
+        adult = x.age>=18. #need to know for making the right bounds with the risk model repository below  
+  
         personStaticRiskFactors = {
                             StaticRiskFactorsType.RACE_ETHNICITY.value: RaceEthnicity(x.raceEthnicity),
                             StaticRiskFactorsType.EDUCATION.value: Education(x.education),
@@ -102,7 +107,7 @@ class PersonFactory:
                 personDynamicRiskFactors[rfd.value] = AlcoholCategory(x[rfd.value])
             else:
                 if (rfd!=DynamicRiskFactorsType.PVD) & (rfd!=DynamicRiskFactorsType.AFIB):
-                    personDynamicRiskFactors[rfd.value] = rfRepository.apply_bounds(rfd.value, x[rfd.value])
+                    personDynamicRiskFactors[rfd.value] = rfRepository.apply_bounds(rfd.value, x[rfd.value], adult=adult)
         personDynamicRiskFactors[DynamicRiskFactorsType.AFIB.value] = None
         personDynamicRiskFactors[DynamicRiskFactorsType.PVD.value] = None
 

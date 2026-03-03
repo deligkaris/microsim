@@ -33,6 +33,8 @@ class CVModelBase(ASCVDOutcomeModel):
         if (person._mi) | (person._stroke):
             cvRisk = cvRisk * self._secondary_prevention_multiplier
 
+        #cvRisk = (1./3.) * cvRisk
+
         tst = TreatmentStrategiesType.STATIN.value
         if "statinsAdded" in person._treatmentStrategies[tst]:
             statinsAdded = person._treatmentStrategies[tst]['statinsAdded']

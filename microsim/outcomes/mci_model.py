@@ -17,6 +17,9 @@ class MCIModel:
     def get_mci_for_person(self, person):
         mci = person.has_mci()
 
+        #if mci:
+        #    mci = mci if person._rng.uniform(size=1)<0.90727 else False # 0.90727 = (2/3)^(1/4), because I want the risk to be 2/3 over a 4 year simulation
+
         if mci:
             tst = TreatmentStrategiesType.WMD15.value
             if "wmd15MedsAdded" in person._treatmentStrategies[tst]:
@@ -27,4 +30,9 @@ class MCIModel:
             if "wmd20MedsAdded" in person._treatmentStrategies[tst]:
                 wmd20MedsAdded = person._treatmentStrategies[tst]['wmd20MedsAdded']
                 mci = True if ((wmd20MedsAdded>0) and (person._rng.uniform(size=1)<0.75)) else False
+  
+            tst = TreatmentStrategiesType.WMD25.value
+            if "wmd25MedsAdded" in person._treatmentStrategies[tst]:
+                wmd25MedsAdded = person._treatmentStrategies[tst]['wmd25MedsAdded']
+                mci = True if ((wmd25MedsAdded>0) and (person._rng.uniform(size=1)<0.69)) else False
         return mci
