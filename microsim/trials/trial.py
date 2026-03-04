@@ -224,8 +224,12 @@ class Trial:
                     rep += "   risk" + "  ciLow" + "  ciUpp" + "   risk\n"
                 elif analysisType == AnalysisType.COX:
                     rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue\n"
+                elif analysisType == AnalysisType.INCIDENCE_RATE:
+                    rep += " "*20 + "  " + "tRate/1kPY" + " " + "cRate/1kPY\n"
                 else:
-                    rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue" + " "*1 + "Inter.\n" 
+                    rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue" + " "*1 + "Inter.\n"
+                if analysisType.value not in self.results:
+                    continue
                 for key in self.results[analysisType.value].keys():
                     rep += f"{key:>20}: "
                     for result in self.results[analysisType.value][key]:

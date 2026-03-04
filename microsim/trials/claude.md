@@ -135,3 +135,15 @@ Choose analysis method based on outcome type:
 - **Binary outcomes at fixed timepoint**: Logistic regression
 - **Continuous outcomes**: Linear regression
 - **Simple risk comparisons**: Relative risk analysis
+- **Incidence rates per 1000 person-years**: Incidence rate analysis
+
+## Adding a New Analysis Type
+
+When adding a new `AnalysisType` to the outcome assessor, **always update all of the following**:
+
+1. `trial_outcome_assessor.py` — add the enum value and register an instance in `_analysis`
+2. `trial_outcome_assessor.py` — update validation in `add_outcome_assessment` if the new type requires a non-standard number of assessment functions (e.g., 2 functions like `cox` and `incidenceRate`, vs 1 for the rest)
+3. `incidence_rate_analysis.py` (or new file) — implement the analysis class with an `analyze(trial, assessmentFunctionDict, assessmentAnalysis)` method
+4. `trial_outcome_assessor_factory.py` — add default assessments for the new type
+5. **`trial.py` `__string__` method** — add an `elif analysisType == AnalysisType.NEW_TYPE:` branch with an appropriate column header for the results printout
+6. `claude.md` (this file) — update the statistical methods list and directory structure

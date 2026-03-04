@@ -2,6 +2,7 @@ from microsim.trials.relative_risk_analysis import RelativeRiskAnalysis
 from microsim.trials.cox_regression_analysis import CoxRegressionAnalysis
 from microsim.trials.linear_regression_analysis import LinearRegressionAnalysis
 from microsim.trials.logistic_regression_analysis import LogisticRegressionAnalysis
+from microsim.trials.incidence_rate_analysis import IncidenceRateAnalysis
 
 from enum import Enum
 
@@ -10,6 +11,7 @@ class AnalysisType(Enum):
     LOGISTIC = "logistic"
     COX = "cox"
     RELATIVE_RISK = "relativeRisk"
+    INCIDENCE_RATE = "incidenceRate"
 
 class TrialOutcomeAssessor:
     '''This class will store the specific analyses that will be obtained from a Trial instance.
@@ -28,13 +30,15 @@ class TrialOutcomeAssessor:
         self._analysis = {AnalysisType.LINEAR.value : LinearRegressionAnalysis(),
                           AnalysisType.LOGISTIC.value : LogisticRegressionAnalysis(),
                           AnalysisType.COX.value : CoxRegressionAnalysis(),
-                          AnalysisType.RELATIVE_RISK.value : RelativeRiskAnalysis()} 
+                          AnalysisType.RELATIVE_RISK.value : RelativeRiskAnalysis(),
+                          AnalysisType.INCIDENCE_RATE.value : IncidenceRateAnalysis()} 
 
     def add_outcome_assessment(self, assessmentName, assessmentFunctionDict, assessmentAnalysis):
         if assessmentAnalysis in self._analysis.keys():
             if assessmentName not in self._assessments.keys():
-                if (((assessmentAnalysis!="cox") & (len(assessmentFunctionDict)==1)) | 
-                    ((assessmentAnalysis=="cox") & (len(assessmentFunctionDict)==2))):
+                requiresTwoFunctions = assessmentAnalysis in ["cox", "incidenceRate"]
+                if ((not requiresTwoFunctions and len(assessmentFunctionDict) == 1) or
+                    (requiresTwoFunctions and len(assessmentFunctionDict) == 2)):
                     self._assessments[assessmentName] = {"assessmentFunctionDict": assessmentFunctionDict,
                                                          "assessmentAnalysis": assessmentAnalysis}
                 else:
