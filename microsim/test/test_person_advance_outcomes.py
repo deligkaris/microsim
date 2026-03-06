@@ -1,22 +1,22 @@
 from microsim.person import Person
-from microsim.gender import NHANESGender
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.outcome_model_repository import OutcomeModelRepository
-from microsim.outcome import Outcome
-from microsim.outcome import OutcomeType
-from microsim.education import Education
-from microsim.alcohol_category import AlcoholCategory
-from microsim.smoking_status import SmokingStatus
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome import Outcome
+from microsim.outcomes.outcome import OutcomeType
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
-from microsim.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
+from microsim.risk_factors.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
                                                    CohortStaticRiskFactorModelRepository,
                                                    CohortDefaultTreatmentModelRepository)
-from microsim.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.test.outcome_models_repositories import *
-from microsim.treatment import DefaultTreatmentsType
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.person_factory import PersonFactory
 from microsim.initialization_repository import InitializationRepository
 from microsim.population_factory import PopulationFactory

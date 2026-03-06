@@ -1,7 +1,7 @@
-from microsim.outcome import OutcomeType, Outcome
-from microsim.outcome_model_repository import OutcomeModelRepository
-from microsim.stroke_partition_model import StrokePartitionModel
-from microsim.mi_partition_model import MIPartitionModel
+from microsim.outcomes.outcome import OutcomeType, Outcome
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.stroke_partition_model import StrokePartitionModel
+from microsim.outcomes.mi_partition_model import MIPartitionModel
 
 class NonCVModelNever:
     def __init__(self):

@@ -2,20 +2,20 @@ import unittest
 import pandas as pd
 
 from microsim.person import Person
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.smoking_status import SmokingStatus
-from microsim.alcohol_category import AlcoholCategory
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.gcp_model import GCPModel
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.outcomes.gcp_model import GCPModel
 from microsim.test.do_not_change_risk_factors_model_repository import (
     DoNotChangeRiskFactorsModelRepository,
 )
-from microsim.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.treatment import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 
 class AlwaysNegativeOutcomeRepository(OutcomeModelRepository):
     def __init__(self):

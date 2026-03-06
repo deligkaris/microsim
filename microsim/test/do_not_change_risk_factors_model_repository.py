@@ -1,4 +1,4 @@
-from microsim.risk_model_repository import RiskModelRepository
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
 
 
 class DoNotChangeRiskFactorModel:

@@ -1,16 +1,16 @@
 from microsim.person import Person
-from microsim.education import Education
-from microsim.alcohol_category import AlcoholCategory
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.test.test_risk_model_repository import TestRiskModelRepository
 from microsim.population_factory import PopulationFactory
-from microsim.treatment import DefaultTreatmentsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.person_factory import PersonFactory
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.smoking_status import SmokingStatus
-from microsim.alcohol_category import AlcoholCategory
-from microsim.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
 
 import unittest
 import numpy as np

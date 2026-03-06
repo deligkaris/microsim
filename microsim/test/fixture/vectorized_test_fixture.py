@@ -1,12 +1,12 @@
 import unittest
 
-from microsim.gcp_model import GCPModel
-from microsim.alcohol_category import AlcoholCategory
-from microsim.education import Education
-from microsim.gender import NHANESGender
+from microsim.outcomes.gcp_model import GCPModel
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
 from microsim.person import Person
-from microsim.race_ethnicity import NHANESRaceEthnicity
-from microsim.smoking_status import SmokingStatus
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
@@ -25,7 +25,7 @@ class VectorizedTestFixture(unittest.TestCase):
             test_person = Person(
                 age=71,
                 gender=NHANESGender.MALE,
-                raceEthnicity=NHANESRaceEthnicity.NON_HISPANIC_WHITE,
+                raceEthnicity=RaceEthnicity.NON_HISPANIC_WHITE,
                 sbp=144.667,
                 dbp=52.6667,
                 a1c=9.5,

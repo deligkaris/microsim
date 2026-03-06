@@ -3,30 +3,32 @@ import numpy as np
 import pandas as pd
 
 from microsim.person import Person
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.smoking_status import SmokingStatus
-from microsim.alcohol_category import AlcoholCategory
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.dementia_model import DementiaModel
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.outcomes.dementia_model import DementiaModel
 from microsim.test.do_not_change_risk_factors_model_repository import (
     DoNotChangeRiskFactorsModelRepository,
 )
-from microsim.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.initialization_repository import InitializationRepository
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
-from microsim.treatment import DefaultTreatmentsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory
-from microsim.dementia_model_repository import DementiaModelRepository
-from microsim.cv_model_repository import CVModelRepository
+from microsim.outcomes.dementia_model_repository import DementiaModelRepository
+from microsim.outcomes.cv_model_repository import CVModelRepository
 from microsim.person_filter import PersonFilter
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.population_model_repository import PopulationRepositoryType
-from microsim.cognition_outcome import CognitionOutcome
-from microsim.outcome import OutcomeType
+from microsim.outcomes.cognition_outcome import CognitionOutcome
+from microsim.outcomes.outcome import OutcomeType
+from microsim.outcomes.wmh_outcome import WMHOutcome
+from microsim.outcomes.wmh_severity import WMHSeverity
 
 class TestDementiaModel(unittest.TestCase):
 
@@ -55,15 +57,11 @@ class TestDementiaModel(unittest.TestCase):
                                "name": "test_case_one"}, index=[0])
         self._test_case_one = PersonFactory.get_nhanes_person(self.x_test_case_one.iloc[0])
         self._test_case_one._afib = [False]
-        #I initially used to advance the person to get an initial cognition outcome to get the initial gcp but then 
-        #I realized I can just add the cognition outcomes
-        #self._test_case_one.advance(1, popModelRepository[PopulationRepositoryType.DYNAMIC_RISK_FACTORS.value],
-        #                       popModelRepository[PopulationRepositoryType.DEFAULT_TREATMENTS.value],
-        #                       popModelRepository[PopulationRepositoryType.OUTCOMES.value],
-        #                       None)
-        #self._test_case_one._outcomes[OutcomeType.COGNITION][0][1].gcp = 58.68
+        # Clear auto-generated cognition outcome from PersonFactory, then add test-specific ones
+        self._test_case_one._outcomes[OutcomeType.COGNITION] = []
         self._test_case_one.add_outcome(CognitionOutcome(False, False, 58.68))
         self._test_case_one.add_outcome(CognitionOutcome(False, False, 58.68 - 1.1078128))
+        self._test_case_one.add_outcome(WMHOutcome(False, sbi=False, wmh=False, wmhSeverityUnknown=False, wmhSeverity=WMHSeverity.NO))
 
         # 2740201178fos
         self.x_test_case_two = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 34.504449,
@@ -88,13 +86,10 @@ class TestDementiaModel(unittest.TestCase):
                                "name": "test_case_two"}, index=[0])
         self._test_case_two = PersonFactory.get_nhanes_person(self.x_test_case_two.iloc[0])
         self._test_case_two._afib = [False]
-        #self._test_case_two.advance(1, popModelRepository[PopulationRepositoryType.DYNAMIC_RISK_FACTORS.value],
-        #                       popModelRepository[PopulationRepositoryType.DEFAULT_TREATMENTS.value],
-        #                       popModelRepository[PopulationRepositoryType.OUTCOMES.value],
-        #                       None)
-        #self._test_case_two._outcomes[OutcomeType.COGNITION][0][1].gcp = 58.68
+        self._test_case_two._outcomes[OutcomeType.COGNITION] = []
         self._test_case_two.add_outcome(CognitionOutcome(False, False, 58.68 ))
         self._test_case_two.add_outcome(CognitionOutcome(False, False, 58.68 - 1.7339989))
+        self._test_case_two.add_outcome(WMHOutcome(False, sbi=False, wmh=False, wmhSeverityUnknown=False, wmhSeverity=WMHSeverity.NO))
 
         self.x_test_case_one_parametric = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 40,
                                StaticRiskFactorsType.GENDER.value: NHANESGender.MALE.value,
@@ -117,10 +112,8 @@ class TestDementiaModel(unittest.TestCase):
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_one_parametric"}, index=[0])
         self._test_case_one_parametric = PersonFactory.get_nhanes_person(self.x_test_case_one_parametric.iloc[0])
-        self._test_case_one_parametric._afib = [False] 
-        #self._test_case_one_parametric._gcp[0] = 25
-        # GCP slope is zero
-        #self._test_case_one_parametric._gcp.append(self._test_case_one_parametric._gcp[0])
+        self._test_case_one_parametric._afib = [False]
+        self._test_case_one_parametric._outcomes[OutcomeType.COGNITION] = []
         self._test_case_one_parametric.add_outcome(CognitionOutcome(False, False, 25 ))
         self._test_case_one_parametric.add_outcome(CognitionOutcome(False, False, 25 ))
 
@@ -147,9 +140,7 @@ class TestDementiaModel(unittest.TestCase):
                                "name": "test_case_two_parametric"}, index=[0])
         self._test_case_two_parametric = PersonFactory.get_nhanes_person(self.x_test_case_two_parametric.iloc[0])
         self._test_case_two_parametric._afib = [False]
-        #self._test_case_two_parametric._gcp[0] = 75
-        #self._test_case_two_parametric._gcp.append(self._test_case_two._gcp[0])
-        #I cannot tell if we need to use test case two initial gcp here or a 0 gcp slope
+        self._test_case_two_parametric._outcomes[OutcomeType.COGNITION] = []
         self._test_case_two_parametric.add_outcome(CognitionOutcome(False, False, 75 ))
         self._test_case_two_parametric.add_outcome(CognitionOutcome(False, False, 75 ))
 
@@ -176,10 +167,8 @@ class TestDementiaModel(unittest.TestCase):
                                "name": "test_case_three_parametric"}, index=[0])
         self._test_case_three_parametric = PersonFactory.get_nhanes_person(self.x_test_case_three_parametric.iloc[0])
         self._test_case_three_parametric._afib = [False]
-        #self._test_case_three_parametric._gcp[0] = 75
-        #self._test_case_three_parametric._gcp.append(self._test_case_two._gcp[0])
+        self._test_case_three_parametric._outcomes[OutcomeType.COGNITION] = []
         self._test_case_three_parametric.add_outcome(CognitionOutcome(False, False, 75))
-        #I cannot tell if this was supposed to be a 0 slope or really use test case two initial GCP
         self._test_case_three_parametric.add_outcome(CognitionOutcome(False, False, 75))
 
     def test_dementia_after_one_year(self):

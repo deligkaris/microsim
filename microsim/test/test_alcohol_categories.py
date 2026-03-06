@@ -1,6 +1,6 @@
 import unittest
 
-from microsim.alcohol_category import AlcoholCategory
+from microsim.risk_factors.alcohol_category import AlcoholCategory
 
 
 class TestAlcoholCategories(unittest.TestCase):

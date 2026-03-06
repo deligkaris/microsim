@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 
 from microsim.person import Person
-from microsim.outcome_model_repository import OutcomeModelRepository
-from microsim.outcome import Outcome
-from microsim.outcome import OutcomeType
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome import Outcome
+from microsim.outcomes.outcome import OutcomeType
 from microsim.population_factory import PopulationFactory
 from microsim.test.outcome_models_repositories import AlwaysNonFatalStroke, AlwaysFatalStroke, AlwaysNonFatalMI
 

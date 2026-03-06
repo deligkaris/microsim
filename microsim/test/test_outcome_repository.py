@@ -1,18 +1,18 @@
-from microsim.gender import NHANESGender
+from microsim.risk_factors.gender import NHANESGender
 from microsim.person import Person
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.smoking_status import SmokingStatus
-from microsim.outcome_model_repository import OutcomeModelRepository
-from microsim.education import Education
-from microsim.alcohol_category import AlcoholCategory
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
-from microsim.treatment import DefaultTreatmentsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.outcome import OutcomeType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.outcomes.outcome import OutcomeType
 
 import unittest
 import numpy as np

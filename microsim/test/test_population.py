@@ -1,23 +1,23 @@
 #from microsim.person import Person
-#from microsim.gcp_model import GCPModel
-#from microsim.gender import NHANESGender
-#from microsim.race_ethnicity import NHANESRaceEthnicity
-#from microsim.smoking_status import SmokingStatus
-#from microsim.education import Education
-#from microsim.alcohol_category import AlcoholCategory
+#from microsim.outcomes.gcp_model import GCPModel
+#from microsim.risk_factors.gender import NHANESGender
+#from microsim.risk_factors.race_ethnicity import RaceEthnicity
+#from microsim.risk_factors.smoking_status import SmokingStatus
+#from microsim.risk_factors.education import Education
+#from microsim.risk_factors.alcohol_category import AlcoholCategory
 #from microsim.population_factory import PopulationFactory
 
 import unittest
 import pandas as pd
 import numpy as np
-from microsim.outcome import OutcomeType, Outcome
+from microsim.outcomes.outcome import OutcomeType, Outcome
 from microsim.population_factory import PopulationFactory
 
 class TestPopulation(unittest.TestCase):
     def setUp(self):
         self.test_n = 50000
         full_nhanes = pd.read_stata("microsim/data/fullyImputedDataset.dta")
-        test_nhanes = full_nhanes.loc[full_nhanes.year == 2015]
+        test_nhanes = full_nhanes.loc[(full_nhanes.year == 2015) & (full_nhanes.age >= 18)]
         ageMeanList = list()
         for i in range(100):
             test_sample = test_nhanes.sample( self.test_n, weights=test_nhanes.WTINT2YR, replace=True )
@@ -30,8 +30,8 @@ class TestPopulation(unittest.TestCase):
         test_people = test_pop._people
 
         test_ages = [x._age[0] for x in test_people]
-        self.assertTrue(np.mean(test_ages) < self.mean + 2*self.sd)
-        self.assertTrue(np.mean(test_ages) > self.mean - 2*self.sd)
+        self.assertLess(np.mean(test_ages), self.mean + 2*self.sd)
+        self.assertGreater(np.mean(test_ages), self.mean - 2*self.sd)
 
 def initializeAFib(person):
     return False

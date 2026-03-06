@@ -1,7 +1,7 @@
-from microsim.risk_model_repository import RiskModelRepository
-#from microsim.cohort_risk_model_repository import CohortRiskModelRepository
-from microsim.treatment import DefaultTreatmentsType
-from microsim.age_model import AgeModel
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
+#from microsim.risk_factors.cohort_risk_model_repository import CohortRiskModelRepository
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.age_model import AgeModel
 
 # we'll let anti hypertensives get updated as per normal...
 class StaticRiskFactorOverTimeRepository(RiskModelRepository):

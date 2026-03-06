@@ -1,22 +1,22 @@
 from microsim.person import Person
-from microsim.gender import NHANESGender
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.outcome_model_repository import OutcomeModelRepository
-from microsim.outcome import Outcome
-from microsim.alcohol_category import AlcoholCategory
-from microsim.outcome import OutcomeType
-from microsim.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome import Outcome
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.outcomes.outcome import OutcomeType
+from microsim.risk_factors.education import Education
 from microsim.test.test_risk_model_repository import TestRiskModelRepository
-from microsim.gcp_model import GCPModel
-from microsim.dementia_model import DementiaModel
+from microsim.outcomes.gcp_model import GCPModel
+from microsim.outcomes.dementia_model import DementiaModel
 from microsim.person_factory import PersonFactory
-from microsim.smoking_status import SmokingStatus
+from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.outcome_models_repositories import *
-from microsim.treatment import DefaultTreatmentsType
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.population_factory import PopulationFactory
 from microsim.static_risk_factor_over_time_repository import StaticDefaultTreatmentModelRepository, StaticRiskFactorOverTimeRepository
-from microsim.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
+from microsim.risk_factors.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
                                                    CohortStaticRiskFactorModelRepository,
                                                    CohortDefaultTreatmentModelRepository)
 

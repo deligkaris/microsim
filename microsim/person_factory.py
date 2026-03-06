@@ -22,6 +22,7 @@ from microsim.population_type import PopulationType
 from microsim.risk_factors.modality_model import ModalityPrevalenceModel
 from microsim.outcomes.wmh_model_repository import WMHModelRepository
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
+from microsim.outcomes.cognition_model_repository import CognitionModelRepository
 
 class PersonFactory:
     """A class used to obtain Person-objects using data from a variety of sources."""
@@ -171,6 +172,10 @@ class PersonFactory:
         outcome = EpilepsyPrevalenceModel().get_next_outcome(person)
         person.add_outcome(outcome)
 
+        cognitionOutcome = CognitionModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
+        cognitionOutcome.priorToSim = True
+        person.add_outcome(cognitionOutcome)
+
         return person
 
     @staticmethod
@@ -247,7 +252,11 @@ class PersonFactory:
  
         outcome = EpilepsyPrevalenceModel().get_next_outcome(person)
         person.add_outcome(outcome)
-       
+
+        cognitionOutcome = CognitionModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
+        cognitionOutcome.priorToSim = True
+        person.add_outcome(cognitionOutcome)
+
         return person
 
 

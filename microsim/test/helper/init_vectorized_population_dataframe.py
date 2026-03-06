@@ -4,7 +4,7 @@ import pandas as pd
 
 from microsim.person import Person
 from microsim.population import Population
-from microsim.gcp_model import GCPModel
+from microsim.outcomes.gcp_model import GCPModel
 
 
 def init_vectorized_population_dataframe(person_list: List[Person], *, with_base_gcp=False, rng=None):
