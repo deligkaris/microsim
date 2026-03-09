@@ -346,7 +346,10 @@ class Person:
  
     @property
     def _baselineGcp(self):
-        return self._outcomes[OutcomeType.COGNITION][0][1].gcp
+        inSimCognition = [o for o in self._outcomes[OutcomeType.COGNITION] if not o[1].priorToSim]
+        if len(inSimCognition) == 0:
+            raise RuntimeError("No in-simulation cognition outcome available for baseline GCP.")
+        return inSimCognition[0][1].gcp
 
     @property
     def _gcpSlope(self):
@@ -438,7 +441,7 @@ class Person:
     # generlized logistic function mapping GCP to MMSE in combined cohrot data
     def get_current_mmse(self):
         numerator = 30  # ceiling effect
-        denominator = (0.9924 + np.exp(-0.0795 * self._gcp[-1])) ** (1 / 0.1786)
+        denominator = (0.9924 + np.exp(-0.0795 * self._outcomes[OutcomeType.COGNITION][-1][1].gcp)) ** (1 / 0.1786)
         return numerator / denominator
 
     @property

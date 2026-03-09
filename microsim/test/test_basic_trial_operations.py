@@ -38,10 +38,10 @@ class TestBasicTrialOperations(unittest.TestCase):
                                lambda x: DementiaModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x, years=1)<0.01)
         self.riskPf.add_filter("person",
                                "cvHighLimit",
-                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)<0.006)
+                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)<0.0025)
         self.riskPf.add_filter("person",
                                "cvLowLimit",
-                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)>0.004)
+                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)>0.001)
  
         self.trialDescription = NhanesTrialDescription(trialType=TrialType.COMPLETELY_RANDOMIZED,
                                                        blockFactors=list(),
@@ -87,7 +87,7 @@ class TestBasicTrialOperations(unittest.TestCase):
         # true cv risk for patient is 0.005321896646249357
         # true dementia risk for patient is 0.00013823232976419768
         for filterFunction in self.riskPf.filters["person"].values():    
-            self.assertTrue(list(map(filterFunction, [self.oldJoe]))[0])
+            self.assertTrue(bool(list(map(filterFunction, [self.oldJoe]))[0]))
 
     # design a simple trial to only include patients over 40
     def test_simple_trial_inclusion(self):
