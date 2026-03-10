@@ -579,17 +579,17 @@ class Person:
     def has_ci(self):
         return self.has_cognitive_impairement()
 
-    def has_mild_cognitive_impairment(self):
+    def has_mild_cognitive_impairment(self, inSim=True):
         '''Assesses if GCP is below 1.5 standard deviations from the average GCP for that age and year in simulation
         This linear regression model for the average gcp by age and year in simulation was developed by using a simulated NHANES population
-        A similar linear regression model was derived for the standard deviations by age and year in simulation but that showed that the 
+        A similar linear regression model was derived for the standard deviations by age and year in simulation but that showed that the
         standard deviations were essentially constant'''
         gcpMean = 72.3182 + -0.2945 * self._current_age  + -0.5884 * self.get_years_in_simulation() #takes into account years in simulation and age
         gcpCutoff = gcpMean - 1.5 * 9.05
-        return self.get_outcome_item_last(OutcomeType.COGNITION, "gcp") < gcpCutoff
+        return self.get_outcome_item_last(OutcomeType.COGNITION, "gcp", inSim=inSim) < gcpCutoff
 
-    def has_mci(self):
-        return self.has_mild_cognitive_impairment()
+    def has_mci(self, inSim=True):
+        return self.has_mild_cognitive_impairment(inSim=inSim)
 
     def get_outcome_item(self, outcomeType, phenotypeItem, inSim=True):
         return list(map(lambda x: getattr(x[1], phenotypeItem), self.get_outcomes(outcomeType, inSim=inSim)))

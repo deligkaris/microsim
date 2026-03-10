@@ -14,6 +14,50 @@ from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.modality import Modality
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.outcomes.cognition_outcome import CognitionOutcome
+from microsim.person_filter_factory import PersonFilterFactory
+
+
+class TestMCIFilter(unittest.TestCase):
+    def setUp(self):
+        self.x = pd.DataFrame({
+            DynamicRiskFactorsType.AGE.value: 60,
+            StaticRiskFactorsType.GENDER.value: NHANESGender.MALE.value,
+            StaticRiskFactorsType.RACE_ETHNICITY.value: RaceEthnicity.NON_HISPANIC_WHITE.value,
+            DynamicRiskFactorsType.SBP.value: 120,
+            DynamicRiskFactorsType.DBP.value: 80,
+            DynamicRiskFactorsType.A1C.value: 5.5,
+            DynamicRiskFactorsType.HDL.value: 50,
+            DynamicRiskFactorsType.TOT_CHOL.value: 200,
+            DynamicRiskFactorsType.BMI.value: 25,
+            DynamicRiskFactorsType.LDL.value: 90,
+            DynamicRiskFactorsType.TRIG.value: 150,
+            DynamicRiskFactorsType.WAIST.value: 45,
+            DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: False,
+            StaticRiskFactorsType.EDUCATION.value: Education.COLLEGEGRADUATE.value,
+            StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus.NEVER.value,
+            DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholCategory.NONE.value,
+            DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: 0,
+            DefaultTreatmentsType.STATIN.value: 0,
+            DynamicRiskFactorsType.CREATININE.value: 0.9,
+            "name": "testPerson"}, index=[0])
+        self.pf = PersonFilterFactory.get_person_filter()
+        self.filterFunction = self.pf.filters["person"]["noMCI"]
+
+    def test_mci_filter_excludes_person_with_low_gcp(self):
+        person = PersonFactory.get_nhanes_person(self.x.iloc[0])
+        person._afib = [False]
+        # MCI cutoff for age 60: 72.3182 - 0.2945*60 - 1.5*9.05 = 41.0732
+        person._outcomes[OutcomeType.COGNITION] = []
+        person.add_outcome(CognitionOutcome(False, True, 30))
+        self.assertFalse(self.filterFunction(person))
+
+    def test_mci_filter_keeps_person_with_normal_gcp(self):
+        person = PersonFactory.get_nhanes_person(self.x.iloc[0])
+        person._afib = [False]
+        person._outcomes[OutcomeType.COGNITION] = []
+        person.add_outcome(CognitionOutcome(False, True, 55))
+        self.assertTrue(self.filterFunction(person))
 
 
 class TestPriorCognitionNHANES(unittest.TestCase):

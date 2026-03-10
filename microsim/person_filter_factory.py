@@ -12,8 +12,10 @@ class PersonFilterFactory:
             pf.add_filter("df", "lowSBPLimit", lambda x: x[DynamicRiskFactorsType.SBP.value]>126)
             pf.add_filter("df", "lowDBPLimit", lambda x: x[DynamicRiskFactorsType.DBP.value]>85)
             pf.add_filter("df", "highAntiHypertensivesLimit", lambda x: x[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]<=3)
-            pf.add_filter("person", "highDemAndCVLimit", 
+            pf.add_filter("person", "highDemAndCVLimit",
                                     lambda x: (CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)< (0.00477) ))
+            pf.add_filter("person", "noMCI",
+                                    lambda x: not x.has_mci(inSim=False))
             #self.add_filter("person", "highDemAndCVLimit", 
         #                    lambda x: ((DementiaModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x, years=1)< (9.3*10**(-5)) ) &
             #                           CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)< (0.00477) ))
