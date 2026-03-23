@@ -17,14 +17,18 @@ class RelativeRiskAnalysis:
     def get_absolute_risk(self, nSuccesses, nTotal):
         if nTotal>0.:
             risk = nSuccesses/nTotal
-            #will use this transformation to ensure that the confidence interval is bounded between 0 and 1
-            logitRisk = np.log( risk / (1.-risk) )
-            #standard error of logit of R, see chapter 17, Modern Epidemiology 
-            seLogitRisk = np.sqrt( 1/nSuccesses + 1./(nTotal-nSuccesses) ) 
-            ciLowerLogit = logitRisk - 1.96*seLogitRisk #while this is a linear transformation
-            ciUpperLogit = logitRisk + 1.96*seLogitRisk
-            ciLower = self.inverse_logit(ciLowerLogit) #this is not, so I cannot just report the SE
-            ciUpper = self.inverse_logit(ciUpperLogit) #I need to report both lower and upper points
+            if nSuccesses == 0 or nSuccesses == nTotal:
+                ciLower = None
+                ciUpper = None
+            else:
+                #will use this transformation to ensure that the confidence interval is bounded between 0 and 1
+                logitRisk = np.log( risk / (1.-risk) )
+                #standard error of logit of R, see chapter 17, Modern Epidemiology
+                seLogitRisk = np.sqrt( 1/nSuccesses + 1./(nTotal-nSuccesses) )
+                ciLowerLogit = logitRisk - 1.96*seLogitRisk #while this is a linear transformation
+                ciUpperLogit = logitRisk + 1.96*seLogitRisk
+                ciLower = self.inverse_logit(ciLowerLogit) #this is not, so I cannot just report the SE
+                ciUpper = self.inverse_logit(ciUpperLogit) #I need to report both lower and upper points
             #wilson score is better than the normal approximation to get the CI, fyi the midpoint of the wilson interval might be different from MLE
             ciLowerWilson, ciUpperWilson = proportion_confint(count=nSuccesses, nobs=nTotal, alpha=0.05, method='wilson')
             return risk, ciLower, ciUpper, ciLowerWilson, ciUpperWilson
