@@ -34,8 +34,6 @@ class DementiaModel(StatsModelCoxModel):
     def get_risk_for_person(self, person, years=1):
         risk = super().get_risk_for_person(person, years=1)
 
-        risk = (1./3.) * risk
-
         tst = TreatmentStrategiesType.WMD15.value
         if "wmd15MedsAdded" in person._treatmentStrategies[tst]:
             wmd15MedsAdded = person._treatmentStrategies[tst]['wmd15MedsAdded']

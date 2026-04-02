@@ -11,7 +11,6 @@ class MCIModel:
         return Outcome(OutcomeType.MCI, False)
 
     def get_next_outcome(self, person):
-        #return self.generate_next_outcome(person) if person.has_mci() else None   
         return self.generate_next_outcome(person) if self.get_mci_for_person(person) else None
 
     def get_mci_for_person(self, person):
