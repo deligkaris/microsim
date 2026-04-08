@@ -495,6 +495,8 @@ class Population:
                               *Population.get_outcome_history_per_wave(x).values()])),
                           self._people))
         df = pd.concat([pd.DataFrame(nestedList[i], columns=columnNames) for i in range(len(nestedList))], ignore_index=True)
+        boolCols = df.select_dtypes(include="bool").columns
+        df[boolCols] = df[boolCols].astype(int)
         return df
 
     def get_baseline_attr(self, rf):
