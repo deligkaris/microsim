@@ -54,5 +54,17 @@ class OutcomeType(Enum):
     DEATH = "death"
     QUALITYADJUSTED_LIFE_YEARS = "qalys"
     #making the order explicit here because some outcomes depend on other ones
-    _order_ = ["WMH", "COGNITION", "CI", "MCI", "CARDIOVASCULAR", "STROKE", "MI", "NONCARDIOVASCULAR",  
+    _order_ = ["WMH", "COGNITION", "CI", "MCI", "CARDIOVASCULAR", "STROKE", "MI", "NONCARDIOVASCULAR",
                "DEMENTIA", "EPILEPSY", "DEATH",  "QUALITYADJUSTED_LIFE_YEARS"]
+
+class EventOutcomeType(Enum):
+    WMH = "wmh"
+    CI = "ci"
+    MCI = "mci"
+    CARDIOVASCULAR = "cv"
+    STROKE = "stroke"
+    MI = "mi"
+    NONCARDIOVASCULAR = "noncv"
+    DEMENTIA = "dementia"
+    EPILEPSY = "epilepsy"
+    DEATH = "death"

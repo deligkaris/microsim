@@ -18,7 +18,7 @@ from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.gfr_equation import GFREquation
 from microsim.initialization_repository import InitializationRepository
 from microsim.nhanes_risk_model_repository import NHANESRiskModelRepository
-from microsim.outcomes.outcome import Outcome, OutcomeType
+from microsim.outcomes.outcome import Outcome, OutcomeType, EventOutcomeType
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.person import Person
 from microsim.person_factory import PersonFactory
@@ -371,11 +371,17 @@ class Population:
                                                         populationPercents[gender.value])])
         return expectedOutcomes
 
-    def get_outcome_risk(self, outcomeType):
+    def get_outcome_cumulative_incidence(self, outcomeType):
         return sum(list(map(lambda x: x.has_outcome_during_simulation(outcomeType), self._people)))/self._n
 
-    def get_any_outcome_risk(self, outcomeTypeList):
+    def get_any_outcome_cumulative_incidence(self, outcomeTypeList):
         return sum(list(map(lambda x: x.has_any_outcome(outcomeTypeList, inSim=True), self._people)))/self._n
+
+    def get_outcome_cumulative_prevalence(self, outcomeType):
+        return sum(list(map(lambda x: x.has_outcome(outcomeType, inSim=False), self._people)))/self._n
+
+    def get_any_outcome_cumulative_prevalence(self, outcomeTypeList):
+        return sum(list(map(lambda x: x.has_any_outcome(outcomeTypeList, inSim=False), self._people)))/self._n
 
     def get_outcome_count(self, outcomeType):
         return sum(self.has_outcome(outcomeType))
@@ -435,21 +441,58 @@ class Population:
         )
         return pd.Series([event[0] for event in events]).mean()
 
+    @staticmethod
+    def get_outcome_flags_per_wave(person):
+        """For each event outcome type, returns a 1/0 list per wave indicating whether
+           the outcome occurred at that wave's age. Excludes priorToSim outcomes.
+           Returns a dictionary keyed by OutcomeType."""
+        nWaves = person._waveCompleted + 1
+        outcomeTypes = [OutcomeType(eot.value) for eot in EventOutcomeType]
+        flags = {ot: [0]*nWaves for ot in outcomeTypes}
+        for ot in outcomeTypes:
+            if ot not in person._outcomes:
+                continue
+            for outcomeAge, outcome in person._outcomes[ot]:
+                if outcome.priorToSim:
+                    continue
+                flags[ot][person.get_wave_for_age(outcomeAge)] = 1
+        return flags
+
+    @staticmethod
+    def get_outcome_history_per_wave(person):
+        """For each event outcome type, returns a 1/0 list per wave indicating whether
+           the person had the outcome in a previous wave (not the current wave).
+           Excludes priorToSim outcomes. Returns a dictionary keyed by OutcomeType."""
+        flags = Population.get_outcome_flags_per_wave(person)
+        history = {}
+        for ot, outcomeFlags in flags.items():
+            cumulative = [0]*len(outcomeFlags)
+            seen = 0
+            for i in range(len(outcomeFlags)):
+                cumulative[i] = seen
+                seen = max(seen, outcomeFlags[i])
+            history[ot] = cumulative
+        return history
+
     def get_all_person_years_as_df(self):
         """This function creates a dataframe where each row is a person-year from the simulation.
-           Thus a single person object will be represented in N rows in this dataframe where N is the 
+           Thus a single person object will be represented in N rows in this dataframe where N is the
            number of years this person object lived in the simulation."""
-    
+
         srfList = list(self._modelRepository["staticRiskFactors"]._repository.keys())
         drfList = list(self._modelRepository["dynamicRiskFactors"]._repository.keys())
         dtList = list(self._modelRepository["defaultTreatments"]._repository.keys())
-        columnNames = ["name"] + srfList + drfList + dtList
-        nestedList = list(map(lambda x: 
+        outcomeNames = [eot.value for eot in EventOutcomeType]
+        outcomeHistoryNames = [eot.value + "History" for eot in EventOutcomeType]
+        columnNames = ["name"] + srfList + drfList + dtList + outcomeNames + outcomeHistoryNames
+        nestedList = list(map(lambda x:
                           list(zip(*[
                               *[[getattr(x, "_"+"name")]*(x._waveCompleted+1)],
                               *[[getattr(x, "_"+attr)]*(x._waveCompleted+1) for attr in srfList],
                               *[getattr(x,"_"+attr) for attr in drfList],
-                              *[getattr(x,"_"+attr) for attr in dtList]])), 
+                              *[getattr(x,"_"+attr) for attr in dtList],
+                              *Population.get_outcome_flags_per_wave(x).values(),
+                              *Population.get_outcome_history_per_wave(x).values()])),
                           self._people))
         df = pd.concat([pd.DataFrame(nestedList[i], columns=columnNames) for i in range(len(nestedList))], ignore_index=True)
         return df
@@ -846,12 +889,14 @@ class Population:
         '''Prints the age and the prevalence rate of that age.
            If groups is True, it calculates the prevalence by age group, a string, not the age (integer).'''
         prevalence = self.get_prevalence_by_age(outcomeType, groups=groups)
+        cumulativePrevalence = self.get_outcome_cumulative_prevalence(outcomeType)
         print(" "*25, "-"*53)
         print(" "*25, f"{outcomeType.value} prevalence rate")
         print(" "*25, "-"*53)
         print(" "*19, "age", "  rate")
         for group, rate in prevalence.items():
             print(f"{group:>23} {rate:6.3f}")
+        print(f"{'cumulative':>23} {cumulativePrevalence:6.3f}")
 
     def print_outcome_incidence_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
         self.print_outcome_incidence(outcomeType=outcomeType, groups=groups)
