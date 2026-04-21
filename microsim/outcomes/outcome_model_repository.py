@@ -27,13 +27,14 @@ class OutcomeModelRepository:
             riskScaling = {}
         cvScaling = riskScaling.get(OutcomeType.CARDIOVASCULAR, 1.0)
         dementiaScaling = riskScaling.get(OutcomeType.DEMENTIA, 1.0)
+        mciScaling = riskScaling.get(OutcomeType.MCI, 1.0)
         self._repository = {
                           OutcomeType.WMH: WMHModelRepository(),
                           OutcomeType.DEMENTIA: DementiaModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=dementiaScaling),
                           OutcomeType.EPILEPSY: EpilepsyModelRepository(),
                           OutcomeType.COGNITION: CognitionModelRepository(),
                           OutcomeType.CI: CIModelRepository(),
-                          OutcomeType.MCI: MCIModelRepository(),
+                          OutcomeType.MCI: MCIModelRepository(riskScaling=mciScaling),
                           OutcomeType.QUALITYADJUSTED_LIFE_YEARS: QALYModelRepository(),
                           OutcomeType.CARDIOVASCULAR: CVModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=cvScaling),
                           OutcomeType.MI: MIPartitionModelRepository(),

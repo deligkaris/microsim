@@ -4,8 +4,8 @@ from microsim.treatment_strategies.treatment_strategies import TreatmentStrategi
 class MCIModel:
     """Mild cognitive impairment model."""
 
-    def __init__(self):
-        pass
+    def __init__(self, riskScaling=1.0):
+        self._riskScaling = riskScaling
 
     def generate_next_outcome(self, person):
         return Outcome(OutcomeType.MCI, False)
@@ -16,8 +16,11 @@ class MCIModel:
     def get_mci_for_person(self, person):
         mci = person.has_mci()
 
+        if mci: 
++            mci = mci if person._rng.uniform(size=1)> (self._riskScaling)**(1./4.) else False
+
         #if mci: #need to test this
-        #    mci = mci if person._rng.uniform(size=1)<0.90727 else False # 0.90727 = (2/3)^(1/4), because I want the risk to be 2/3 over a 4 year simulation
+        #    mci = mci if person._rng.uniform(size=1)>0.75 else False # 0.90727 = (2/3)^(1/4), because I want the risk to be 2/3 over a 4 year simulation
 
         if mci:
             tst = TreatmentStrategiesType.WMD15.value
