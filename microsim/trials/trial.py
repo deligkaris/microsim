@@ -35,8 +35,9 @@ class Trial:
         The People will be obtained according to the TrialType, the PopulationModelRepository is determined 
         based on the PopulationType (eg for NHANES there is only one self-consistent PopulationModelRepository).'''
         treatedPeople, controlPeople = self.get_trial_people()
-        return (Population(treatedPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType)),
-                Population(controlPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType)))
+        modelRepoArgs = self.trialDescription.modelRepoArgs if hasattr(self.trialDescription, 'modelRepoArgs') else {}
+        return (Population(treatedPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType, **modelRepoArgs)),
+                Population(controlPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType, **modelRepoArgs)))
             
     def get_trial_people(self):
         '''Returns treatedPeople and controlPeople based on TrialType.
@@ -60,15 +61,15 @@ class Trial:
     def get_trial_people_non_randomized(self):
         '''Returns People without performing any kind of process on them.
         Sets a unique index on all Person objects of the trial.'''
-        treatedPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.popArgs)
-        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.popArgs)
+        treatedPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.peopleArgs)
+        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.peopleArgs)
         PopulationFactory.set_index_in_people(controlPeople, start=treatedPeople.shape[0])
         return treatedPeople, controlPeople
     
     def get_trial_people_identical(self):
         '''treated and control people are identical.
         Sets a unique index on all Person objects of the trial.'''
-        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.popArgs)
+        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.peopleArgs)
         treatedPeople = Population.get_people_copy(controlPeople)
         PopulationFactory.set_index_in_people(controlPeople, start=treatedPeople.shape[0])
         return treatedPeople, controlPeople
@@ -196,7 +197,7 @@ class Trial:
 
     def print_treatment_strategy_variables_distributions_by_risk(self):
         '''Prints distribution information about each treatment strategy variable for each CV risk quintile.'''
-        wmhSpecific = self.trialDescription.wmhSpecific if "wmhSpecific" in self.trialDescription.popArgs.keys() else True
+        wmhSpecific = self.trialDescription.wmhSpecific if hasattr(self.trialDescription, 'wmhSpecific') else True
         self.treatedPop.print_lastyear_treatment_strategy_distributions_by_risk(wmhSpecific=wmhSpecific) 
 
     def __string__(self):

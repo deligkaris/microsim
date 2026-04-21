@@ -153,11 +153,11 @@ class PopulationFactory:
             raise RuntimeError("Unknown popType in PopulationFactory.get_people function.")
 
     @staticmethod
-    def get_population_model_repo(popType):
+    def get_population_model_repo(popType, **kwargs):
         if popType == PopulationType.NHANES:
             return PopulationFactory.get_nhanes_population_model_repo()
         elif popType == PopulationType.KAISER:
-            return PopulationFactory.get_kaiser_population_model_repo()
+            return PopulationFactory.get_kaiser_population_model_repo(**kwargs)
         elif popType == PopulationType.STATE:
             return PopulationFactory.get_nhanes_population_model_repo()
         else:
@@ -303,11 +303,11 @@ class PopulationFactory:
                                          CohortStaticRiskFactorModelRepository())
 
     @staticmethod
-    def get_kaiser_population_model_repo(wmhSpecific=True):
+    def get_kaiser_population_model_repo(wmhSpecific=True, riskScaling=None):
         """Return the default, self-consistent set of models for advancing a Kaiser Population."""
         return PopulationModelRepository(CohortDynamicRiskFactorModelRepository(),
                                          CohortDefaultTreatmentModelRepository(),
-                                         OutcomeModelRepository(wmhSpecific=wmhSpecific),
+                                         OutcomeModelRepository(wmhSpecific=wmhSpecific, riskScaling=riskScaling),
                                          CohortStaticRiskFactorModelRepository())
 
     @staticmethod    
@@ -319,9 +319,9 @@ class PopulationFactory:
         return Population(people, popModelRepository)
 
     @staticmethod
-    def get_kaiser_population(n=1000, personFilters=None, wmhSpecific=True):
+    def get_kaiser_population(n=1000, personFilters=None, wmhSpecific=True, riskScaling=None):
         people = PopulationFactory.get_kaiser_people(n=n, personFilters=personFilters)
-        popModelRepository = PopulationFactory.get_kaiser_population_model_repo(wmhSpecific=wmhSpecific)
+        popModelRepository = PopulationFactory.get_kaiser_population_model_repo(wmhSpecific=wmhSpecific, riskScaling=riskScaling)
         return Population(people, popModelRepository)
 
     @staticmethod

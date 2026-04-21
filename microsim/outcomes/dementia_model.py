@@ -16,9 +16,10 @@ class DementiaModel(StatsModelCoxModel):
     # recalibrated fit to population incidence equation in notebook: identifyOptimalBaselineSurvivalParametersForDementia, linear multiplier = 0.5, quad = 0.05
 
     def __init__(
-        self, linearTerm=1.33371239e-05, quadraticTerm=5.64485841e-05, wmhSpecific=True, populationRecalibration=True
+        self, linearTerm=1.33371239e-05, quadraticTerm=5.64485841e-05, wmhSpecific=True, populationRecalibration=True, riskScaling=1.0
     ):
         super().__init__(CoxRegressionModel({}, {}, linearTerm, quadraticTerm), False)
+        self._riskScaling = riskScaling
         if populationRecalibration:
             self.one_year_linear_cumulative_hazard = self.one_year_linear_cumulative_hazard * 0.5
             self.one_year_quad_cumulative_hazard = self.one_year_quad_cumulative_hazard * 0.175
@@ -33,6 +34,8 @@ class DementiaModel(StatsModelCoxModel):
 
     def get_risk_for_person(self, person, years=1):
         risk = super().get_risk_for_person(person, years=1)
+
+        risk = risk * self._riskScaling
 
         tst = TreatmentStrategiesType.WMD15.value
         if "wmd15MedsAdded" in person._treatmentStrategies[tst]:

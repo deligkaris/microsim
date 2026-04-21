@@ -2,15 +2,15 @@ from microsim.outcomes.dementia_model import DementiaModel
 from microsim.risk_factors.modality import Modality
 
 class DementiaModelRepository:
-    def __init__(self, wmhSpecific=True):
+    def __init__(self, wmhSpecific=True, riskScaling=1.0):
         #if we want the dementia model to return an average risk for the kaiser population, independently of their WMH outcome, then
         #we need to both adjust the intercept and make sure the model does not utilize the WMH outcome
         #I think we could also implement this in the same way the non cv model repository is setup (push the intercept changes to the model initialization)
         if wmhSpecific:
-            brainScanModel =  DementiaModel(linearTerm=1.33371239e-05 + 1.0e-04, quadraticTerm=5.64485841e-05 + 5.14857143e-05, wmhSpecific=wmhSpecific) 
+            brainScanModel =  DementiaModel(linearTerm=1.33371239e-05 + 1.0e-04, quadraticTerm=5.64485841e-05 + 5.14857143e-05, wmhSpecific=wmhSpecific, riskScaling=riskScaling)
         else:
-            brainScanModel =  DementiaModel(linearTerm=1.33371239e-05 + 0.0001, quadraticTerm=5.64485841e-05 + 0.0002575, wmhSpecific=wmhSpecific)
-        self._models = {"NHANES": DementiaModel(), #default linear and quadratic terms for NHANES
+            brainScanModel =  DementiaModel(linearTerm=1.33371239e-05 + 0.0001, quadraticTerm=5.64485841e-05 + 0.0002575, wmhSpecific=wmhSpecific, riskScaling=riskScaling)
+        self._models = {"NHANES": DementiaModel(riskScaling=riskScaling), #default linear and quadratic terms for NHANES
                         #this is what I had from the initial optimization, not sure how well it will work now that I modified death rates
                         #"brainScan": DementiaModel(linearTerm=3.05555556e-04, quadraticTerm=2.40000000e-06)} #had a brain scan
                         #"brainScan": DementiaModel(linearTerm=1.33371239e-05 + 2.42857143e-04, quadraticTerm=5.64485841e-05 + 2.59428571e-05)} #had a brain scan

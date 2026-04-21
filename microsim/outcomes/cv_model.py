@@ -7,7 +7,8 @@ from microsim.treatment_strategies.treatment_strategies import TreatmentStrategi
 class CVModelBase(ASCVDOutcomeModel):
     """CV is an outcome type that we need to use with some outcome type model implementations (stroke and mi).
        The male and female cv models share the same functions so this base class includes all common elements."""
-    def __init__(self, coefficients, tot_chol_hdl_ratio, black_race_x_tot_chol_hdl_ratio, wmhSpecific=True):
+    def __init__(self, coefficients, tot_chol_hdl_ratio, black_race_x_tot_chol_hdl_ratio, wmhSpecific=True, riskScaling=1.0):
+        self._riskScaling = riskScaling
         self._secondary_prevention_multiplier = 1.0
         self._mi_case_fatality = 0.13
         self._secondary_mi_case_fatality = 0.13
@@ -29,6 +30,8 @@ class CVModelBase(ASCVDOutcomeModel):
     def get_risk_for_person(self, person, years=1):
         #risk without any adjustment for bp meds
         cvRisk = super().get_risk_for_person(person, person._rng, years=years, interceptChangeFor1bpMedsAdded=self.interceptChangeFor1bpMedsAdded)
+
+        cvRisk = cvRisk * self._riskScaling
 
         if (person._mi) | (person._stroke):
             cvRisk = cvRisk * self._secondary_prevention_multiplier
@@ -83,7 +86,7 @@ class CVModelMale(CVModelBase):
     #intercept = -12.00771437 #3
     #intercept = -12.101460   #4
 
-    def __init__(self, intercept = -11.679980, wmhSpecific=True):
+    def __init__(self, intercept = -11.679980, wmhSpecific=True, riskScaling=1.0):
         maleCVCoefficients = {
             "lagAge": 0.064200,
             "black": 0.482835,
@@ -105,7 +108,7 @@ class CVModelMale(CVModelBase):
         }
         tot_chol_hdl_ratio=0.193307
         black_race_x_tot_chol_hdl_ratio=-0.117749
-        super().__init__(maleCVCoefficients, tot_chol_hdl_ratio, black_race_x_tot_chol_hdl_ratio, wmhSpecific=wmhSpecific)
+        super().__init__(maleCVCoefficients, tot_chol_hdl_ratio, black_race_x_tot_chol_hdl_ratio, wmhSpecific=wmhSpecific, riskScaling=riskScaling)
 
 class CVModelFemale(CVModelBase):
     """CV model details for female gender."""
@@ -117,7 +120,7 @@ class CVModelFemale(CVModelBase):
     #intercept = -13.150500  #3
     #intercept = -13.244250  #4
 
-    def __init__(self, intercept = -12.823110, wmhSpecific=True):
+    def __init__(self, intercept = -12.823110, wmhSpecific=True, riskScaling=1.0):
         femaleCVCoefficients = {
             "lagAge": 0.106501,
             "black": 0.432440,
@@ -139,6 +142,6 @@ class CVModelFemale(CVModelBase):
         }
         tot_chol_hdl_ratio=0.151318
         black_race_x_tot_chol_hdl_ratio=0.070498
-        super().__init__(femaleCVCoefficients, tot_chol_hdl_ratio, black_race_x_tot_chol_hdl_ratio, wmhSpecific=wmhSpecific)
+        super().__init__(femaleCVCoefficients, tot_chol_hdl_ratio, black_race_x_tot_chol_hdl_ratio, wmhSpecific=wmhSpecific, riskScaling=riskScaling)
 
 

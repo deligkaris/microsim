@@ -21,17 +21,21 @@ class OutcomeModelRepository:
        Examples are death outcomes, mi outcomes.
        Outcomes are Outcome subclasses, eg StrokeOutcome, when more information about the outcome need to be stored, an outcome phenotype.
        Examples are StrokeOutcome (nihss, type etc), GCPOutcome (gcp), QALYOutcome (qaly)."""
-    def __init__(self, wmhSpecific=True):
+    def __init__(self, wmhSpecific=True, riskScaling=None):
         self._wmhSpecific = wmhSpecific
+        if riskScaling is None:
+            riskScaling = {}
+        cvScaling = riskScaling.get(OutcomeType.CARDIOVASCULAR, 1.0)
+        dementiaScaling = riskScaling.get(OutcomeType.DEMENTIA, 1.0)
         self._repository = {
                           OutcomeType.WMH: WMHModelRepository(),
-                          OutcomeType.DEMENTIA: DementiaModelRepository(wmhSpecific = self._wmhSpecific),
+                          OutcomeType.DEMENTIA: DementiaModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=dementiaScaling),
                           OutcomeType.EPILEPSY: EpilepsyModelRepository(),
                           OutcomeType.COGNITION: CognitionModelRepository(),
                           OutcomeType.CI: CIModelRepository(),
                           OutcomeType.MCI: MCIModelRepository(),
                           OutcomeType.QUALITYADJUSTED_LIFE_YEARS: QALYModelRepository(),
-                          OutcomeType.CARDIOVASCULAR: CVModelRepository(wmhSpecific = self._wmhSpecific),
+                          OutcomeType.CARDIOVASCULAR: CVModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=cvScaling),
                           OutcomeType.MI: MIPartitionModelRepository(),
                           OutcomeType.STROKE: StrokePartitionModelRepository(),
                           OutcomeType.NONCARDIOVASCULAR: NonCVModelRepository(wmhSpecific = self._wmhSpecific),

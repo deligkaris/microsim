@@ -176,11 +176,12 @@ class NhanesTrialDescription(TrialDescription):
         self.year = year
         self.nhanesWeights=nhanesWeights
         self.distributions=distributions
-        self.popArgs = {"n":self.sampleSize,
-                        "year":self.year,
-                        "personFilters":self.personFilters,
-                        "nhanesWeights":self.nhanesWeights,
-                        "distributions":self.distributions}
+        self.peopleArgs = {"n":self.sampleSize,
+                           "year":self.year,
+                           "personFilters":self.personFilters,
+                           "nhanesWeights":self.nhanesWeights,
+                           "distributions":self.distributions}
+        self.modelRepoArgs = {}
         self.popType = PopulationType.NHANES
 
     def __str__(self):
@@ -204,12 +205,15 @@ class KaiserTrialDescription(TrialDescription):
                  treatmentStrategies=TreatmentStrategyRepository(),
                  nWorkers=1,
                  personFilters=None,
-                 wmhSpecific=True):
+                 wmhSpecific=True,
+                 riskScaling=None):
         super().__init__(trialType, blockFactors, sampleSize, duration, treatmentStrategies, nWorkers=nWorkers, personFilters=personFilters)
         self.wmhSpecific = wmhSpecific
-        self.popArgs = {"n":self.sampleSize,
-                        "personFilters":self.personFilters,
-                        "wmhSpecific": self.wmhSpecific}
+        self.riskScaling = riskScaling
+        self.peopleArgs = {"n":self.sampleSize,
+                           "personFilters":self.personFilters}
+        self.modelRepoArgs = {"wmhSpecific": self.wmhSpecific,
+                              "riskScaling": self.riskScaling}
         self.popType = PopulationType.KAISER
 
     def __str__(self):
