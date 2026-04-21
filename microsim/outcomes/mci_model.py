@@ -16,8 +16,8 @@ class MCIModel:
     def get_mci_for_person(self, person):
         mci = person.has_mci()
 
-        if mci: 
-+            mci = mci if person._rng.uniform(size=1)> (self._riskScaling)**(1./4.) else False
+        if mci:
+            mci = mci if person._rng.uniform(size=1)> (self._riskScaling)**(1./4.) else False
 
         #if mci: #need to test this
         #    mci = mci if person._rng.uniform(size=1)>0.75 else False # 0.90727 = (2/3)^(1/4), because I want the risk to be 2/3 over a 4 year simulation
