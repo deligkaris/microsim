@@ -38,10 +38,10 @@ class TestBasicTrialOperations(unittest.TestCase):
                                lambda x: DementiaModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x, years=1)<0.01)
         self.riskPf.add_filter("person",
                                "cvHighLimit",
-                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)<0.0025)
+                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)<0.006)
         self.riskPf.add_filter("person",
                                "cvLowLimit",
-                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)>0.001)
+                               lambda x: CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)>0.004)
  
         self.trialDescription = NhanesTrialDescription(trialType=TrialType.COMPLETELY_RANDOMIZED,
                                                        blockFactors=list(),
