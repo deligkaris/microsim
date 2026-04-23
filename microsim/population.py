@@ -836,6 +836,22 @@ class Population:
                 printString += f"{maProportion:> 7.2f} "
                 print(printString)
     
+    def print_outcome_risk_distributions(self, outcomeTypeList=[OutcomeType.CARDIOVASCULAR]):
+        '''Prints the distribution (min, 0.25, med, 0.75, max, mean, sd) of per-person predicted risk
+        for each outcome in outcomeTypeList, computed over alive people using the population's own
+        outcome model repository. Each outcome model's default time horizon is used.'''
+        outcomeModelRepository = self._modelRepository[PopulationRepositoryType.OUTCOMES.value]
+        alivePeople = list(filter(lambda x: x.is_alive, self._people))
+        print(" "*25, "Printing outcome risk distributions...")
+        print(" "*25, "alive people count= ", f"{Population.get_alive_people_count(self._people):<8}")
+        print(" "*25, "unique alive people count= ", f"{Population.get_unique_alive_people_count(self._people):<8}")
+        print(" "*25, "min", " "*4, "0.25", " "*2, "med", " "*3, "0.75", " "*3, "max" , " "*2, "mean", " "*3, "sd")
+        print(" "*25, "-"*53)
+        for ot in outcomeTypeList:
+            modelRepo = outcomeModelRepository._repository[ot]
+            risks = list(map(lambda x: modelRepo.select_outcome_model_for_person(x).get_risk_for_person(x), alivePeople))
+            print(f"{ot.value:>23} {np.min(risks):> 7.3f} {np.quantile(risks, 0.25):> 7.3f} {np.quantile(risks, 0.5):> 7.3f} {np.quantile(risks, 0.75):> 7.3f} {np.max(risks):> 7.3f} {np.mean(risks):> 7.3f} {np.std(risks):> 7.3f}")
+
     def print_cv_standardized_rates(self):
         outcomes = [OutcomeType.MI, OutcomeType.STROKE, OutcomeType.DEATH,
                     OutcomeType.CARDIOVASCULAR, OutcomeType.NONCARDIOVASCULAR, OutcomeType.DEMENTIA]
