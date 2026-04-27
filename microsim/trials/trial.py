@@ -210,29 +210,29 @@ class Trial:
             for analysisType in AnalysisType:
                 rep += "\t" + "Analysis: " + f"{analysisType.value}\n"
                 if analysisType == AnalysisType.RELATIVE_RISK:
-                    rep += " "*20 + "  " 
-                    rep += " |" + "-"*5 + "relative" + "-"*5 + "|" 
-                    rep += " |" + "-"*12 + "treated" + "-"*13 + "|" 
-                    rep += " |" + "-"*12 + "control" + "-"*13 + "|" 
+                    rep += " "*25 + "  "
+                    rep += " |" + "-"*5 + "relative" + "-"*5 + "|"
+                    rep += " |" + "-"*12 + "treated" + "-"*13 + "|"
+                    rep += " |" + "-"*12 + "control" + "-"*13 + "|"
                     rep += " |" + "-"*4 + "diff*100." + "-"*5 + "|" +  "  diff*100/anyMedsAdded\n"
-                    rep += " "*20 + "  " 
+                    rep += " "*25 + "  "
                     rep += " |mle-|" + " |" + "-"*3 + "score" + "-"*3 + "|"
-                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|" 
-                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|" 
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|"
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|"
                     rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |mle-|\n"
-                    rep += " "*20 + "  " + "   risk" + "  ciLow" + "  ciUpp" + "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp" 
-                    rep += "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp" 
+                    rep += " "*25 + "  " + "   risk" + "  ciLow" + "  ciUpp" + "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp"
+                    rep += "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp"
                     rep += "   risk" + "  ciLow" + "  ciUpp" + "   risk\n"
                 elif analysisType == AnalysisType.COX:
-                    rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue\n"
+                    rep += " "*25 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue\n"
                 elif analysisType == AnalysisType.INCIDENCE_RATE:
-                    rep += " "*20 + "  " + "tRate/1kPY" + " " + "cRate/1kPY\n"
+                    rep += " "*25 + "  " + "tRate/1kPY" + " " + "cRate/1kPY\n"
                 else:
-                    rep += " "*20 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue" + " "*1 + "Inter.\n"
+                    rep += " "*25 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue" + " "*1 + "Inter.\n"
                 if analysisType.value not in self.results:
                     continue
                 for key in self.results[analysisType.value].keys():
-                    rep += f"{key:>20}: "
+                    rep += f"{key:>25}: "
                     for result in self.results[analysisType.value][key]:
                         if (result is not None) & (result is not float('inf')):
                             rep += f"{result:>7.3f}"
