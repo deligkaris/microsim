@@ -166,6 +166,31 @@ Wave semantics:
 - Wave indexing: -1 before first advance, then 0, 1, 2, ...
 - Outcome arrays indexed by wave number
 
+## priorToSim outcomes carry age=None
+
+Any outcome flagged `priorToSim=True` is stored with `age=None` instead of a real age:
+
+```python
+person._outcomes[OutcomeType.STROKE] = [
+    (None, StrokeOutcome(..., priorToSim=True)),   # priorToSim entry — age slot is None
+    (65, StrokeOutcome(..., priorToSim=False)),    # in-sim entry — real age
+]
+```
+
+`Person.add_outcome` enforces this automatically: it stores `None` whenever `outcome.priorToSim` is True.
+
+**Why None instead of a real age?** Fail-loud convention. PriorToSim outcomes have no meaningful "age at event" within the simulation, so any code that incorrectly mixes them into age-based arithmetic crashes with `TypeError` (e.g., `None < int`) rather than silently returning wrong answers.
+
+**How to write code that consumes outcome ages safely:**
+- Filter priorToSim entries before doing any age arithmetic. The standard helper is `Person.get_outcomes_during_simulation(outcomeType)`, which returns only in-sim outcomes.
+- Equivalently, when iterating, gate on `not outcome.priorToSim` *before* the age comparison (use Python's short-circuiting `and`, not bitwise `&`).
+- Functions that legitimately can return `None` (e.g., `get_age_at_last_outcome`) should be checked for `None` by their callers.
+
+**Functions in `Person` that already filter priorToSim correctly:**
+`get_outcomes_during_simulation`, `has_outcome_during_simulation`, `has_outcome_during_simulation_prior_to_wave`, `get_outcomes` (with default `inSim=True`), `get_age_at_first_outcome` (default `inSim=True`), `get_age_at_last_outcome_in_sim`, `has_outcome_by_age`, `get_person_years_with_outcome_by_end_of_wave`, `has_incident_event`, `get_ages_with_outcome`.
+
+**Regression coverage:** `test/test_outcome_age_handling.py` pins down the convention across these functions.
+
 ## Common Tasks
 
 ### Creating a New Outcome Model

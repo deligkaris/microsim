@@ -10,9 +10,9 @@ from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
-from microsim.risk_factors.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
-                                                   CohortStaticRiskFactorModelRepository,
-                                                   CohortDefaultTreatmentModelRepository)
+from microsim.risk_factors.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository,
+                                                   CohortStaticRiskFactorModelRepository)
+from microsim.default_treatments.default_treatment_model_repository import DefaultTreatmentModelRepository
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.test.outcome_models_repositories import *
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
@@ -146,7 +146,7 @@ class TestPersonAdvanceOutcomes(unittest.TestCase):
     def test_advance_outcomes_fatal_mi(self):
 
         self.joe.advance(1, CohortDynamicRiskFactorModelRepository(), 
-                                 CohortDefaultTreatmentModelRepository(), 
+                                 DefaultTreatmentModelRepository(), 
                                    AlwaysFatalMIThroughRate(),
                                    None)         
 
@@ -157,7 +157,7 @@ class TestPersonAdvanceOutcomes(unittest.TestCase):
     def test_advance_outcomes_fatal_stroke(self):
 
         self.joe.advance(1, CohortDynamicRiskFactorModelRepository(),     
-                                 CohortDefaultTreatmentModelRepository(),
+                                 DefaultTreatmentModelRepository(),
                                    AlwaysFatalStrokeThroughRate(),
                                    None)
 
@@ -168,7 +168,7 @@ class TestPersonAdvanceOutcomes(unittest.TestCase):
     def test_advance_outcomes_nonfatal_mi(self):
 
         self.joe.advance(1, CohortDynamicRiskFactorModelRepository(),     
-                                 CohortDefaultTreatmentModelRepository(),
+                                 DefaultTreatmentModelRepository(),
                                    AlwaysNonFatalMIThroughRate(),
                                    None)
 
@@ -178,7 +178,7 @@ class TestPersonAdvanceOutcomes(unittest.TestCase):
     def test_advance_outcomes_nonfatal_stroke(self):
 
         self.joe.advance(1, CohortDynamicRiskFactorModelRepository(), 
-                                 CohortDefaultTreatmentModelRepository(),
+                                 DefaultTreatmentModelRepository(),
                                    AlwaysNonFatalStrokeThroughRate(),
                                    None)
 

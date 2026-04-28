@@ -45,7 +45,7 @@ Default treatments are categorized similarly to risk factors:
 - `default_treatments.py`: Default treatment enumerations (DefaultTreatmentsType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType)
 
 ### Repository Implementation
-- `risk_factors/cohort_risk_model_repository.py`: Contains `CohortDefaultTreatmentModelRepository` (lines 42-46)
+- `default_treatment_model_repository.py`: Contains `DefaultTreatmentModelRepository`
   - Registers statistical models for predicting default treatment changes over time
   - Uses linear probability models and integer-rounded linear models
 
@@ -59,7 +59,7 @@ Default treatments are categorized similarly to risk factors:
 Default treatments use the same repository pattern as risk factors and outcomes:
 
 ```
-CohortDefaultTreatmentModelRepository
+DefaultTreatmentModelRepository
   ↓ extends
 RiskModelRepository
   ↓ contains
@@ -69,7 +69,7 @@ data/*CohortModelSpec.json
 ```
 
 **Repository hierarchy:**
-1. `CohortDefaultTreatmentModelRepository` (in `risk_factors/cohort_risk_model_repository.py`):
+1. `DefaultTreatmentModelRepository` (in `default_treatments/default_treatment_model_repository.py`):
    - Inherits from `RiskModelRepository`
    - Maps DefaultTreatmentsType → Statistical model
    - Initializes models using cohort model specifications
@@ -214,9 +214,9 @@ Default treatments are available in outcome model predictions via `model_argumen
    - Add JSON spec file: `data/newTreatmentCohortModel.json`
    - Include regression coefficients for predicting treatment use
 
-4. **Register in repository** (`risk_factors/cohort_risk_model_repository.py`):
+4. **Register in repository** (`default_treatments/default_treatment_model_repository.py`):
    ```python
-   class CohortDefaultTreatmentModelRepository(RiskModelRepository):
+   class DefaultTreatmentModelRepository(RiskModelRepository):
        def __init__(self):
            super().__init__()
            self._initialize_linear_probability_risk_model(
@@ -296,4 +296,4 @@ class TestDefaultTreatments(unittest.TestCase):
 - **microsim/outcomes/claude.md**: Outcome models may use default treatments as predictors
 - **person.py**: For default treatment storage, tracking, and update logic (lines 92-94, 140-146, 162-166)
 - **population_model_repository.py**: For repository access via PopulationRepositoryType enum
-- **risk_factors/cohort_risk_model_repository.py**: For CohortDefaultTreatmentModelRepository implementation (lines 42-46)
+- **default_treatments/default_treatment_model_repository.py**: For DefaultTreatmentModelRepository implementation

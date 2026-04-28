@@ -229,7 +229,8 @@ class Person:
     def add_outcome(self, outcome):
         """Adds the outcome to the person object."""
         if outcome is not None:
-            self._outcomes[outcome.type].append((self._current_age, outcome))
+            age = None if outcome.priorToSim else self._current_age
+            self._outcomes[outcome.type].append((age, outcome))
 
     def has_outcome_at_current_age(self, outcome):
         ageAtLastOutcome = self.get_age_at_last_outcome(outcome)
@@ -459,10 +460,11 @@ class Person:
     def has_incident_event(self, outcomeType):
         # luciana-tag..this feels messy there is probably a better way to deal weith this.
         # age is updated after dementia events are set, so "incident demetnia" is dementia as of the last wave
+        inSimOutcomes = self.get_outcomes_during_simulation(outcomeType)
         return (
-            (len(self._outcomes[outcomeType]) > 0)
+            (len(inSimOutcomes) > 0)
             and (len(self._age) >= 2)
-            and (self._outcomes[outcomeType][0][0] == self._age[-2])
+            and (inSimOutcomes[0][0] == self._age[-2])
         )
 
     def has_incident_dementia(self):
@@ -650,7 +652,7 @@ class Person:
     
     def has_outcome_by_age(self, outcomeType, age, inSim=True):
         for outcome_tuple in self._outcomes[outcomeType]:
-            if (outcome_tuple[0]<=age) & (not outcome_tuple[1].priorToSim):
+            if (not outcome_tuple[1].priorToSim) and (outcome_tuple[0]<=age):
                 return True
         return False
 
@@ -801,7 +803,7 @@ class Person:
     def get_person_years_with_outcome_by_end_of_wave(self, outcomeType=OutcomeType.STROKE, wave=3):
         '''Returns the number of person years during which person has outcome.
         Note that wave starts from 0 with a population, so wave=0 would be the end of the first wave.'''
-        outcomes = self._outcomes[outcomeType]
+        outcomes = self.get_outcomes_during_simulation(outcomeType)
         #keep age of outcome, convert age to waveForAge, check if waveForAge is less than wave, then count how many
         personYearsWithOutcome = len(list(filter(lambda y: y<=wave, map(lambda x: self.get_wave_for_age(x[0]), outcomes))))
         if (personYearsWithOutcome<0) | (personYearsWithOutcome>wave):
@@ -820,7 +822,7 @@ class Person:
 
     def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
         '''Returns a list with the ages of the person that did have outcome'''
-        return list(map(lambda x: x[0], self._outcomes[outcomeType]))
+        return list(map(lambda x: x[0], self.get_outcomes_during_simulation(outcomeType)))
 
     def get_ages_without_outcome(self, outcomeType=OutcomeType.STROKE):
         '''Returns a list with the ages of the person that did not have the outcome'''

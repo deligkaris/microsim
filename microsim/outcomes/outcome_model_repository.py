@@ -9,6 +9,8 @@ from microsim.outcomes.non_cv_model_repository import NonCVModelRepository
 from microsim.outcomes.death_model_repository import DeathModelRepository
 from microsim.outcomes.ci_model_repository import CIModelRepository
 from microsim.outcomes.mci_model_repository import MCIModelRepository
+from microsim.outcomes.diabetes_model_repository import DiabetesModelRepository
+from microsim.outcomes.chronic_kidney_disease_model_repository import ChronicKidneyDiseaseModelRepository
 from microsim.outcomes.wmh_model_repository import WMHModelRepository
 from microsim.outcomes.epilepsy_model_repository import EpilepsyModelRepository
 
@@ -35,6 +37,8 @@ class OutcomeModelRepository:
                           OutcomeType.COGNITION: CognitionModelRepository(),
                           OutcomeType.CI: CIModelRepository(),
                           OutcomeType.MCI: MCIModelRepository(riskScaling=mciScaling),
+                          OutcomeType.DIABETES: DiabetesModelRepository(),
+                          OutcomeType.CHRONIC_KIDNEY_DISEASE: ChronicKidneyDiseaseModelRepository(),
                           OutcomeType.QUALITYADJUSTED_LIFE_YEARS: QALYModelRepository(),
                           OutcomeType.CARDIOVASCULAR: CVModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=cvScaling),
                           OutcomeType.MI: MIPartitionModelRepository(),

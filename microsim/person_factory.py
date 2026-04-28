@@ -133,14 +133,15 @@ class PersonFactory:
             selfReportStrokeAge=x.selfReportStrokeAge
             #Q: we should not add the stroke outcome in case of "else"? A: No, this is the way it should be
             if selfReportStrokeAge is not None and selfReportStrokeAge > 1:
-                selfReportStrokeAge = selfReportStrokeAge if selfReportStrokeAge <= x.age else x.age
-                personOutcomes[OutcomeType.STROKE].append((selfReportStrokeAge, StrokeOutcome(False, None, None, None, priorToSim=True)))
+                personOutcomes[OutcomeType.STROKE].append((None, StrokeOutcome(False, None, None, None, priorToSim=True)))
         if "selfReportMIAge" in x.index:
             #add pre-simulation mi outcomes
             selfReportMIAge=rng.integers(18, x.age) if x.selfReportMIAge == 99999 else x.selfReportMIAge
             if selfReportMIAge is not None and selfReportMIAge > 1:
-                selfReportMIAge = selfReportMIAge if selfReportMIAge <= x.age else x.age
-                personOutcomes[OutcomeType.MI].append((selfReportMIAge, Outcome(OutcomeType.MI, False, priorToSim=True)))
+                personOutcomes[OutcomeType.MI].append((None, Outcome(OutcomeType.MI, False, priorToSim=True)))
+
+        if personDynamicRiskFactors[DynamicRiskFactorsType.A1C.value] >= 6.5:
+            personOutcomes[OutcomeType.DIABETES].append((None, Outcome(OutcomeType.DIABETES, False, priorToSim=True)))
 
         return (name, personStaticRiskFactors, personDynamicRiskFactors, personDefaultTreatments, personTreatmentStrategies, personOutcomes)
 

@@ -12,9 +12,9 @@ from microsim.population import Population
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.population_model_repository import PopulationModelRepository, PopulationRepositoryType
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
-from microsim.risk_factors. cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
-                                                                 CohortStaticRiskFactorModelRepository,
-                                                                 CohortDefaultTreatmentModelRepository)
+from microsim.risk_factors. cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository,
+                                                                 CohortStaticRiskFactorModelRepository)
+from microsim.default_treatments.default_treatment_model_repository import DefaultTreatmentModelRepository
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
@@ -298,7 +298,7 @@ class PopulationFactory:
     def get_nhanes_population_model_repo():
         """Return the default, self-consistent set of models for advancing an NHANES Population."""
         return PopulationModelRepository(CohortDynamicRiskFactorModelRepository(),
-                                         CohortDefaultTreatmentModelRepository(),
+                                         DefaultTreatmentModelRepository(),
                                          OutcomeModelRepository(),
                                          CohortStaticRiskFactorModelRepository())
 
@@ -306,7 +306,7 @@ class PopulationFactory:
     def get_kaiser_population_model_repo(wmhSpecific=True, riskScaling=None):
         """Return the default, self-consistent set of models for advancing a Kaiser Population."""
         return PopulationModelRepository(CohortDynamicRiskFactorModelRepository(),
-                                         CohortDefaultTreatmentModelRepository(),
+                                         DefaultTreatmentModelRepository(),
                                          OutcomeModelRepository(wmhSpecific=wmhSpecific, riskScaling=riskScaling),
                                          CohortStaticRiskFactorModelRepository())
 

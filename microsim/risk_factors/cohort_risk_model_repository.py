@@ -6,7 +6,6 @@ from microsim.risk_factors.pvd_model import PVDIncidenceModel
 from microsim.risk_factors.age_model import AgeModel
 from microsim.risk_factors.afib_model import AFibIncidenceModel
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 
 class CohortStaticRiskFactorModelRepository:
     def __init__(self):
@@ -38,12 +37,6 @@ class CohortDynamicRiskFactorModelRepository(RiskModelRepository):
         self._initialize_linear_risk_model(DynamicRiskFactorsType.DBP.value, "logDbpCohortModel", log=True)
 
         self._initialize_linear_probability_risk_model(DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value, "anyPhysicalActivityCohortModel")
-
-class CohortDefaultTreatmentModelRepository(RiskModelRepository):
-    def __init__(self):
-        super().__init__()
-        self._initialize_linear_probability_risk_model(DefaultTreatmentsType.STATIN.value, "statinCohortModel")
-        self._initialize_int_rounded_linear_risk_model(DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value, "antiHypertensiveCountCohortModel")
 
 class AlcoholCategoryModel(StatsModelRoundedLinearRiskFactorModel):
     def estimate_next_risk(self, person):
