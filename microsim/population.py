@@ -484,10 +484,11 @@ class Population:
         dtList = list(self._modelRepository["defaultTreatments"]._repository.keys())
         outcomeNames = [eot.value for eot in EventOutcomeType]
         outcomeHistoryNames = [eot.value + "History" for eot in EventOutcomeType]
-        columnNames = ["name"] + srfList + drfList + dtList + outcomeNames + outcomeHistoryNames
+        columnNames = ["name", "index"] + srfList + drfList + dtList + outcomeNames + outcomeHistoryNames
         nestedList = list(map(lambda x:
                           list(zip(*[
                               *[[getattr(x, "_"+"name")]*(x._waveCompleted+1)],
+                              *[[getattr(x, "_"+"index")]*(x._waveCompleted+1)],
                               *[[getattr(x, "_"+attr)]*(x._waveCompleted+1) for attr in srfList],
                               *[getattr(x,"_"+attr) for attr in drfList],
                               *[getattr(x,"_"+attr) for attr in dtList],
