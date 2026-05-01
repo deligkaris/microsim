@@ -8,6 +8,7 @@ from microsim.outcomes.chronic_kidney_disease_model_repository import (
     ChronicKidneyDiseasePrevalenceModelRepository,
 )
 from microsim.outcomes.epilepsy_model_repository import EpilepsyPrevalenceModelRepository
+from microsim.outcomes.cognition_model_repository import CognitionPrevalenceModelRepository
 
 
 class OutcomePrevalenceModelRepository:
@@ -18,7 +19,7 @@ class OutcomePrevalenceModelRepository:
     def __init__(self):
         self._repository = {
             OutcomeType.WMH:                      None,
-            OutcomeType.COGNITION:                None,
+            OutcomeType.COGNITION:                CognitionPrevalenceModelRepository(),
             OutcomeType.CI:                       None,
             OutcomeType.MCI:                      None,
             OutcomeType.DIABETES:                 DiabetesPrevalenceModelRepository(),

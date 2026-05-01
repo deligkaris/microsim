@@ -336,3 +336,21 @@ class GCPStrokeModel:
         random_effect_slope_term = random_effect_slope * yearsSinceStroke
 
         return linPred + random_effect + random_effect_slope_term + residual
+
+
+class CognitionPrevalenceModel:
+    """Seeds the baseline GCP cognition outcome at Person construction.
+
+    Cognition is a continuous score (GCP), not a binary event, so this model always emits a
+    CognitionOutcome (priorToSim=True) rather than gating on a probability. The post-stroke
+    GCP model is not used here because priorToSim outcomes carry age=None and the post-stroke
+    model needs an age-at-last-stroke."""
+
+    _outcomeType = OutcomeType.COGNITION
+
+    def __init__(self):
+        self._model = GCPModel()
+
+    def get_prevalent_outcome(self, person):
+        gcp = self._model.get_risk_for_person(person, person._rng)
+        return CognitionOutcome(fatal=False, priorToSim=True, gcp=gcp)

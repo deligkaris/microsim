@@ -22,7 +22,7 @@ from microsim.population_type import PopulationType
 from microsim.risk_factors.modality_model import ModalityPrevalenceModel
 from microsim.outcomes.wmh_model_repository import WMHModelRepository
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
-from microsim.outcomes.cognition_model_repository import CognitionModelRepository
+from microsim.outcomes.cognition_model import CognitionPrevalenceModel
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
 
 class PersonFactory:
@@ -174,10 +174,6 @@ class PersonFactory:
         person._afib = [imr[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
         person._modality = imr[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
 
-        cognitionOutcome = CognitionModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
-        cognitionOutcome.priorToSim = True
-        person.add_outcome(cognitionOutcome)
-
         person.seed_prevalent_outcomes(OutcomePrevalenceModelRepository())
 
         return person
@@ -257,8 +253,7 @@ class PersonFactory:
         outcome = EpilepsyPrevalenceModel().get_prevalent_outcome(person)
         person.add_outcome(outcome)
 
-        cognitionOutcome = CognitionModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
-        cognitionOutcome.priorToSim = True
+        cognitionOutcome = CognitionPrevalenceModel().get_prevalent_outcome(person)
         person.add_outcome(cognitionOutcome)
 
         return person
