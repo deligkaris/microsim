@@ -11,6 +11,7 @@ from microsim.test.helper.init_vectorized_population_dataframe import (
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.outcomes.outcome import OutcomeType
 
@@ -41,7 +42,7 @@ class TestOutcomeRepository(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "white_male"}, index=[0])
-        self._white_male = PersonFactory.get_nhanes_person(self.x_white_male.iloc[0], PersonFactory.initialization_model_repository())
+        self._white_male = PersonFactory.get_nhanes_person(self.x_white_male.iloc[0], InitializationModelRepository())
         self._white_male._afib = [False]
 
         self.x_black_male = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 55,
@@ -64,7 +65,7 @@ class TestOutcomeRepository(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "black_male"}, index=[0])
-        self._black_male = PersonFactory.get_nhanes_person(self.x_black_male.iloc[0], PersonFactory.initialization_model_repository())
+        self._black_male = PersonFactory.get_nhanes_person(self.x_black_male.iloc[0], InitializationModelRepository())
         self._black_male._afib = [False]
 
         self.x_treated_black_male = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 55,
@@ -87,7 +88,7 @@ class TestOutcomeRepository(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "black_treated_male"}, index=[0])
-        self._treated_black_male = PersonFactory.get_nhanes_person(self.x_treated_black_male.iloc[0], PersonFactory.initialization_model_repository())
+        self._treated_black_male = PersonFactory.get_nhanes_person(self.x_treated_black_male.iloc[0], InitializationModelRepository())
         self._treated_black_male._afib = [False]
 
         self.x_white_female = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 55,
@@ -110,7 +111,7 @@ class TestOutcomeRepository(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "white_female"}, index=[0])
-        self._white_female = PersonFactory.get_nhanes_person(self.x_white_female.iloc[0], PersonFactory.initialization_model_repository())
+        self._white_female = PersonFactory.get_nhanes_person(self.x_white_female.iloc[0], InitializationModelRepository())
         self._white_female._afib = [False]
 
         self.x_black_female = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 55,
@@ -133,7 +134,7 @@ class TestOutcomeRepository(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "black_female"}, index=[0])
-        self._black_female = PersonFactory.get_nhanes_person(self.x_black_female.iloc[0], PersonFactory.initialization_model_repository())
+        self._black_female = PersonFactory.get_nhanes_person(self.x_black_female.iloc[0], InitializationModelRepository())
         self._black_female._afib = [False]
 
         self._outcome_model_repository = OutcomeModelRepository()

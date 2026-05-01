@@ -5,6 +5,7 @@ from microsim.test.test_risk_model_repository import TestRiskModelRepository
 from microsim.population_factory import PopulationFactory
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
@@ -39,7 +40,7 @@ class TestNHANESLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_person"}, index=[0])
-        self._test_person = PersonFactory.get_nhanes_person(self.x_test_person.iloc[0], PersonFactory.initialization_model_repository())
+        self._test_person = PersonFactory.get_nhanes_person(self.x_test_person.iloc[0], InitializationModelRepository())
         self._test_person._afib = [False]
 
         self._risk_model_repository = TestRiskModelRepository()
@@ -70,7 +71,7 @@ class TestNHANESLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "highBPPerson"}, index=[0])
-        highBPPerson = PersonFactory.get_nhanes_person(x_highBPPerson.iloc[0], PersonFactory.initialization_model_repository())
+        highBPPerson = PersonFactory.get_nhanes_person(x_highBPPerson.iloc[0], InitializationModelRepository())
         highBPPerson._afib = [False]
 
         highBPPerson.advance_risk_factors(self._risk_model_repository)

@@ -13,13 +13,8 @@ from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 from microsim.outcomes.stroke_outcome import StrokeOutcome
-from microsim.risk_factors.afib_model import AFibPrevalenceModel
-from microsim.risk_factors.pvd_model import PVDPrevalenceModel
-from microsim.risk_factors.waist_model import WaistPrevalenceModel
-from microsim.risk_factors.education_model import EducationPrevalenceModel
-from microsim.risk_factors.alcohol_model import AlcoholPrevalenceModel
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.population_type import PopulationType
-from microsim.risk_factors.modality_model import ModalityPrevalenceModel
 from microsim.outcomes.wmh_model_repository import WMHModelRepository
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
 from microsim.outcomes.cognition_model import CognitionPrevalenceModel
@@ -155,7 +150,7 @@ class PersonFactory:
            passes the organized data to the Person class and returns a Person instance.
            initializationModelRepository: required. Pass a shared instance when constructing many
            persons (see PopulationFactory.get_nhanes_people); build it via
-           PersonFactory.initialization_model_repository().
+           InitializationModelRepository() from microsim.risk_factors.initialization_model_repository.
            outcomePrevalenceModelRepository: pass a shared instance when constructing many persons.
            When omitted, priorToSim outcome seeding is skipped."""
 
@@ -182,18 +177,6 @@ class PersonFactory:
             person.seed_prevalent_outcomes(outcomePrevalenceModelRepository)
 
         return person
-
-    @staticmethod
-    def initialization_model_repository():
-        """Returns the repository needed in order to initialize a Person object.
-           This is due to the fact that some risk factors that are needed in Microsim simulations
-           are not included in the data we use to construct persons but we have models for these risk factors. """
-        return {DynamicRiskFactorsType.AFIB.value: AFibPrevalenceModel(),
-                DynamicRiskFactorsType.PVD.value: PVDPrevalenceModel(),
-                DynamicRiskFactorsType.WAIST.value: WaistPrevalenceModel(),
-                StaticRiskFactorsType.EDUCATION.value: EducationPrevalenceModel(),
-                DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholPrevalenceModel(),
-                StaticRiskFactorsType.MODALITY.value: ModalityPrevalenceModel()}
 
     @staticmethod
     def get_kaiser_person_init_information(x):
@@ -245,7 +228,7 @@ class PersonFactory:
                         personTreatmentStrategies,
                         personOutcomes)
     
-        imr = PersonFactory.initialization_model_repository()
+        imr = InitializationModelRepository()
         person._waist = [imr[DynamicRiskFactorsType.WAIST.value].estimate_next_risk(person)]
         person._alcoholPerWeek = [imr[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value].estimate_next_risk(person)]
         person._education = imr[StaticRiskFactorsType.EDUCATION.value].estimate_next_risk(person)

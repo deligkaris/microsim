@@ -18,6 +18,7 @@ from microsim.test.outcome_models_repositories import *
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.initialization_repository import InitializationRepository
 from microsim.population_factory import PopulationFactory
 
@@ -48,7 +49,7 @@ class TestPersonAdvanceOutcomes(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "joe"}, index=[0])
-        self.joe = PersonFactory.get_nhanes_person(xJoe.iloc[0], PersonFactory.initialization_model_repository())
+        self.joe = PersonFactory.get_nhanes_person(xJoe.iloc[0], InitializationModelRepository())
         self.joe._afib = [False]
 
         self.joe_with_cv = self.joe.__deepcopy__()

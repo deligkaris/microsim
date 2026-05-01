@@ -13,6 +13,7 @@ from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRisk
 from microsim.population_model_repository import PopulationModelRepository, PopulationRepositoryType
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors. cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository,
                                                                  CohortStaticRiskFactorModelRepository)
 from microsim.default_treatments.default_treatment_model_repository import DefaultTreatmentModelRepository
@@ -285,7 +286,7 @@ class PopulationFactory:
         else:
             nhanesDfForPeople = nhanesDf
 
-        imr = PersonFactory.initialization_model_repository()
+        imr = InitializationModelRepository()
         opmr = OutcomePrevalenceModelRepository()
         people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=opmr, axis="columns")
 
@@ -647,7 +648,7 @@ class PopulationFactory:
         distributions = PopulationFactory.get_distributions_crude(partitionedNhanesDf)
         #each row of dfWithCategoricals gets values for continuous variables based on the distributions
         df = PopulationFactory.append_dataframe_with_continuous(dfWithCategoricals, distributions)
-        imr = PersonFactory.initialization_model_repository()
+        imr = InitializationModelRepository()
         opmr = OutcomePrevalenceModelRepository()
         people = pd.DataFrame.apply(df, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=opmr, axis="columns")
         PopulationFactory.set_index_in_people(people)

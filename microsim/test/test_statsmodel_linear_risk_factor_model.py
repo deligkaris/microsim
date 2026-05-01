@@ -13,6 +13,7 @@ from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRisk
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.person import Person
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 
 import unittest
 import pandas as pd
@@ -54,7 +55,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "0"}, index=[0])
-        self.person = PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
+        self.person = PersonFactory.get_nhanes_person(x.iloc[0], InitializationModelRepository())
         self.person._afib = [False]
 
         xList = [pd.DataFrame({DynamicRiskFactorsType.AGE.value: 80,
@@ -77,7 +78,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "0"}, index=[0]) for bpinstance in sbp]
-        imr = PersonFactory.initialization_model_repository()
+        imr = InitializationModelRepository()
         self.people = list(map(lambda x: PersonFactory.get_nhanes_person(x.iloc[0], imr), xList))
         
         for person in self.people:

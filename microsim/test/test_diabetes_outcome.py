@@ -2,6 +2,7 @@ import unittest
 import pandas as pd
 
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.outcomes.diabetes_model import DiabetesModel
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
@@ -36,7 +37,7 @@ def _build_person(a1c):
         DefaultTreatmentsType.STATIN.value: 0,
         DynamicRiskFactorsType.CREATININE.value: 0.9,
         "name": "testPerson"}, index=[0])
-    return PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
+    return PersonFactory.get_nhanes_person(x.iloc[0], InitializationModelRepository())
 
 
 class TestDiabetesPriorToSim(unittest.TestCase):

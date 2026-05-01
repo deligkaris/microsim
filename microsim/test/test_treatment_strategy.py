@@ -14,6 +14,7 @@ from microsim.treatment_strategies.bp_treatment_strategies import (
 from microsim.population_factory import PopulationFactory
 from microsim.population import Population
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.person import Person
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
@@ -51,7 +52,7 @@ class TestTreatmentStrategy(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "person"}, index=[0])
-        person = PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
+        person = PersonFactory.get_nhanes_person(x.iloc[0], InitializationModelRepository())
         person._afib = [False]
         return person
 

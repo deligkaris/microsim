@@ -12,6 +12,7 @@ import unittest
 import pandas as pd
 
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.outcomes.stroke_outcome import StrokeOutcome
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
@@ -45,7 +46,7 @@ def _build_person():
         DefaultTreatmentsType.STATIN.value: 0,
         DynamicRiskFactorsType.CREATININE.value: 0.9,
         "name": "testPerson"}, index=[0])
-    return PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
+    return PersonFactory.get_nhanes_person(x.iloc[0], InitializationModelRepository())
 
 
 def _add_priorToSim_stroke(person):

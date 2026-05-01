@@ -17,6 +17,7 @@ import random
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.outcomes.dementia_model_repository import DementiaModelRepository
 from microsim.outcomes.cv_model_repository import CVModelRepository
 from microsim.person_filter_factory import PersonFilterFactory
@@ -73,7 +74,7 @@ class TestBasicTrialOperations(unittest.TestCase):
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "oldJoe"}, index=[0])
 
-        self.oldJoe = PersonFactory.get_nhanes_person(self.x.iloc[0], PersonFactory.initialization_model_repository())
+        self.oldJoe = PersonFactory.get_nhanes_person(self.x.iloc[0], InitializationModelRepository())
         self.oldJoe._afib = [False]
         # advance him one year to get an additional GCP value
         popModelRepository = PopulationFactory.get_nhanes_population_model_repo()._repository

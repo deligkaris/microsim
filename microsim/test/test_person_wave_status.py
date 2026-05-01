@@ -10,6 +10,7 @@ from microsim.test.test_risk_model_repository import TestRiskModelRepository
 from microsim.outcomes.cognition_model import GCPModel
 from microsim.outcomes.dementia_model import DementiaModel
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.outcome_models_repositories import *
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
@@ -46,7 +47,7 @@ class TestPersonWaveStatus(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "oldJoe"}, index=[0])
-        self.oldJoe = PersonFactory.get_nhanes_person(xoldJoe.iloc[0], PersonFactory.initialization_model_repository())
+        self.oldJoe = PersonFactory.get_nhanes_person(xoldJoe.iloc[0], InitializationModelRepository())
         self.oldJoe._afib = [False]
 
         xyoungJoe = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 40,
@@ -69,7 +70,7 @@ class TestPersonWaveStatus(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "youngJoe"}, index=[0])
-        self.youngJoe = PersonFactory.get_nhanes_person(xyoungJoe.iloc[0], PersonFactory.initialization_model_repository())
+        self.youngJoe = PersonFactory.get_nhanes_person(xyoungJoe.iloc[0], InitializationModelRepository())
         self.youngJoe._afib = [False]
 
     def testStatusAfterFatalStroke(self):
