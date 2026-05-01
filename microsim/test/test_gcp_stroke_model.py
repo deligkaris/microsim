@@ -10,7 +10,7 @@ from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.outcomes.outcome import Outcome, OutcomeType
-from microsim.outcomes.gcp_stroke_model import GCPStrokeModel
+from microsim.outcomes.cognition_model import GCPStrokeModel
 from microsim.population_factory import PopulationFactory
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType

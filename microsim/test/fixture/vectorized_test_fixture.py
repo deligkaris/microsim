@@ -1,6 +1,6 @@
 import unittest
 
-from microsim.outcomes.gcp_model import GCPModel
+from microsim.outcomes.cognition_model import GCPModel
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender

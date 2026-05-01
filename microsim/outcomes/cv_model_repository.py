@@ -11,3 +11,9 @@ class CVModelRepository:
         return self._models[gender]
 
 
+class CVPrevalenceModelRepository:
+    def __init__(self):
+        self._model = CVPrevalenceModel()
+
+    def select_outcome_model_for_person(self, person):
+        return self._model

@@ -1,4 +1,5 @@
 from microsim.outcomes.outcome import OutcomeType, Outcome
+from microsim.outcomes.outcome_prevalence_base import OutcomePrevalenceBase
 
 class MIPartitionModel:
     """Fatal mi probability from: Wadhera, R. K., Joynt Maddox, K. E., Wang, Y., Shen, C., Bhatt, D. L., & Yeh, R. W. (2018). 
@@ -31,3 +32,18 @@ class MIPartitionModel:
                 miOutcome = self.generate_next_outcome(person)
                 self.update_cv_outcome(person, miOutcome.fatal)
                 return miOutcome
+
+
+class MIPrevalenceModel(OutcomePrevalenceBase):
+    """Deterministic prevalence partition: priorToSim MI is present iff priorToSim CV is present
+       and priorToSim stroke is absent. Relies on CV and STROKE preceding MI in OutcomeType._order_,
+       so both have been seeded by the time this runs."""
+
+    _outcomeType = OutcomeType.MI
+
+    def get_prevalent_outcome(self, person):
+        if not person.has_outcome_prior_to_simulation(OutcomeType.CARDIOVASCULAR):
+            return None
+        if person.has_outcome_prior_to_simulation(OutcomeType.STROKE):
+            return None
+        return self.generate_prevalent_outcome(person)

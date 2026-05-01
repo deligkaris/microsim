@@ -23,6 +23,7 @@ from microsim.risk_factors.modality_model import ModalityPrevalenceModel
 from microsim.outcomes.wmh_model_repository import WMHModelRepository
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
 from microsim.outcomes.cognition_model_repository import CognitionModelRepository
+from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
 
 class PersonFactory:
     """A class used to obtain Person-objects using data from a variety of sources."""
@@ -127,21 +128,24 @@ class PersonFactory:
         personOutcomes = dict(zip([outcome for outcome in OutcomeType],
                                   [list() for outcome in range(len(OutcomeType))]))
 
-        #If df originates from the NHANES df these columns will exist, but if drawing from the NHANES distributions, these will not be in the df
-        if "selfReportStrokeAge" in x.index:
-            #add pre-simulation stroke outcomes
-            selfReportStrokeAge=x.selfReportStrokeAge
-            #Q: we should not add the stroke outcome in case of "else"? A: No, this is the way it should be
-            if selfReportStrokeAge is not None and selfReportStrokeAge > 1:
-                personOutcomes[OutcomeType.STROKE].append((None, StrokeOutcome(False, None, None, None, priorToSim=True)))
-        if "selfReportMIAge" in x.index:
-            #add pre-simulation mi outcomes
-            selfReportMIAge=rng.integers(18, x.age) if x.selfReportMIAge == 99999 else x.selfReportMIAge
-            if selfReportMIAge is not None and selfReportMIAge > 1:
-                personOutcomes[OutcomeType.MI].append((None, Outcome(OutcomeType.MI, False, priorToSim=True)))
+        #priorToSim outcome seeding via selfReport columns is retired in favor of logistic
+        #prevalence models registered in OutcomePrevalenceModelRepository, applied in
+        #get_nhanes_person via Person.seed_prevalent_outcomes after construction.
+        ##If df originates from the NHANES df these columns will exist, but if drawing from the NHANES distributions, these will not be in the df
+        #if "selfReportStrokeAge" in x.index:
+        #    #add pre-simulation stroke outcomes
+        #    selfReportStrokeAge=x.selfReportStrokeAge
+        #    #Q: we should not add the stroke outcome in case of "else"? A: No, this is the way it should be
+        #    if selfReportStrokeAge is not None and selfReportStrokeAge > 1:
+        #        personOutcomes[OutcomeType.STROKE].append((None, StrokeOutcome(False, None, None, None, priorToSim=True)))
+        #if "selfReportMIAge" in x.index:
+        #    #add pre-simulation mi outcomes
+        #    selfReportMIAge=rng.integers(18, x.age) if x.selfReportMIAge == 99999 else x.selfReportMIAge
+        #    if selfReportMIAge is not None and selfReportMIAge > 1:
+        #        personOutcomes[OutcomeType.MI].append((None, Outcome(OutcomeType.MI, False, priorToSim=True)))
 
-        if personDynamicRiskFactors[DynamicRiskFactorsType.A1C.value] >= 6.5:
-            personOutcomes[OutcomeType.DIABETES].append((None, Outcome(OutcomeType.DIABETES, False, priorToSim=True)))
+        #if personDynamicRiskFactors[DynamicRiskFactorsType.A1C.value] >= 6.5:
+        #    personOutcomes[OutcomeType.DIABETES].append((None, Outcome(OutcomeType.DIABETES, False, priorToSim=True)))
 
         return (name, personStaticRiskFactors, personDynamicRiskFactors, personDefaultTreatments, personTreatmentStrategies, personOutcomes)
 
@@ -170,12 +174,11 @@ class PersonFactory:
         person._afib = [imr[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
         person._modality = imr[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
 
-        outcome = EpilepsyPrevalenceModel().get_next_outcome(person)
-        person.add_outcome(outcome)
-
         cognitionOutcome = CognitionModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
         cognitionOutcome.priorToSim = True
         person.add_outcome(cognitionOutcome)
+
+        person.seed_prevalent_outcomes(OutcomePrevalenceModelRepository())
 
         return person
 

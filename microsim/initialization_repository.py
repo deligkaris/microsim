@@ -1,4 +1,4 @@
-from microsim.outcomes.gcp_model import GCPModel
+from microsim.outcomes.cognition_model import GCPModel
 from microsim.outcomes.qaly_assignment_strategy import QALYAssignmentStrategy
 
 

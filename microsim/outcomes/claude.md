@@ -58,7 +58,6 @@ class OutcomeType(Enum):
 - `stroke_partition_model_repository.py`: Stroke model repository (gender-specific)
 - `stroke_outcome.py`: StrokeOutcome class with phenotype (NIHSS, subtype, type)
 - `stroke_details.py`: Stroke subtype and type models
-- `gcp_stroke_model.py`: GCP-specific stroke modeling
 
 ### MI Models
 - `mi_partition_model.py`: MI probability model (partitions from CV events)
@@ -68,7 +67,8 @@ class OutcomeType(Enum):
 - `dementia_model.py`: Dementia outcome model
 - `dementia_model_repository.py`: Dementia model repository
 - `cognition_outcome.py`: Cognition outcome class
-- `cognition_model_repository.py`: Cognition model repository
+- `cognition_model.py`: GCP (Global Cognitive Performance) models — `GCPModel` (general) and `GCPStrokeModel` (post-stroke)
+- `cognition_model_repository.py`: Cognition model repository (selects between `GCPModel` and `GCPStrokeModel`)
 - `ci_model.py`: Cognitive impairment model
 - `ci_model_repository.py`: CI model repository
 - `mci_model.py`: Mild cognitive impairment model
@@ -98,7 +98,6 @@ class OutcomeType(Enum):
 - `qaly_assignment_strategy.py`: QALY assignment strategies
 
 ### Other Models
-- `gcp_model.py`: General GCP (Global Cognitive Performance) model
 - `sbi_model.py`: SBI (Silent Brain Infarction) model
 
 ## Model Specification Files

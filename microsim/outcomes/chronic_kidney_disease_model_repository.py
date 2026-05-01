@@ -1,8 +1,18 @@
-from microsim.outcomes.chronic_kidney_disease_model import ChronicKidneyDiseaseModel
+from microsim.outcomes.chronic_kidney_disease_model import (
+    ChronicKidneyDiseaseModel,
+    ChronicKidneyDiseasePrevalenceModel,
+)
 
 class ChronicKidneyDiseaseModelRepository:
     def __init__(self):
         self._model = ChronicKidneyDiseaseModel()
+
+    def select_outcome_model_for_person(self, person):
+        return self._model
+
+class ChronicKidneyDiseasePrevalenceModelRepository:
+    def __init__(self):
+        self._model = ChronicKidneyDiseasePrevalenceModel()
 
     def select_outcome_model_for_person(self, person):
         return self._model

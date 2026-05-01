@@ -1,5 +1,4 @@
-from microsim.outcomes.gcp_model import GCPModel
-from microsim.outcomes.gcp_stroke_model import GCPStrokeModel
+from microsim.outcomes.cognition_model import GCPModel, GCPStrokeModel
 from microsim.outcomes.outcome import OutcomeType
 
 class CognitionModelRepository:

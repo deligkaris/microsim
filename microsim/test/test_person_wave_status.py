@@ -7,7 +7,7 @@ from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.outcomes.outcome import OutcomeType
 from microsim.risk_factors.education import Education
 from microsim.test.test_risk_model_repository import TestRiskModelRepository
-from microsim.outcomes.gcp_model import GCPModel
+from microsim.outcomes.cognition_model import GCPModel
 from microsim.outcomes.dementia_model import DementiaModel
 from microsim.person_factory import PersonFactory
 from microsim.risk_factors.smoking_status import SmokingStatus

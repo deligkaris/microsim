@@ -12,8 +12,7 @@ from microsim.test.do_not_change_risk_factors_model_repository import (
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.outcomes.outcome import OutcomeType
 from microsim.outcomes.dementia_model import DementiaModel
-from microsim.outcomes.gcp_model import GCPModel
-from microsim.outcomes.gcp_stroke_model import GCPStrokeModel
+from microsim.outcomes.cognition_model import GCPModel, GCPStrokeModel
 from microsim.initialization_repository import InitializationRepository
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory

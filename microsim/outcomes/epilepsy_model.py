@@ -4,28 +4,18 @@ from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.outcomes.outcome import OutcomeType, Outcome
+from microsim.outcomes.outcome_prevalence_base import OutcomePrevalenceBase
 
-class EpilepsyPrevalenceModel():
+class EpilepsyPrevalenceModel(OutcomePrevalenceBase):
+    _outcomeType = OutcomeType.EPILEPSY
+
     def __init__(self):
         self._intercept = 4.742451144
 
     def get_risk_for_person(self, person):
-        lp = self.get_linear_predictor_for_person(person)
-        # note: limit the calculation to avoid over/under-flow issues
-        #if lp<-10:
-        #    risk = 0.
-        #elif lp>10.:
-        #    risk = 1.
-        #else:
-        #    risk = 1/(1+np.exp(-lp))
-        return lp/1000.
-
-    def generate_next_outcome(self, person):
-        fatal = False
-        return Outcome(OutcomeType.EPILEPSY, fatal)
-
-    def get_next_outcome(self, person):
-        return self.generate_next_outcome(person) if person._rng.uniform(size=1)<self.get_risk_for_person(person) else None
+        # Coefficients below are calibrated to a linear-predictor / 1000 scaling, not expit(lp).
+        # Override exists to preserve that scaling; the base class default would apply expit instead.
+        return self.get_linear_predictor_for_person(person) / 1000.
 
     def get_linear_predictor_for_person(self, person):
         return self.calc_linear_predictor_for_patient_characteristics(

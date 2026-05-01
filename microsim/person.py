@@ -218,6 +218,18 @@ class Person:
             outcome = outcomeModelRepository._repository[outcomeType].select_outcome_model_for_person(self).get_next_outcome(self)
             self.add_outcome(outcome)
 
+    def seed_prevalent_outcomes(self, outcomePrevalenceModelRepository):
+        """Seed the person's priorToSim outcomes from the prevalence model repository.
+           One-shot initialization at construction (not a wave advance): iterates outcome types in
+           the same order as advance_outcomes and skips types with no registered prevalence model
+           (value is None in the repository)."""
+        for outcomeType in self.get_outcomes_in_order():
+            perOutcomeRepo = outcomePrevalenceModelRepository._repository[outcomeType]
+            if perOutcomeRepo is None:
+                continue
+            outcome = perOutcomeRepo.select_outcome_model_for_person(self).get_prevalent_outcome(self)
+            self.add_outcome(outcome)
+
     def get_outcomes_in_order(self):
         """Returns the outcomes in a meaningful order so that the outcome predictions can be made correctly and consistently."""
         outcomesInOrder = list()
