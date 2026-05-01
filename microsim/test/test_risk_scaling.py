@@ -45,7 +45,7 @@ class TestRiskScaling(unittest.TestCase):
             DynamicRiskFactorsType.CREATININE.value: 0,
             "name": "white_male"
         }, index=[0])
-        self._male = PersonFactory.get_nhanes_person(self.x_male.iloc[0])
+        self._male = PersonFactory.get_nhanes_person(self.x_male.iloc[0], PersonFactory.initialization_model_repository())
         self._male._afib = [False]
 
         self.x_female = pd.DataFrame({
@@ -70,7 +70,7 @@ class TestRiskScaling(unittest.TestCase):
             DynamicRiskFactorsType.CREATININE.value: 0,
             "name": "white_female"
         }, index=[0])
-        self._female = PersonFactory.get_nhanes_person(self.x_female.iloc[0])
+        self._female = PersonFactory.get_nhanes_person(self.x_female.iloc[0], PersonFactory.initialization_model_repository())
         self._female._afib = [False]
 
         # dementia model needs cognition and WMH outcomes
@@ -96,7 +96,7 @@ class TestRiskScaling(unittest.TestCase):
             DynamicRiskFactorsType.CREATININE.value: 0,
             "name": "dementia_test_person"
         }, index=[0])
-        self._dementia_person = PersonFactory.get_nhanes_person(self.x_dementia_person.iloc[0])
+        self._dementia_person = PersonFactory.get_nhanes_person(self.x_dementia_person.iloc[0], PersonFactory.initialization_model_repository())
         self._dementia_person._afib = [False]
         self._dementia_person._outcomes[OutcomeType.COGNITION] = []
         self._dementia_person.add_outcome(CognitionOutcome(False, False, 50.0))

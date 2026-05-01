@@ -46,7 +46,7 @@ class TestPersonWaveStatus(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "oldJoe"}, index=[0])
-        self.oldJoe = PersonFactory.get_nhanes_person(xoldJoe.iloc[0])
+        self.oldJoe = PersonFactory.get_nhanes_person(xoldJoe.iloc[0], PersonFactory.initialization_model_repository())
         self.oldJoe._afib = [False]
 
         xyoungJoe = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 40,
@@ -69,7 +69,7 @@ class TestPersonWaveStatus(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "youngJoe"}, index=[0])
-        self.youngJoe = PersonFactory.get_nhanes_person(xyoungJoe.iloc[0])
+        self.youngJoe = PersonFactory.get_nhanes_person(xyoungJoe.iloc[0], PersonFactory.initialization_model_repository())
         self.youngJoe._afib = [False]
 
     def testStatusAfterFatalStroke(self):

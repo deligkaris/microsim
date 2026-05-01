@@ -49,7 +49,7 @@ class TestQALYAssignment(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": f"person{age}"}, index=[0])
-        xPerson = PersonFactory.get_nhanes_person(x.iloc[0])
+        xPerson = PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
         xPerson._afib = [False]
         return xPerson
 

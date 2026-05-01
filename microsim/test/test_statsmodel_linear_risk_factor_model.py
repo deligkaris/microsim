@@ -54,7 +54,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "0"}, index=[0])
-        self.person = PersonFactory.get_nhanes_person(x.iloc[0])
+        self.person = PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
         self.person._afib = [False]
 
         xList = [pd.DataFrame({DynamicRiskFactorsType.AGE.value: 80,
@@ -77,7 +77,8 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "0"}, index=[0]) for bpinstance in sbp]
-        self.people = list(map(lambda x: PersonFactory.get_nhanes_person(x.iloc[0]), xList))
+        imr = PersonFactory.initialization_model_repository()
+        self.people = list(map(lambda x: PersonFactory.get_nhanes_person(x.iloc[0], imr), xList))
         
         for person in self.people:
             person._afib = [False]

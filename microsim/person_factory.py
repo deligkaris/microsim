@@ -71,9 +71,9 @@ class PersonFactory:
                     DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: "N_AntiHTNperYR"}
 
     @staticmethod
-    def get_person(x, popType=PopulationType.NHANES.value, outcomePrevalenceModelRepository=None):
+    def get_person(x, popType=PopulationType.NHANES.value, initializationModelRepository=None, outcomePrevalenceModelRepository=None):
         if popType==PopulationType.NHANES.value:
-            return PersonFactory.get_nhanes_person(x, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
+            return PersonFactory.get_nhanes_person(x, initializationModelRepository, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
         elif popType==PopulationType.KAISER.value:
             return PersonFactory.get_kaiser_person(x, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
         else:
@@ -150,11 +150,14 @@ class PersonFactory:
         return (name, personStaticRiskFactors, personDynamicRiskFactors, personDefaultTreatments, personTreatmentStrategies, personOutcomes)
 
     @staticmethod
-    def get_nhanes_person(x, outcomePrevalenceModelRepository=None):
+    def get_nhanes_person(x, initializationModelRepository, outcomePrevalenceModelRepository=None):
         """Takes all Person-instance-related data via x and initializationModelRepository and organizes it,
            passes the organized data to the Person class and returns a Person instance.
-           outcomePrevalenceModelRepository: pass a shared instance when constructing many persons
-           (see PopulationFactory.get_nhanes_people). When omitted, priorToSim outcome seeding is skipped."""
+           initializationModelRepository: required. Pass a shared instance when constructing many
+           persons (see PopulationFactory.get_nhanes_people); build it via
+           PersonFactory.initialization_model_repository().
+           outcomePrevalenceModelRepository: pass a shared instance when constructing many persons.
+           When omitted, priorToSim outcome seeding is skipped."""
 
         (name,
          personStaticRiskFactors,
@@ -171,10 +174,9 @@ class PersonFactory:
                         personOutcomes)
 
         #TO DO: find a way to initialize these rfs above with everything else
-        imr = PersonFactory.initialization_model_repository()
-        person._pvd = [imr[DynamicRiskFactorsType.PVD.value].estimate_next_risk(person)]
-        person._afib = [imr[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
-        person._modality = imr[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
+        person._pvd = [initializationModelRepository[DynamicRiskFactorsType.PVD.value].estimate_next_risk(person)]
+        person._afib = [initializationModelRepository[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
+        person._modality = initializationModelRepository[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
 
         if outcomePrevalenceModelRepository is not None:
             person.seed_prevalent_outcomes(outcomePrevalenceModelRepository)

@@ -55,7 +55,7 @@ class TestDementiaModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_one"}, index=[0])
-        self._test_case_one = PersonFactory.get_nhanes_person(self.x_test_case_one.iloc[0])
+        self._test_case_one = PersonFactory.get_nhanes_person(self.x_test_case_one.iloc[0], PersonFactory.initialization_model_repository())
         self._test_case_one._afib = [False]
         # Clear auto-generated cognition outcome from PersonFactory, then add test-specific ones
         self._test_case_one._outcomes[OutcomeType.COGNITION] = []
@@ -84,7 +84,7 @@ class TestDementiaModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_two"}, index=[0])
-        self._test_case_two = PersonFactory.get_nhanes_person(self.x_test_case_two.iloc[0])
+        self._test_case_two = PersonFactory.get_nhanes_person(self.x_test_case_two.iloc[0], PersonFactory.initialization_model_repository())
         self._test_case_two._afib = [False]
         self._test_case_two._outcomes[OutcomeType.COGNITION] = []
         self._test_case_two.add_outcome(CognitionOutcome(False, False, 58.68 ))
@@ -111,7 +111,7 @@ class TestDementiaModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_one_parametric"}, index=[0])
-        self._test_case_one_parametric = PersonFactory.get_nhanes_person(self.x_test_case_one_parametric.iloc[0])
+        self._test_case_one_parametric = PersonFactory.get_nhanes_person(self.x_test_case_one_parametric.iloc[0], PersonFactory.initialization_model_repository())
         self._test_case_one_parametric._afib = [False]
         self._test_case_one_parametric._outcomes[OutcomeType.COGNITION] = []
         self._test_case_one_parametric.add_outcome(CognitionOutcome(False, False, 25 ))
@@ -138,7 +138,7 @@ class TestDementiaModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_two_parametric"}, index=[0])
-        self._test_case_two_parametric = PersonFactory.get_nhanes_person(self.x_test_case_two_parametric.iloc[0])
+        self._test_case_two_parametric = PersonFactory.get_nhanes_person(self.x_test_case_two_parametric.iloc[0], PersonFactory.initialization_model_repository())
         self._test_case_two_parametric._afib = [False]
         self._test_case_two_parametric._outcomes[OutcomeType.COGNITION] = []
         self._test_case_two_parametric.add_outcome(CognitionOutcome(False, False, 75 ))
@@ -165,7 +165,7 @@ class TestDementiaModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_three_parametric"}, index=[0])
-        self._test_case_three_parametric = PersonFactory.get_nhanes_person(self.x_test_case_three_parametric.iloc[0])
+        self._test_case_three_parametric = PersonFactory.get_nhanes_person(self.x_test_case_three_parametric.iloc[0], PersonFactory.initialization_model_repository())
         self._test_case_three_parametric._afib = [False]
         self._test_case_three_parametric._outcomes[OutcomeType.COGNITION] = []
         self._test_case_three_parametric.add_outcome(CognitionOutcome(False, False, 75))

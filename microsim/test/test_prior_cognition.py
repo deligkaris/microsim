@@ -46,7 +46,7 @@ class TestMCIFilter(unittest.TestCase):
         self.filterFunction = self.pf.filters["person"]["noMCI"]
 
     def test_mci_filter_excludes_person_with_low_gcp(self):
-        person = PersonFactory.get_nhanes_person(self.x.iloc[0])
+        person = PersonFactory.get_nhanes_person(self.x.iloc[0], PersonFactory.initialization_model_repository())
         person._afib = [False]
         # MCI cutoff for age 60: 72.3182 - 0.2945*60 - 1.5*9.05 = 41.0732
         person._outcomes[OutcomeType.COGNITION] = []
@@ -54,7 +54,7 @@ class TestMCIFilter(unittest.TestCase):
         self.assertFalse(self.filterFunction(person))
 
     def test_mci_filter_keeps_person_with_normal_gcp(self):
-        person = PersonFactory.get_nhanes_person(self.x.iloc[0])
+        person = PersonFactory.get_nhanes_person(self.x.iloc[0], PersonFactory.initialization_model_repository())
         person._afib = [False]
         person._outcomes[OutcomeType.COGNITION] = []
         person.add_outcome(CognitionOutcome(False, True, 55))
@@ -84,7 +84,7 @@ class TestPriorCognitionNHANES(unittest.TestCase):
             DefaultTreatmentsType.STATIN.value: 0,
             DynamicRiskFactorsType.CREATININE.value: 0.9,
             "name": "testPerson"}, index=[0])
-        self.person = PersonFactory.get_nhanes_person(self.x.iloc[0], outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository())
+        self.person = PersonFactory.get_nhanes_person(self.x.iloc[0], PersonFactory.initialization_model_repository(), outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository())
         self.person._afib = [False]
 
     def test_nhanes_person_has_one_cognition_outcome_after_init(self):

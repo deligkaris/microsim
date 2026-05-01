@@ -285,13 +285,14 @@ class PopulationFactory:
         else:
             nhanesDfForPeople = nhanesDf
 
+        imr = PersonFactory.initialization_model_repository()
         opmr = OutcomePrevalenceModelRepository()
-        people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_nhanes_person, outcomePrevalenceModelRepository=opmr, axis="columns")
+        people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=opmr, axis="columns")
 
         people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
 
         if nhanesWeights:
-            people = PopulationFactory.bring_people_to_target_n(n, people, nhanesDf, personFilters, popType=PopulationType.NHANES.value, outcomePrevalenceModelRepository=opmr)
+            people = PopulationFactory.bring_people_to_target_n(n, people, nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=opmr)
             
         PopulationFactory.set_index_in_people(people)
         return people
@@ -602,11 +603,11 @@ class PopulationFactory:
         return people
 
     @staticmethod
-    def bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.NHANES.value, outcomePrevalenceModelRepository=None):
+    def bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=None, outcomePrevalenceModelRepository=None):
         nRemaining = n - people.shape[0]
         while nRemaining>0:
             dfForPeople = df.sample(nRemaining, replace=True)
-            peopleRemaining = pd.DataFrame.apply(dfForPeople, PersonFactory.get_person, popType=popType, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
+            peopleRemaining = pd.DataFrame.apply(dfForPeople, PersonFactory.get_person, popType=popType, initializationModelRepository=initializationModelRepository, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
             peopleRemaining = PopulationFactory.apply_person_filters_on_people(personFilters, peopleRemaining)
             people = pd.concat([people, peopleRemaining])
             nRemaining = n - people.shape[0]
@@ -646,8 +647,9 @@ class PopulationFactory:
         distributions = PopulationFactory.get_distributions_crude(partitionedNhanesDf)
         #each row of dfWithCategoricals gets values for continuous variables based on the distributions
         df = PopulationFactory.append_dataframe_with_continuous(dfWithCategoricals, distributions)
+        imr = PersonFactory.initialization_model_repository()
         opmr = OutcomePrevalenceModelRepository()
-        people = pd.DataFrame.apply(df, PersonFactory.get_nhanes_person, outcomePrevalenceModelRepository=opmr, axis="columns")
+        people = pd.DataFrame.apply(df, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=opmr, axis="columns")
         PopulationFactory.set_index_in_people(people)
         return people
 

@@ -36,7 +36,7 @@ def _build_person(creatinine):
         DefaultTreatmentsType.STATIN.value: 0,
         DynamicRiskFactorsType.CREATININE.value: creatinine,
         "name": "testPerson"}, index=[0])
-    return PersonFactory.get_nhanes_person(x.iloc[0])
+    return PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
 
 
 # Creatinine values calibrated for a 60yo non-Hispanic-white male:

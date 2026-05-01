@@ -51,7 +51,7 @@ class TestTreatmentStrategy(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "person"}, index=[0])
-        person = PersonFactory.get_nhanes_person(x.iloc[0])
+        person = PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
         person._afib = [False]
         return person
 

@@ -45,7 +45,7 @@ def _build_person():
         DefaultTreatmentsType.STATIN.value: 0,
         DynamicRiskFactorsType.CREATININE.value: 0.9,
         "name": "testPerson"}, index=[0])
-    return PersonFactory.get_nhanes_person(x.iloc[0])
+    return PersonFactory.get_nhanes_person(x.iloc[0], PersonFactory.initialization_model_repository())
 
 
 def _add_priorToSim_stroke(person):

@@ -73,7 +73,7 @@ class TestBasicTrialOperations(unittest.TestCase):
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "oldJoe"}, index=[0])
 
-        self.oldJoe = PersonFactory.get_nhanes_person(self.x.iloc[0])
+        self.oldJoe = PersonFactory.get_nhanes_person(self.x.iloc[0], PersonFactory.initialization_model_repository())
         self.oldJoe._afib = [False]
         # advance him one year to get an additional GCP value
         popModelRepository = PopulationFactory.get_nhanes_population_model_repo()._repository

@@ -39,7 +39,7 @@ class TestNHANESLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_person"}, index=[0])
-        self._test_person = PersonFactory.get_nhanes_person(self.x_test_person.iloc[0])
+        self._test_person = PersonFactory.get_nhanes_person(self.x_test_person.iloc[0], PersonFactory.initialization_model_repository())
         self._test_person._afib = [False]
 
         self._risk_model_repository = TestRiskModelRepository()
@@ -70,7 +70,7 @@ class TestNHANESLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "highBPPerson"}, index=[0])
-        highBPPerson = PersonFactory.get_nhanes_person(x_highBPPerson.iloc[0])
+        highBPPerson = PersonFactory.get_nhanes_person(x_highBPPerson.iloc[0], PersonFactory.initialization_model_repository())
         highBPPerson._afib = [False]
 
         highBPPerson.advance_risk_factors(self._risk_model_repository)

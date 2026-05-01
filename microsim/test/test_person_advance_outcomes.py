@@ -48,7 +48,7 @@ class TestPersonAdvanceOutcomes(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "joe"}, index=[0])
-        self.joe = PersonFactory.get_nhanes_person(xJoe.iloc[0])
+        self.joe = PersonFactory.get_nhanes_person(xJoe.iloc[0], PersonFactory.initialization_model_repository())
         self.joe._afib = [False]
 
         self.joe_with_cv = self.joe.__deepcopy__()
