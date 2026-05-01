@@ -254,7 +254,7 @@ class PersonFactory:
         outcome = WMHModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
         person.add_outcome(outcome)
  
-        outcome = EpilepsyPrevalenceModel().get_next_outcome(person)
+        outcome = EpilepsyPrevalenceModel().get_prevalent_outcome(person)
         person.add_outcome(outcome)
 
         cognitionOutcome = CognitionModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)

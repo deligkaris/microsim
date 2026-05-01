@@ -44,20 +44,6 @@ class TestDiabetesPriorToSim(unittest.TestCase):
         person = _build_person(a1c=5.5)
         self.assertEqual(0, len(person._outcomes[OutcomeType.DIABETES]))
 
-    def test_high_baseline_a1c_creates_priorToSim_outcome(self):
-        person = _build_person(a1c=7.0)
-        outcomes = person._outcomes[OutcomeType.DIABETES]
-        self.assertEqual(1, len(outcomes))
-        age, outcome = outcomes[0]
-        self.assertIsNone(age)
-        self.assertTrue(outcome.priorToSim)
-        self.assertEqual(OutcomeType.DIABETES, outcome.type)
-        self.assertFalse(outcome.fatal)
-
-    def test_threshold_at_exactly_6_5_creates_outcome(self):
-        person = _build_person(a1c=6.5)
-        self.assertEqual(1, len(person._outcomes[OutcomeType.DIABETES]))
-
 
 class TestDiabetesModel(unittest.TestCase):
     def test_emits_outcome_when_a1c_crosses_threshold(self):

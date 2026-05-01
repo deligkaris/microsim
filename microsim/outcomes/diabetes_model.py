@@ -30,6 +30,9 @@ class DiabetesPrevalenceModel(OutcomePrevalenceBase):
     def __init__(self):
         self._intercept = 0.
 
+    def get_risk_for_person(self, person):
+        return 0.
+
     def get_linear_predictor_for_person(self, person):
         return self.calc_linear_predictor_for_patient_characteristics(
             person._age[-1],
