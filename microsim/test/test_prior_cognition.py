@@ -15,6 +15,7 @@ from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.modality import Modality
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.outcomes.cognition_outcome import CognitionOutcome
+from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
 from microsim.person_filter_factory import PersonFilterFactory
 
 
@@ -83,7 +84,7 @@ class TestPriorCognitionNHANES(unittest.TestCase):
             DefaultTreatmentsType.STATIN.value: 0,
             DynamicRiskFactorsType.CREATININE.value: 0.9,
             "name": "testPerson"}, index=[0])
-        self.person = PersonFactory.get_nhanes_person(self.x.iloc[0])
+        self.person = PersonFactory.get_nhanes_person(self.x.iloc[0], outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository())
         self.person._afib = [False]
 
     def test_nhanes_person_has_one_cognition_outcome_after_init(self):

@@ -71,11 +71,11 @@ class PersonFactory:
                     DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: "N_AntiHTNperYR"}
 
     @staticmethod
-    def get_person(x, popType=PopulationType.NHANES.value):
+    def get_person(x, popType=PopulationType.NHANES.value, outcomePrevalenceModelRepository=None):
         if popType==PopulationType.NHANES.value:
-            return PersonFactory.get_nhanes_person(x)
+            return PersonFactory.get_nhanes_person(x, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
         elif popType==PopulationType.KAISER.value:
-            return PersonFactory.get_kaiser_person(x)
+            return PersonFactory.get_kaiser_person(x, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
         else:
             raise RuntimeError("Unrecognized population type in PersonFactory.get_person.")
 
@@ -150,15 +150,17 @@ class PersonFactory:
         return (name, personStaticRiskFactors, personDynamicRiskFactors, personDefaultTreatments, personTreatmentStrategies, personOutcomes)
 
     @staticmethod
-    def get_nhanes_person(x):
+    def get_nhanes_person(x, outcomePrevalenceModelRepository=None):
         """Takes all Person-instance-related data via x and initializationModelRepository and organizes it,
-           passes the organized data to the Person class and returns a Person instance."""
+           passes the organized data to the Person class and returns a Person instance.
+           outcomePrevalenceModelRepository: pass a shared instance when constructing many persons
+           (see PopulationFactory.get_nhanes_people). When omitted, priorToSim outcome seeding is skipped."""
 
-        (name, 
-         personStaticRiskFactors, 
-         personDynamicRiskFactors, 
-         personDefaultTreatments, 
-         personTreatmentStrategies, 
+        (name,
+         personStaticRiskFactors,
+         personDynamicRiskFactors,
+         personDefaultTreatments,
+         personTreatmentStrategies,
          personOutcomes) = PersonFactory.get_nhanes_person_init_information(x)
 
         person = Person(name,
@@ -174,7 +176,8 @@ class PersonFactory:
         person._afib = [imr[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
         person._modality = imr[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
 
-        person.seed_prevalent_outcomes(OutcomePrevalenceModelRepository())
+        if outcomePrevalenceModelRepository is not None:
+            person.seed_prevalent_outcomes(outcomePrevalenceModelRepository)
 
         return person
 
