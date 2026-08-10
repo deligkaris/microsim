@@ -62,19 +62,25 @@ class TestAgeScope(unittest.TestCase):
 
 
 def _measure_realized_prev(scaleOutcomeType, targetOutcomeType, scaling, scope, peopleArgs,
-                           baselineRiskScaling=None):
-    """Build people once with the chosen scaling and return realized priorToSim
-       prevalence of targetOutcomeType in scope. Mirrors what the calibrator
-       converged on (deterministic peopleArgs ⇒ same persons, same RNG seeds)."""
+                           baselineRiskScaling=None, rebuilds=5):
+    """Build people `rebuilds` times with the chosen scaling and return the mean realized
+       priorToSim prevalence of targetOutcomeType in scope.
+       Deterministic peopleArgs select the same persons every build, but each build gives every
+       Person a fresh unseeded RNG (Person.__init__), and the prevalence models draw from it, so
+       a single build carries about one binomial standard error of seeding noise. Averaging over
+       rebuilds shrinks that by sqrt(rebuilds)."""
     rs = dict(baselineRiskScaling or {})
     rs[scaleOutcomeType] = scaling
     opmr = OutcomePrevalenceModelRepository(riskScaling=rs)
-    people = PopulationFactory.get_nhanes_people(
-        **peopleArgs, outcomePrevalenceModelRepository=opmr
-    )
-    inScopePeople = [p for p in people if scope.contains(p._current_age)]
-    hits = sum(1 for p in inScopePeople if p.has_outcome_prior_to_simulation(targetOutcomeType))
-    return hits / len(inScopePeople)
+    prevalences = []
+    for _ in range(rebuilds):
+        people = PopulationFactory.get_nhanes_people(
+            **peopleArgs, outcomePrevalenceModelRepository=opmr
+        )
+        inScopePeople = [p for p in people if scope.contains(p._current_age)]
+        hits = sum(1 for p in inScopePeople if p.has_outcome_prior_to_simulation(targetOutcomeType))
+        prevalences.append(hits / len(inScopePeople))
+    return sum(prevalences) / len(prevalences)
 
 
 class TestCalibratePrevalenceRefusals(unittest.TestCase):
@@ -197,7 +203,10 @@ class TestCalibratePrevalenceSameOutcome(unittest.TestCase):
         realized = _measure_realized_prev(
             OutcomeType.DEMENTIA, OutcomeType.DEMENTIA, scaling, scope, peopleArgs
         )
-        self.assertAlmostEqual(realized, target, delta=0.01)
+        #the 65+ scope holds ~1392 persons, so seeding noise alone is ~0.008 here: the calibrator
+        #solves against one frozen set of draws (see calibrate_prevalence) and this measurement
+        #uses fresh ones. 0.01 would fail about a quarter of the time even when calibration is correct.
+        self.assertAlmostEqual(realized, target, delta=0.02)
 
 
 class TestCalibratePrevalenceScopeMatters(unittest.TestCase):
