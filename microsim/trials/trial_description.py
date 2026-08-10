@@ -137,7 +137,7 @@ class NhanesTrialDescription(TrialDescription):
                  nWorkers=1,
                  personFilters=None,
                  year=1999,
-                 nhanesWeights=False,
+                 nhanesWeights=True,
                  distributions=False,
                  prevalenceRiskScaling=None):
         super().__init__(trialType, blockFactors, sampleSize, duration, treatmentStrategies, nWorkers=nWorkers, personFilters=personFilters)

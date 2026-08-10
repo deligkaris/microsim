@@ -236,9 +236,17 @@ class PopulationFactory:
 
     @staticmethod
     def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None):
-        '''Returns a Pandas Series object with Person-Objects of all persons included in NHANES for year 
-           with or without sampling. Filters are applied prior to sampling in order to maximize efficiency and minimize
-           memory utilization. This does not affect the distribution of the relative percentages of groups 
+        '''Returns a Pandas Series object with Person-Objects of all persons included in NHANES for year
+           with or without sampling.
+           n: the number of Person-objects to return. n is honored in every sampling mode: with nhanesWeights,
+              with customWeights, and with neither (in which case rows are drawn uniformly). n=None means that
+              no sampling takes place and every NHANES person of that year that passes the filters is returned;
+              nhanesWeights and customWeights both require an n.
+           Sampling always takes place with replacement and the returned people always number exactly n: person-level
+           filters are applied after the Person-objects have been built, and whatever they drop is drawn again with
+           the same sampling weights (see bring_people_to_target_n).
+           Df-level filters are applied prior to sampling in order to maximize efficiency and minimize
+           memory utilization. This does not affect the distribution of the relative percentages of groups
            represented in people.
            The flag distributions controls if the Person-objects will come directly from the NHANES data or
            if Gaussian distributions will first be fit to the NHANES data and then draws are obtained from the distributions.'''
@@ -253,7 +261,7 @@ class PopulationFactory:
 
         if personFilters is None: #since we started including children in the NHANES df, by default use an adult filter on the df
             personFilters = PersonFilterFactory.get_person_filter()
-        else:
+        elif "adult" not in personFilters.filters["df"]: #warn only when the caller's filters do not already exclude children
             print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
 
         nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)        
@@ -272,27 +280,31 @@ class PopulationFactory:
         if nhanesWeights & (customWeights is not None):
             raise RuntimeError("Cannot use both nhanesWeights (nhanesWeights=True) and custom weights (customWeights is not None).")
 
+        #the weights of the initial draw are kept because the top-up below must draw from the same distribution
         if nhanesWeights:
-            if (year is None) | (n is None):
-                raise RuntimeError("""Cannot set nhanesWeights True without specifying a year and n.
-                                    NHANES weights are defined for each year independently and for sampling 
+            if n is None:
+                raise RuntimeError("""Cannot set nhanesWeights True without specifying n.
+                                    NHANES weights are defined for each year independently and for sampling
                                     to occur the sampling size is needed.""")
-            else:
-                weights = nhanesDf.WTINT2YR
-                nhanesDfForPeople = nhanesDf.sample(n, weights=weights, replace=True)
+            weights = nhanesDf.WTINT2YR
         elif customWeights is not None:
-            nhanesDfForPeople = nhanesDf.sample(n, weights=customWeights, replace=True)
+            if n is None:
+                raise RuntimeError("Cannot use customWeights without specifying n, for sampling to occur the sampling size is needed.")
+            weights = customWeights
         else:
-            nhanesDfForPeople = nhanesDf
+            weights = None
 
         imr = InitializationModelRepository()
-        people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
+        #n is None means that no sampling takes place and every person that passed the df-level filters is returned
+        nhanesDfForPeople = nhanesDf if n is None else nhanesDf.sample(n, weights=weights, replace=True)
+        people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_person, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
 
         people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
 
-        if nhanesWeights:
-            people = PopulationFactory.bring_people_to_target_n(n, people, nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
-            
+        #person-level filters drop people after they were built, so sampled populations need to be brought back to n
+        if n is not None:
+            people = PopulationFactory.bring_people_to_target_n(n, people, nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, weights=weights)
+
         PopulationFactory.set_index_in_people(people)
         return people
 
@@ -739,15 +751,49 @@ class PopulationFactory:
         return people
 
     @staticmethod
-    def bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=None, outcomePrevalenceModelRepository=None):
+    def bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=None, outcomePrevalenceModelRepository=None, weights=None, maxDraws=None):
+        """Resamples rows from df until people holds exactly n Person-objects that pass personFilters.
+
+           Person-level filters can only be applied after a Person-object has been built, so the initial
+           draw of n rows usually yields fewer than n people. This function draws the shortfall.
+
+           weights: the same sampling weights used for the initial draw (a Pandas Series aligned on the
+                    index of df, or None for uniform sampling). Passing them is what keeps the people
+                    added here drawn from the same distribution as the people from the initial draw --
+                    with weights=None on a weighted population, the top-up would silently bias the sample.
+           maxDraws: budget on the total number of Person-objects built here, defaults to
+                     max(100*n, 500). Person-level filters that accept (almost) nothing would otherwise
+                     loop forever, so exhausting the budget raises a RuntimeError that reports the
+                     observed acceptance rate."""
+        if df.shape[0]==0:
+            raise RuntimeError(f"""Cannot bring people to the target n={n}: the dataframe to sample from is empty.
+                                   The df-level filters of personFilters rejected every row.""")
+        maxDraws = max(100*n, 500) if maxDraws is None else maxDraws
+        drawn = 0
+        accepted = 0
         nRemaining = n - people.shape[0]
         while nRemaining>0:
-            dfForPeople = df.sample(nRemaining, replace=True)
+            if drawn>=maxDraws:
+                rate = accepted/drawn if drawn>0 else 0.
+                raise RuntimeError(f"""Cannot bring people to the target n={n}: reached {people.shape[0]} people after
+                                       building {drawn} Person-objects (acceptance rate of the person-level filters:
+                                       {rate:.4f}). The person-level filters of personFilters may be too restrictive,
+                                       or incompatible with its df-level filters. Increase maxDraws if the filters are
+                                       this restrictive by design.""")
+            #the first pass has no information about how many draws survive the person filters, later passes size the
+            #draw with the acceptance rate observed so far (with a 20% margin) so that restrictive filters converge
+            #in a few passes instead of one pass per person
+            rate = accepted/drawn if accepted>0 else 1.
+            batch = min( int(np.ceil(nRemaining/rate*1.2)), maxDraws-drawn )
+            dfForPeople = df.sample(batch, replace=True, weights=weights)
             peopleRemaining = pd.DataFrame.apply(dfForPeople, PersonFactory.get_person, popType=popType, initializationModelRepository=initializationModelRepository, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
             peopleRemaining = PopulationFactory.apply_person_filters_on_people(personFilters, peopleRemaining)
+            drawn += batch
+            accepted += peopleRemaining.shape[0]
             people = pd.concat([people, peopleRemaining])
             nRemaining = n - people.shape[0]
-        return people
+        #the draws are iid so keeping the first n of an overshooting batch does not bias the sample
+        return people.iloc[:n]
 
     @staticmethod
     def get_kaiser_people(n=1000, personFilters=None, wmhSpecific=None):
@@ -766,7 +812,8 @@ class PopulationFactory:
         dfForPeople = df.sample(n, weights=None, replace=True)
         people = pd.DataFrame.apply(dfForPeople, PersonFactory.get_kaiser_person, axis="columns")
         people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
-        people = PopulationFactory.bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.KAISER.value)   
+        #weights=None because the initial Kaiser draw above is unweighted as well
+        people = PopulationFactory.bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.KAISER.value, weights=None)
         PopulationFactory.set_index_in_people(people)
         return people
 
