@@ -93,16 +93,18 @@ def get_nhanes_population(
 ```
 
 Parameters:
-- `n`: number of people to sample (required when `nhanesWeights=True`).
+- `n`: number of people to sample. Honored in every sampling mode — with `nhanesWeights`,
+  with `customWeights`, and with neither (rows are then drawn uniformly). `n=None` means no
+  sampling at all: every person of that year who passes the filters is returned. Both
+  `nhanesWeights=True` and `customWeights` require an `n`.
 - `year`: NHANES survey year; must be one of `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`.
 - `personFilters`: a `PersonFilter` instance; defaults to an adults-only (age >= 18) filter
   when `None`.
-- `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires
-  both `n` and `year`.
+- `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires `n`.
 - `distributions`: if `True`, fit multivariate Gaussians to each categorical stratum of
   NHANES and draw from those distributions rather than using raw NHANES rows.
 - `customWeights`: alternative Pandas Series of sampling weights; mutually exclusive with
-  `nhanesWeights`.
+  `nhanesWeights`; requires `n`.
 - `riskScaling`: optional `dict[OutcomeType, float]` applied to per-outcome risk inside
   `OutcomeModelRepository`.
 - `prevalenceRiskScaling`: optional `dict[OutcomeType, float]` applied to per-outcome
@@ -283,6 +285,17 @@ internally; callers rarely need to instantiate it directly.
    `alcoholPerWeek`. Code that iterates over population attributes via the
    `nhanes_pop_attributes` / `kaiser_pop_attributes` dicts must use the correct set for
    the population type.
+
+9. **The top-up must be given the sampling weights.** Person-level filters run after the
+   Person-objects are built, so `bring_people_to_target_n` redraws whatever they dropped.
+   It samples with the `weights=` it is handed — pass the same weights used for the initial
+   draw, otherwise the replacement people come from a different (unweighted) distribution
+   than the rest of the population.
+
+10. **Over-restrictive person filters raise instead of hanging.** `bring_people_to_target_n`
+    stops after building `maxDraws` Person-objects (default `max(100*n, 500)`) and raises a
+    `RuntimeError` reporting the observed acceptance rate. Filters that are this restrictive
+    by design need an explicit larger `maxDraws`.
 
 ## Integration with the Core Framework
 
