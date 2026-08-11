@@ -187,7 +187,10 @@ class PopulationFactory:
         if PopulationFactory._nhanesDf is None:
             nhanesDf = pd.read_stata("microsim/data/fullyImputedDataset.dta")
             #in Person-objects, the attribute name is used
-            nhanesDf = nhanesDf.rename(columns={"level_0":"name"})
+            #the column holding the row number is called index in the data file, renaming a level_0
+            #column (which pandas produces only when reset_index runs on an index already named index)
+            #silently did nothing, so no name column existed and the distributions path could not merge on it
+            nhanesDf = nhanesDf.rename(columns={"index":"name"})
             #rename the columns that have different column names than the ones that appear in Microsim
             nhanesDf = PopulationFactory.rename_df_columns(nhanesDf, PersonFactory.microsimToNhanes)
             #convert the integers to booleans because in the simulation we always use bool for these
@@ -656,11 +659,21 @@ class PopulationFactory:
         return distributions
 
     @staticmethod
-    def draw_from_distributions(distributions):
+    def draw_from_distributions(distributions, maxDraws=None):
         """Draws from the multivariate normal distributions for each combination of categorical variables (group).
         If a draw includes a continuous variable value outside the bounds, it re-draws.
-        For each group, the number of draws from the distribution is equal to the number of people in that group in 
-        the original NHANES dataframe (as contained in dfForGroups).""" 
+        For each group, the number of draws from the distribution is equal to the number of people in that group in
+        the original NHANES dataframe (as contained in dfForGroups).
+
+        maxDraws: budget on the number of draws made for a single group, defaults to max(1000*size, 50000).
+                  A group whose bounds its distribution never satisfies would otherwise loop forever, so
+                  exhausting the budget raises a RuntimeError that reports the observed acceptance rate.
+                  The budget is deliberately generous because low acceptance rates are normal here: a group
+                  with a singular covariance matrix draws from an alternative group's distribution while
+                  keeping its own bounds, and in NHANES 1999 that leaves at least one group accepting about
+                  0.12% of its draws (its own ages run 52-93 while the distribution it draws from is centered
+                  at 21). Such a group needs a few thousand draws to fill, and the draws it does keep are far
+                  out in the tail of the distribution they came from."""
         drawsForGroups = dict()
         namesForGroups = dict()
         #just use the "mean" for the keys
@@ -683,8 +696,20 @@ class PopulationFactory:
             nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value]
             drawsNeeded = size
             draws = None
+            #the batch is always exactly the shortfall, so it never exceeds size and does not need to be
+            #capped against the budget -- note that rowsOutOfBounds below relies on draws holding size rows
+            groupMaxDraws = max(1000*size, 50000) if maxDraws is None else maxDraws
+            drawn = 0
             #the logic about when to reshape can be improved probably...
             while drawsNeeded>0:
+                if drawn>=groupMaxDraws:
+                    accepted = size - drawsNeeded
+                    raise RuntimeError(f"""Cannot draw {size} in-bounds draws for group {key}: kept {accepted} of
+                                           {drawn} draws (acceptance rate: {accepted/drawn:.4f}). The bounds of this
+                                           group are almost never satisfied by the distribution being drawn from
+                                           (singular covariance: {distributions["singular"][key]}, drawing from
+                                           group: {distKey}). Increase maxDraws if the group is this narrow by design.""")
+                drawn += drawsNeeded
                 if draws is None:
                     draws = dist.rvs(size=drawsNeeded)
                 else:
