@@ -227,13 +227,16 @@ class PopulationFactory:
                         DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value:'bool',
                         #"age":'int'}).reset_index()
                        }).reset_index()
-        df[StaticRiskFactorsType.GENDER.value] = df[StaticRiskFactorsType.GENDER.value].replace({'F': 2, 'M': 1}).astype('int') #.infer_objects(copy=False)  
-        df[StaticRiskFactorsType.RACE_ETHNICITY.value] = df[StaticRiskFactorsType.RACE_ETHNICITY.value].replace(
-                                        {'Black': RaceEthnicity.NON_HISPANIC_BLACK.value, 
+        #map, not replace: replacing strings with integers makes pandas downcast the object column
+        #silently, which is deprecated and warns. map does the same substitution without the downcast.
+        #The astype below still catches a value missing from the dict, as map turns it into NaN.
+        df[StaticRiskFactorsType.GENDER.value] = df[StaticRiskFactorsType.GENDER.value].map({'F': 2, 'M': 1}).astype('int')
+        df[StaticRiskFactorsType.RACE_ETHNICITY.value] = df[StaticRiskFactorsType.RACE_ETHNICITY.value].map(
+                                        {'Black': RaceEthnicity.NON_HISPANIC_BLACK.value,
                                         'Asian and Pacific Islander': RaceEthnicity.ASIAN.value,
                                         'White': RaceEthnicity.NON_HISPANIC_WHITE.value,
                                         'Multiple/Other/Unknown': RaceEthnicity.OTHER.value,
-                                        'Hispanic': RaceEthnicity.OTHER_HISPANIC.value}).astype('int') 
+                                        'Hispanic': RaceEthnicity.OTHER_HISPANIC.value}).astype('int')
         df[StaticRiskFactorsType.MODALITY.value] = df[StaticRiskFactorsType.MODALITY.value].replace({"CT": Modality.CT.value,
                                                                                                      "MR": Modality.MR.value})
         return df
