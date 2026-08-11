@@ -32,7 +32,10 @@ from microsim.common.population_type import PopulationType
 from microsim.risk_factors.modality import Modality
 
 class PopulationFactory:
-    nhanes_pop_attributes = {PopulationRepositoryType.STATIC_RISK_FACTORS.value: 
+    #the NHANES df as get_nhanesDf builds it, cached because every population build needs it
+    _nhanesDf = None
+
+    nhanes_pop_attributes = {PopulationRepositoryType.STATIC_RISK_FACTORS.value:
                                                                     [StaticRiskFactorsType.GENDER.value,
                                                                      StaticRiskFactorsType.SMOKING_STATUS.value, 
                                                                      StaticRiskFactorsType.RACE_ETHNICITY.value,
@@ -176,25 +179,31 @@ class PopulationFactory:
     @staticmethod
     def get_nhanesDf():
         """Reads and modifies the NHANES dataframe so that it is ready to be used in the simulation.
-           Returns a Pandas df with the NHANES information as exists in Microsim."""
-        nhanesDf = pd.read_stata("microsim/data/fullyImputedDataset.dta")
-        #in Person-objects, the attribute name is used
-        nhanesDf = nhanesDf.rename(columns={"level_0":"name"})
-        #rename the columns that have different column names than the ones that appear in Microsim
-        nhanesDf = PopulationFactory.rename_df_columns(nhanesDf, PersonFactory.microsimToNhanes)
-        #convert the integers to booleans because in the simulation we always use bool for these
-        for col in [DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value, DefaultTreatmentsType.STATIN.value]:
-            nhanesDf[col] = nhanesDf[col].astype(bool)
-        #convert drinks per week to category
-        nhanesDf[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value] = nhanesDf.apply(lambda x:
-                                                                                 AlcoholCategory.get_category_for_consumption(x[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value]), axis=1)
-        #convert these columns to int type
-        for col in [StaticRiskFactorsType.RACE_ETHNICITY.value, 
-                    StaticRiskFactorsType.EDUCATION.value,
-                    StaticRiskFactorsType.GENDER.value,
-                    StaticRiskFactorsType.SMOKING_STATUS.value]:
-            nhanesDf[col] = nhanesDf[col].astype(int)
-        return nhanesDf
+           Returns a Pandas df with the NHANES information as exists in Microsim.
+           The df is built once and kept in _nhanesDf: reading the file and converting the columns
+           costs about 14 seconds, and every population build needs the df. Callers get a copy of
+           the cached df, some of them add columns to what they get back (see get_treatment_weights
+           and get_partitioned_nhanes_people_crude), which would corrupt the cache for everyone else."""
+        if PopulationFactory._nhanesDf is None:
+            nhanesDf = pd.read_stata("microsim/data/fullyImputedDataset.dta")
+            #in Person-objects, the attribute name is used
+            nhanesDf = nhanesDf.rename(columns={"level_0":"name"})
+            #rename the columns that have different column names than the ones that appear in Microsim
+            nhanesDf = PopulationFactory.rename_df_columns(nhanesDf, PersonFactory.microsimToNhanes)
+            #convert the integers to booleans because in the simulation we always use bool for these
+            for col in [DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value, DefaultTreatmentsType.STATIN.value]:
+                nhanesDf[col] = nhanesDf[col].astype(bool)
+            #convert drinks per week to category
+            nhanesDf[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value] = nhanesDf.apply(lambda x:
+                                                                                     AlcoholCategory.get_category_for_consumption(x[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value]), axis=1)
+            #convert these columns to int type
+            for col in [StaticRiskFactorsType.RACE_ETHNICITY.value,
+                        StaticRiskFactorsType.EDUCATION.value,
+                        StaticRiskFactorsType.GENDER.value,
+                        StaticRiskFactorsType.SMOKING_STATUS.value]:
+                nhanesDf[col] = nhanesDf[col].astype(int)
+            PopulationFactory._nhanesDf = nhanesDf
+        return PopulationFactory._nhanesDf.copy()
 
     @staticmethod
     def get_kaiserDf(csvFile):
