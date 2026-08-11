@@ -250,6 +250,10 @@ class PopulationFactory:
     def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None):
         '''Returns a Pandas Series object with Person-Objects of all persons included in NHANES for year
            with or without sampling.
+           year: the NHANES survey year, one of 1999 to 2017 in odd steps of 2. year=None uses the entire
+              dataframe, ie every survey year at once. Because the NHANES weights are defined for each year
+              independently, nhanesWeights=True with year=None weighs people from different years against
+              each other, which is not what those weights mean.
            n: the number of Person-objects to return. n is honored in every sampling mode: with nhanesWeights,
               with customWeights, and with neither (in which case rows are drawn uniformly). n=None means that
               no sampling takes place and every NHANES person of that year that passes the filters is returned;
@@ -263,8 +267,8 @@ class PopulationFactory:
            The flag distributions controls if the Person-objects will come directly from the NHANES data or
            if Gaussian distributions will first be fit to the NHANES data and then draws are obtained from the distributions.'''
 
-        if year not in [2011, 2015, 2007, 2003, 2009, 2001, 2005, 1999, 2013, 2017]:
-            raise RuntimeError(f"NHANES data for year {year} is not available") 
+        if (year is not None) & (year not in [2011, 2015, 2007, 2003, 2009, 2001, 2005, 1999, 2013, 2017]):
+            raise RuntimeError(f"NHANES data for year {year} is not available")
 
         nhanesDf = PopulationFactory.get_nhanesDf()        
 

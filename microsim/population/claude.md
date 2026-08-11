@@ -97,7 +97,9 @@ Parameters:
   with `customWeights`, and with neither (rows are then drawn uniformly). `n=None` means no
   sampling at all: every person of that year who passes the filters is returned. Both
   `nhanesWeights=True` and `customWeights` require an `n`.
-- `year`: NHANES survey year; must be one of `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`.
+- `year`: NHANES survey year; must be one of `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`,
+  or `None` to use every survey year at once. Note that `nhanesWeights=True` with `year=None` weighs
+  people from different years against each other, which is not what NHANES weights mean.
 - `personFilters`: a `PersonFilter` instance; defaults to an adults-only (age >= 18) filter
   when `None`.
 - `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires `n`.
@@ -271,7 +273,8 @@ internally; callers rarely need to instantiate it directly.
    Population's does not).
 
 5. **NHANES year validation.** `get_nhanes_population` raises `RuntimeError` for any year
-   not in `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`.
+   not in `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`. `year=None` is the one
+   exception: it skips the year filter and uses every survey year at once.
 
 6. **`nhanesWeights` and `customWeights` are mutually exclusive.** Passing both raises
    `RuntimeError`.
