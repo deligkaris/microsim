@@ -288,8 +288,8 @@ class PopulationFactory:
         #and then have nhanesDf point to the df obtained from the draws
         if distributions:
             dfForGroups = PopulationFactory.get_partitioned_nhanes_people(year=year)
-            distributions = PopulationFactory.get_distributions(dfForGroups)
-            drawsForGroups, namesForGroups = PopulationFactory.draw_from_distributions(distributions)
+            distributionsForGroups = PopulationFactory.get_distributions(dfForGroups)
+            drawsForGroups, namesForGroups = PopulationFactory.draw_from_distributions(distributionsForGroups)
             df = PopulationFactory.get_df_from_draws(drawsForGroups, namesForGroups, popType=PopulationType.NHANES.value)
             df = df.merge(nhanesDf[["name","WTINT2YR"]], on="name", how="inner").copy()
             nhanesDf = df
