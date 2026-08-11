@@ -11,13 +11,13 @@ from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 
 def _adults_filter():
-    return PersonFilterFactory.get_person_filter()
+    return PersonFilterFactory.get_person_filter(["adult"])
 
 
 def _adults_filter_with_person_filter(name, filterFunction):
     """Adult df filter plus a person-level filter, which is what forces bring_people_to_target_n
        to run: person-level filters can only drop people after they have been built."""
-    pf = PersonFilterFactory.get_person_filter()
+    pf = PersonFilterFactory.get_person_filter(["adult"])
     pf.add_filter("person", name, filterFunction)
     return pf
 
@@ -34,7 +34,7 @@ class TestNIsHonored(unittest.TestCase):
     def test_n_none_returns_every_person_that_passed_the_filters(self):
         # a narrow age band keeps this to a small number of Person-objects while still
         # exercising the "no sampling at all" path
-        pf = PersonFilterFactory.get_person_filter()
+        pf = PersonFilterFactory.get_person_filter(["adult"])
         pf.add_filter("df", "age40", lambda x: x[DynamicRiskFactorsType.AGE.value] == 40)
         people = PopulationFactory.get_nhanes_people(
             n=None, year=1999, personFilters=pf, nhanesWeights=False,

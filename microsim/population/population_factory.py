@@ -260,7 +260,7 @@ class PopulationFactory:
             nhanesDf = nhanesDf.loc[nhanesDf.year == year]
 
         if personFilters is None: #since we started including children in the NHANES df, by default use an adult filter on the df
-            personFilters = PersonFilterFactory.get_person_filter()
+            personFilters = PersonFilterFactory.get_person_filter(["adult"])
         elif "adult" not in personFilters.filters["df"]: #warn only when the caller's filters do not already exclude children
             print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
 

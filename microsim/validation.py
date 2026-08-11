@@ -23,7 +23,7 @@ class Validation:
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=2007, personFilters=None, nhanesWeights=True, distributions=False)
         pop.print_baseline_summary()
         print("2013 Hypertension")
-        pf = PersonFilterFactory.get_person_filter()
+        pf = PersonFilterFactory.get_person_filter(["adult"])
         pf.add_filter(filterType="df",
                       filterName="lowAntiHypertensiveLimit",
                       filterFunction = lambda x: x[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]>0)
