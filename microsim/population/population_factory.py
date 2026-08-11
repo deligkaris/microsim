@@ -29,6 +29,7 @@ from microsim.population.standardized_population import StandardizedPopulation
 from microsim.common.variable_type import VariableType
 from microsim.outcomes.outcome import OutcomeType
 from microsim.common.population_type import PopulationType
+from microsim.common.data_loader import get_absolute_datafile_path
 from microsim.risk_factors.modality import Modality
 
 class PopulationFactory:
@@ -185,7 +186,7 @@ class PopulationFactory:
            the cached df, some of them add columns to what they get back (see get_treatment_weights
            and get_partitioned_nhanes_people_crude), which would corrupt the cache for everyone else."""
         if PopulationFactory._nhanesDf is None:
-            nhanesDf = pd.read_stata("microsim/data/fullyImputedDataset.dta")
+            nhanesDf = pd.read_stata(get_absolute_datafile_path("fullyImputedDataset.dta"))
             #in Person-objects, the attribute name is used
             #the column holding the row number is called index in the data file, renaming a level_0
             #column (which pandas produces only when reset_index runs on an index already named index)
@@ -577,7 +578,7 @@ class PopulationFactory:
         #kaiser population size
         popSize = 315142
 
-        fileDir = "microsim/data/kaiser"
+        fileDir = get_absolute_datafile_path("kaiser")
         csvFiles = ['/kaiserMin.csv', '/kaiserMax.csv', '/kaiserMean.csv', '/kaiserCovariance.csv', '/kaiserWeight.csv']        
         (minDf, maxDf, meanDf, covDf, weightDf) = list(map(lambda x: PopulationFactory.get_kaiserDf(x), [fileDir+y for y in csvFiles]))
         
@@ -973,7 +974,7 @@ class PopulationFactory:
     def get_stateDf(year=2030, state='OH'):
         '''Reads the CSV file that includes some categorical variables for each state and year and performs a bit of initial processing.
         Returns a dataframe that includes a portion of the microsim categorical variables and the number of people in that state by age.'''
-        dataDir = "microsim/data/state"
+        dataDir = get_absolute_datafile_path("state")
         data = pd.read_csv(dataDir+f"/pop_projection_{state.lower()}_{year}.csv")
         data[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value] = data[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value].astype(bool)
         ageList5Years = [x for x in range(0,5)]
