@@ -74,6 +74,9 @@ string, or a `TreatmentStrategyRepository`). Pass `assessor=` to override the de
 `distributions`, `prevalenceRiskScaling` for NHANES; `wmhSpecific`, `riskScaling` for
 Kaiser) are forwarded to the corresponding description subclass.
 
+Note that `NhanesTrialDescription` defaults `nhanesWeights=True`, so an NHANES trial samples
+with the survey weights unless you ask it not to. `year` defaults to 1999.
+
 For finer control — inspecting populations before `run()`, swapping in a custom
 assessor between `run()` and `analyze()`, or skipping analysis entirely — use the
 step-by-step process below.

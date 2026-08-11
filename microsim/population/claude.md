@@ -104,7 +104,12 @@ Parameters:
   when `None`.
 - `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires `n`.
 - `distributions`: if `True`, fit multivariate Gaussians to each categorical stratum of
-  NHANES and draw from those distributions rather than using raw NHANES rows.
+  NHANES and draw from those distributions rather than using raw NHANES rows. **`personFilters`
+  do not reach the fit**: `get_partitioned_nhanes_people` passes `personFilters=None` to its own
+  `get_nhanes_population` call, so the Gaussians always describe all adults of that year. The
+  drawn rows are then inner-merged on `name` against the filtered frame, which shapes how many
+  rows survive per group but not the values drawn, so a filter such as SBP > 126 is not enforced
+  on the synthetic people. Person-level filters still apply, since they run after construction.
 - `customWeights`: alternative Pandas Series of sampling weights; mutually exclusive with
   `nhanesWeights`; requires `n`.
 - `riskScaling`: optional `dict[OutcomeType, float]` applied to per-outcome risk inside
@@ -280,8 +285,10 @@ internally; callers rarely need to instantiate it directly.
    `RuntimeError`.
 
 7. **`distributions=True` is slow.** It fits multivariate Gaussians to every NHANES
-   categorical stratum, which is computationally expensive. Prefer `distributions=False`
-   (default) for most simulations.
+   categorical stratum, which is computationally expensive — it builds and advances a whole
+   NHANES population of that year just to produce the frame it fits. Prefer
+   `distributions=False` (default) for most simulations. It also does not honor `personFilters`
+   (see the parameter description above).
 
 8. **Kaiser population attribute set differs from NHANES.** Kaiser includes `afib` and
    `pvd` as categorical variables that NHANES does not; Kaiser omits `education` and
@@ -299,6 +306,27 @@ internally; callers rarely need to instantiate it directly.
     stops after building `maxDraws` Person-objects (default `max(100*n, 500)`) and raises a
     `RuntimeError` reporting the observed acceptance rate. Filters that are this restrictive
     by design need an explicit larger `maxDraws`.
+
+11. **`get_nhanesDf` is cached and hands out copies.** Building the frame — reading the `.dta`
+    and converting the columns — takes about 14 seconds, and every population build needs it,
+    so it is built once into `PopulationFactory._nhanesDf`. Each call returns `.copy()` of the
+    cache, never the cached object, because `get_treatment_weights` and
+    `get_partitioned_nhanes_people_crude` add an `ageGroup` column and recast `age` on what they
+    get back. Never return the cached frame directly.
+
+12. **The `name` column is the frame's own index.** `get_nhanesDf` renames the data file's
+    `index` column to `name`, and that value is what `Person._name` holds, which is what the
+    `distributions=True` path merges on to reattach `WTINT2YR`. The rename previously targeted a
+    `level_0` column that the data file does not have, so no `name` column existed and
+    `distributions=True` died with a `KeyError`.
+
+13. **`draw_from_distributions` bounds its redraws.** Each group gets `maxDraws` draws, default
+    `max(1000*size, 50000)`, and exhausting the budget raises a `RuntimeError` reporting the
+    group and its acceptance rate. The budget is deliberately generous: a group whose covariance
+    matrix is singular draws from an alternative group's distribution while keeping its own
+    bounds, and in NHANES 1999 that leaves at least one group accepting about 0.12% of its draws
+    (its own ages run 52–93 while the distribution it draws from is centered at 21). Such rows
+    are kept from far out in the tail of a distribution that is not really theirs.
 
 ## Integration with the Core Framework
 

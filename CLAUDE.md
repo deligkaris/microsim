@@ -216,7 +216,7 @@ class TestPopulation(unittest.TestCase):
 
 ## Common Gotchas
 
-1. **Path handling:** Data files use `get_absolute_datafile_path()` from `data_loader.py` to resolve paths correctly
+1. **Path handling:** Data files use `get_absolute_datafile_path()` from `data_loader.py` to resolve paths correctly. It anchors on the package location, so it works from any working directory; a literal `"microsim/data/..."` only resolves when the process runs from the repository root
 2. **Wave indexing:** Remember waves are 0-indexed after first advance (-1 before any advance)
 3. **Repository access:** Population repositories accessed via `PopulationRepositoryType` enum, not direct dictionary keys
 4. **Random number generation:** Each Person has its own RNG (`_rng`) for reproducibility in multiprocessing
