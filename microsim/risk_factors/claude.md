@@ -84,7 +84,6 @@ These JSON specifications are loaded by the model repositories and used to param
 - `risk_factor.py`: Core enumerations (DynamicRiskFactorsType, StaticRiskFactorsType, CategoricalRiskFactorsType, ContinuousRiskFactorsType)
 - `risk_model_repository.py`: Base `RiskModelRepository` with bounds enforcement and model initialization helpers
 - `cohort_risk_model_repository.py`: Cohort-specific repositories (`CohortDynamicRiskFactorModelRepository`, `CohortStaticRiskFactorModelRepository`, and the helper `AlcoholCategoryModel`)
-- `nhanes_risk_model_repository.py`: NHANES-specific `NHANESRiskModelRepository` (uses legacy pickle-based models for SBP, DBP, HDL, BMI, totChol, A1C). **Currently non-functional**: no `.pickle` files exist under `data/`, so constructing it raises `FileNotFoundError` on `matchedHdlModel.pickle`. It is imported by `population.py` but never instantiated, so nothing in the simulation path touches it. Its two `OLSResults.load` calls also still use working-directory-relative paths rather than `get_absolute_datafile_path`.
 - `initialization_model_repository.py`: `InitializationModelRepository` — seeds PVD, AFIB, WAIST, EDUCATION, ALCOHOL, MODALITY at Person construction
 - Individual model files:
   - `age_model.py`: Age progression
@@ -132,10 +131,6 @@ RiskModelRepository (risk_model_repository.py)  ← base class
 CohortDynamicRiskFactorModelRepository (cohort_risk_model_repository.py)
   ↓ loads from
 data/*CohortModelSpec.json (via load_regression_model)
-
-NHANESRiskModelRepository (nhanes_risk_model_repository.py)
-  ↓ would load from
-data/*.pickle (legacy NHANES OLS models — these files are not in the repository)
 ```
 
 Repositories are accessed through the Population's `PopulationRepositoryType.DYNAMIC_RISK_FACTORS` or `PopulationRepositoryType.STATIC_RISK_FACTORS` enum.

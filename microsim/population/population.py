@@ -17,7 +17,6 @@ from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.risk_factors.gfr_equation import GFREquation
 from microsim.population.initialization_repository import InitializationRepository
-from microsim.risk_factors.nhanes_risk_model_repository import NHANESRiskModelRepository
 from microsim.outcomes.outcome import Outcome, OutcomeType, EventOutcomeType
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.person.person import Person
