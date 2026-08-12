@@ -32,9 +32,45 @@ from microsim.common.population_type import PopulationType
 from microsim.common.data_loader import get_absolute_datafile_path
 from microsim.risk_factors.modality import Modality
 
+class VariablesUsedRecorder:
+    """NOT IN USE at the moment: its only caller is apply_categorical_person_filters_on_groups, which
+       stopped being used when get_nhanes_people moved to the construction the state populations use.
+
+       Stands in for a dataframe row and remembers which variables were read from it.
+
+       A person filter is a function, so nothing declares which variables it depends on. Handing it one
+       of these instead of a row answers that question by observation: whatever the filter looks up ends
+       up in variablesUsed, and the caller can then compare that against the categorical/continuous lists
+       in PopulationFactory.variable_types.
+
+       Only the variables the filter actually reaches for are recorded, so a filter that stops early
+       records only what it read before stopping."""
+    def __init__(self, row):
+        object.__setattr__(self, "_row", row)
+        object.__setattr__(self, "variablesUsed", set())
+
+    def __getitem__(self, variable):
+        self.variablesUsed.add(variable)
+        return self._row[variable]
+
+    def __getattr__(self, variable):
+        #a filter that reaches for a variable as an attribute rather than a key is recorded the same way
+        self.variablesUsed.add(variable)
+        return getattr(self._row, variable)
+
+
 class PopulationFactory:
     #the NHANES df as get_nhanesDf builds it, cached because every population build needs it
     _nhanesDf = None
+
+    #NOT IN USE at the moment: only get_partitioned_nhanes_people reads it, and that is itself unused.
+    #how many weighted draws get_partitioned_nhanes_people partitions in order to fit the distributions.
+    #Measured on 1999: this yields ~1450 groups of which 644 hold at least 12 people, against 1558 groups
+    #of which only 77 do when the whole unweighted year is used instead, at 39s against 20s. It does not
+    #help with the singular covariance matrices, ~96% of groups have one at every n that was tried,
+    #because the nine categorical variables cut a few thousand people into more cells than an eleven
+    #dimensional covariance can be fit in.
+    fitSampleSize = 40000
 
     nhanes_pop_attributes = {PopulationRepositoryType.STATIC_RISK_FACTORS.value:
                                                                     [StaticRiskFactorsType.GENDER.value,
@@ -269,12 +305,28 @@ class PopulationFactory:
            memory utilization. This does not affect the distribution of the relative percentages of groups
            represented in people.
            The flag distributions controls if the Person-objects will come directly from the NHANES data or
-           if Gaussian distributions will first be fit to the NHANES data and then draws are obtained from the distributions.'''
+           if Gaussian distributions will first be fit to the NHANES data and then draws are obtained from the distributions.
+           distributions=True keeps the categorical variables and the age of each NHANES row and redraws
+           only the continuous ones, so which rows are sampled is still what decides the make-up of the
+           population: nhanesWeights applies as it does without distributions. customWeights is refused
+           with distributions=True.'''
 
         if (year is not None) & (year not in [2011, 2015, 2007, 2003, 2009, 2001, 2005, 1999, 2013, 2017]):
             raise RuntimeError(f"NHANES data for year {year} is not available")
 
-        nhanesDf = PopulationFactory.get_nhanesDf()        
+        #both weight checks are made here, before any of the work below, so that an argument combination
+        #that cannot be honored is refused immediately rather than after the distributions have been fit
+        if nhanesWeights & (customWeights is not None):
+            raise RuntimeError("Cannot use both nhanesWeights (nhanesWeights=True) and custom weights (customWeights is not None).")
+
+        if distributions & (customWeights is not None):
+            raise RuntimeError("""Cannot use customWeights with distributions=True. With distributions the
+                                  categorical variables and the age of each person still come from the
+                                  NHANES rows and only the continuous variables are drawn, so it is the
+                                  sampling of those rows that decides who the population is made of, and
+                                  nhanesWeights is what makes that sampling representative.""")
+
+        nhanesDf = PopulationFactory.get_nhanesDf()
 
         if year is not None: #if year is None, then use the entire dataframe
             nhanesDf = nhanesDf.loc[nhanesDf.year == year]
@@ -284,21 +336,27 @@ class PopulationFactory:
         elif "adult" not in personFilters.filters["df"]: #warn only when the caller's filters do not already exclude children
             print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
 
-        nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)        
- 
-        #if we want to draw from the NHANES distributions, then we fit the NHANES data first, draw, convert the draws to 
-        #a Pandas dataframe, bring in the NHANES weights (because I do not keep those when I do the fits)
-        #and then have nhanesDf point to the df obtained from the draws
+        #with distributions the continuous variables of each NHANES row are replaced by a draw, exactly as
+        #the state populations are built: the categorical variables and the age of the row stay as they
+        #are and only the continuous variables are drawn, from a Gaussian fit on gender, race ethnicity,
+        #education and age and then shifted to the mean of the group matching every categorical variable.
+        #Grouping on those four variables only, over all NHANES years and with overlapping age windows,
+        #is what leaves enough people per group to fit a covariance matrix that is not singular.
         if distributions:
-            dfForGroups = PopulationFactory.get_partitioned_nhanes_people(year=year)
-            distributionsForGroups = PopulationFactory.get_distributions(dfForGroups)
-            drawsForGroups, namesForGroups = PopulationFactory.draw_from_distributions(distributionsForGroups)
-            df = PopulationFactory.get_df_from_draws(drawsForGroups, namesForGroups, popType=PopulationType.NHANES.value)
-            df = df.merge(nhanesDf[["name","WTINT2YR"]], on="name", how="inner").copy()
-            nhanesDf = df
+            partitionedNhanesDf = PopulationFactory.get_partitioned_nhanes_people_crude()
+            crudeDistributions = PopulationFactory.get_distributions_crude(partitionedNhanesDf)
+            nhanesDf = PopulationFactory.redraw_continuous_variables(nhanesDf, crudeDistributions)
 
-        if nhanesWeights & (customWeights is not None):
-            raise RuntimeError("Cannot use both nhanesWeights (nhanesWeights=True) and custom weights (customWeights is not None).")
+        #the df-level filters are applied here, after the block above, rather than before it: with
+        #distributions the rows that go on to become Person-objects are draws from the fitted
+        #distributions and not NHANES rows, and it is those rows the filters have to hold for. Applying
+        #them here also leaves the merge above doing only what it is for, which is attaching the weights:
+        #merging against an already filtered df would drop a draw whenever the person whose name it
+        #borrowed had been filtered out, which has nothing to do with the values the draw actually has.
+        nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)
+        if nhanesDf.shape[0] == 0:
+            raise RuntimeError("""The df-level filters of personFilters rejected every row, so there is
+                                  nobody left to build Person-objects from.""")
 
         #the weights of the initial draw are kept because the top-up below must draw from the same distribution
         if nhanesWeights:
@@ -502,11 +560,28 @@ class PopulationFactory:
         return Population(people, popModelRepository)
 
     @staticmethod
-    def get_partitioned_nhanes_people(year=None):
-        """Partitions a NHANES df in all possible combinations of categorical variables that actually exist in NHANES.
+    def get_partitioned_nhanes_people(year=None, n=None):
+        """NOT IN USE at the moment: get_nhanes_people fits its distributions on
+           get_partitioned_nhanes_people_crude instead, which groups on the four categorical variables that
+           matter most rather than on all nine. All nine span about 10800 combinations for the roughly 5400
+           adults of a single year, so about 96% of the groups this returns cannot be fit a covariance
+           matrix that is not singular, whatever n is.
+
+           Partitions a NHANES df in all possible combinations of categorical variables that actually exist in NHANES.
            Group is defined as a specific combination of the categorical variables.
-           Returns a dictionary: keys are the groups, values are dataframes with the NHANES rows for that particular group."""
-        pop = PopulationFactory.get_nhanes_population(n=None, year=year, personFilters=None, nhanesWeights=False)
+           Returns a dictionary: keys are the groups, values are dataframes with the NHANES rows for that particular group.
+
+           The people partitioned here are drawn with the NHANES weights, so the size of each group,
+           and with it the number of draws the group contributes later, follows the weighted population
+           rather than the raw NHANES sample. That is why get_nhanes_people refuses to weight the draws
+           a second time. n is the size of that weighted draw and defaults to fitSampleSize.
+
+           Note that the weighted draw is made with replacement, so an n past the number of distinct
+           NHANES rows of that year adds copies rather than new people. It settles the group sizes, but
+           it cannot make a covariance matrix any less singular: the rank of a group's covariance is
+           bounded by how many distinct people it holds, not by how many times they appear."""
+        n = PopulationFactory.fitSampleSize if n is None else n
+        pop = PopulationFactory.get_nhanes_population(n=n, year=year, personFilters=None, nhanesWeights=True)
         pop.advance(1)
         df = pop.get_all_person_years_as_df()
         dfForGroups = dict()
@@ -543,7 +618,11 @@ class PopulationFactory:
 
     @staticmethod
     def get_distributions(dfForGroups):
-        """Fits a multivariate normal to the continuous variables of each specific combination of categorical variables (group).
+        """NOT IN USE at the moment: it goes with get_partitioned_nhanes_people, and get_nhanes_people now
+           uses get_distributions_crude instead, which resolves a singular fit by pooling the group over all
+           education levels rather than by borrowing another group's distribution.
+
+           Fits a multivariate normal to the continuous variables of each specific combination of categorical variables (group).
            Returns a dictionary: keys are 'mean', 'cov', 'min', 'max', 'singular'.
            Values for 'singular' are boolean depending on whether the covariance matrix for that key is singular or not.
            Values for all other keys are np arrays.
@@ -780,10 +859,78 @@ class PopulationFactory:
 
     @staticmethod
     def apply_person_filters_on_df(personFilters, df):
+        """Keeps the rows of df that every df-level filter accepts.
+
+           The df can be the NHANES rows or, when drawing from the distributions, the rows drawn from
+           them. The second carries only the variables in PopulationFactory.variable_types plus name and
+           WTINT2YR, so a filter written against a column that exists only in NHANES works on one and not
+           on the other; that is reported rather than left as a KeyError out of pandas."""
         if personFilters is not None:
-            for personFilterFunction in personFilters.filters["df"].values():
-                df = df.loc[df.apply(personFilterFunction, axis=1)] 
+            for filterName, personFilterFunction in personFilters.filters["df"].items():
+                if df.shape[0] == 0: #an earlier filter left nothing, and apply on an empty df has no rows to align to
+                    return df
+                try:
+                    df = df.loc[df.apply(personFilterFunction, axis=1)]
+                except KeyError as e:
+                    raise RuntimeError(f"""The df filter '{filterName}' asked for the variable {e}, which
+                                           this dataframe does not have. Its columns are:
+                                           {sorted(df.columns.tolist())}.""")
         return df
+
+    @staticmethod
+    def apply_categorical_person_filters_on_groups(dfForGroups, personFilters,
+                                                   popType=PopulationType.NHANES.value):
+        """NOT IN USE at the moment: it was an optimization for the group-by-group fitting that
+           get_partitioned_nhanes_people did. get_nhanes_people no longer fits per group of all nine
+           categorical variables, and it applies the df-level filters to the redrawn dataframe instead,
+           so there are no groups to drop ahead of a fit.
+
+           Drops the groups that the df-level filters reject on their categorical variables alone.
+
+           A group is one combination of the categorical variables, so a filter that depends only on
+           those variables gives the same answer for every person in the group and can be decided once,
+           for the whole group, before any distribution is fit. Dropping such a group here saves fitting
+           a multivariate normal that nothing would ever draw from, and it keeps groups that no draw
+           could satisfy away from the draw budget in draw_from_distributions.
+
+           Which filters those are is not declared anywhere, so it is observed instead: the filter is
+           handed a VariablesUsedRecorder wrapping a row of the group, which records every variable the
+           filter reads. If everything it read is in the categorical list of variable_types then its
+           answer holds for the whole group; if it read a continuous variable as well, the group cannot
+           be decided here and is left to the person-by-person filtering that happens later.
+
+           A filter that mixes the two is still decided whenever its categorical half alone settles the
+           answer, because python stops evaluating an expression as soon as the result is known: for
+           "gender is male and sbp>126" a female group never reaches the sbp test, so only gender is
+           recorded and the group is dropped, which is right since no woman passes that filter at any
+           sbp. For a male group the sbp test does run, sbp is recorded, and the group is left for later.
+
+           Returns the subset of dfForGroups that survives. Raises if nothing does, because that leaves
+           no distribution to draw from at all."""
+        if personFilters is None:
+            return dfForGroups
+        catVariables = set(PopulationFactory.variable_types(VariableType.CATEGORICAL.value, popType=popType))
+        groupsKept = dict()
+        for key, dfForGroup in dfForGroups.items():
+            #every person in the group shares the categorical values, so any row of it will do
+            row = dfForGroup.iloc[0]
+            keep = True
+            for filterFunction in personFilters.filters["df"].values():
+                recorder = VariablesUsedRecorder(row)
+                try:
+                    decision = filterFunction(recorder)
+                except KeyError: #the filter wants a variable this df does not carry, leave it for later
+                    continue
+                #the answer holds for the whole group only if nothing outside the categorical list was read
+                if (recorder.variablesUsed <= catVariables) and (not decision):
+                    keep = False
+                    break
+            if keep:
+                groupsKept[key] = dfForGroup
+        if len(groupsKept) == 0:
+            raise RuntimeError(f"""The df-level filters rejected all {len(dfForGroups)} groups on their
+                                   categorical variables, so there is no distribution left to draw from.""")
+        return groupsKept
 
     @staticmethod
     def apply_person_filters_on_people(personFilters, people):
@@ -1057,6 +1204,24 @@ class PopulationFactory:
                     proportionForTreatments[ageGroup, gender, raceEthnicity][statin, antiHypertensiveCount] = proportion
         return proportionForTreatments
 
+    def redraw_continuous_variables(df, distributions):
+        '''Replaces the continuous variables of every row of df with a draw from the distributions.
+
+        The categorical variables and the age of each row are kept as they are, which is what makes this
+        the same construction the state populations use: there the categorical variables and the age come
+        from a state projection, here they come from the NHANES rows themselves, and in both cases only
+        the continuous variables are drawn. The draw is made from a Gaussian fit on the few categorical
+        variables that matter most for the continuous ones, and is then shifted to the mean of the group
+        that matches every categorical variable (see get_draws_from_distributions_adjusted).'''
+        df = df.copy()
+        df["ageGroup"] = df[DynamicRiskFactorsType.AGE.value].apply(PopulationFactory.get_ageGroup_from_age)
+        #age is not redrawn, it is one of the keys the distributions are stored under
+        continuousToRedraw = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
+        continuousToRedraw.remove(DynamicRiskFactorsType.AGE.value)
+        df = df.drop(columns=continuousToRedraw)
+        return PopulationFactory.append_dataframe_with_continuous(df, distributions)
+
+    @staticmethod
     def append_dataframe_with_continuous(dfWithCategoricals, distributions):
         '''Takes a dataframe where all categorical variables exist for each row, and uses the distributions to append columns
         with all continuous variables.
@@ -1112,33 +1277,22 @@ class PopulationFactory:
     def get_partitioned_nhanes_df_with_age_group():
         '''Uses all NHANES data, from all years, and then partitions the dataframe to a dictionary where keys are the set of categorical variables and values
         are dataframes with all NHANES rows that correspond to the specific values of the categorical variables.'''
-        dfForGroups = dict()
         df = PopulationFactory.get_nhanesDf()
         df["ageGroup"] = df["age"].apply(lambda x: PopulationFactory.get_ageGroup_from_age(x))
-        for ge, sm, ra, st, ed, al, a, an, ageGroup in product(
-                                                     set(df[StaticRiskFactorsType.GENDER.value].tolist()), 
-                                                     set(df[StaticRiskFactorsType.SMOKING_STATUS.value].tolist()),
-                                                     set(df[StaticRiskFactorsType.RACE_ETHNICITY.value].tolist()),
-                                                     set(df[DefaultTreatmentsType.STATIN.value].tolist()),
-                                                     set(df[StaticRiskFactorsType.EDUCATION.value].tolist()),
-                                                     set(df[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value].tolist()),
-                                                     set(df[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value].tolist()),
-                                                     set(df[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value].tolist()),
-                                                     set(df["ageGroup"].tolist())):
-
-            dfForGroup = df.loc[
-                                (df["ageGroup"]==ageGroup) &
-                                (df[StaticRiskFactorsType.GENDER.value]==ge) & 
-                                (df[StaticRiskFactorsType.SMOKING_STATUS.value]==sm) &
-                                (df[StaticRiskFactorsType.RACE_ETHNICITY.value]==ra) &
-                                (df[DefaultTreatmentsType.STATIN.value]==st) &
-                                (df[StaticRiskFactorsType.EDUCATION.value]==ed) &
-                                (df[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value]==al) &
-                                (df[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value]==a) &
-                                (df[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]==an), :].copy()
-            if dfForGroup.shape[0]>0:
-                dfForGroups[ge, sm, ra, st, ed, al, a, an, ageGroup] = dfForGroup 
-        return dfForGroups
+        #grouping the df is what the loop below used to do one combination at a time: the product of the
+        #nine variables is about 180 thousand combinations, nearly all of them empty, and each one used to
+        #cost a pass over the whole df. Grouping visits the occupied combinations only, which is the same
+        #set of keys the loop kept, in the same order.
+        groupVariables = [StaticRiskFactorsType.GENDER.value,
+                          StaticRiskFactorsType.SMOKING_STATUS.value,
+                          StaticRiskFactorsType.RACE_ETHNICITY.value,
+                          DefaultTreatmentsType.STATIN.value,
+                          StaticRiskFactorsType.EDUCATION.value,
+                          DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value,
+                          DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value,
+                          DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value,
+                          "ageGroup"]
+        return {key: dfForGroup for key, dfForGroup in df.groupby(groupVariables, observed=True)}
 
     def get_draws_from_distributions_crude(row, distributions):
         '''Uses categorical variable information to access the distribution of the continuous variables for that particular set of categoricals

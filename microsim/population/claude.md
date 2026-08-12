@@ -103,13 +103,18 @@ Parameters:
 - `personFilters`: a `PersonFilter` instance; defaults to an adults-only (age >= 18) filter
   when `None`.
 - `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires `n`.
-- `distributions`: if `True`, fit multivariate Gaussians to each categorical stratum of
-  NHANES and draw from those distributions rather than using raw NHANES rows. **`personFilters`
-  do not reach the fit**: `get_partitioned_nhanes_people` passes `personFilters=None` to its own
-  `get_nhanes_population` call, so the Gaussians always describe all adults of that year. The
-  drawn rows are then inner-merged on `name` against the filtered frame, which shapes how many
-  rows survive per group but not the values drawn, so a filter such as SBP > 126 is not enforced
-  on the synthetic people. Person-level filters still apply, since they run after construction.
+- `distributions`: if `True`, keep the categorical variables and the age of each NHANES row and
+  replace only its continuous variables with a draw. This is the construction the state populations
+  use: the draw comes from a multivariate Gaussian fit on gender, race ethnicity, education and a
+  4-year age window, pooled over all NHANES years, and is then shifted by the difference between the
+  mean of the group matching *every* categorical variable and the mean of that crude group (see
+  `get_draws_from_distributions_adjusted`). Grouping on four variables rather than all nine is what
+  leaves enough people per group to fit a covariance that is not singular — all nine variables span
+  ~10,800 cells for the ~5,400 adults of a single year, and ~96% of those fits come out singular.
+  `personFilters` are honored: they are applied to the redrawn dataframe, so a filter such as
+  SBP > 126 holds for the people that come back. `customWeights` is refused with `distributions=True`;
+  `nhanesWeights` applies as it does without it, since the sampling of the NHANES rows still decides
+  who the population is made of.
 - `customWeights`: alternative Pandas Series of sampling weights; mutually exclusive with
   `nhanesWeights`; requires `n`.
 - `riskScaling`: optional `dict[OutcomeType, float]` applied to per-outcome risk inside
@@ -281,14 +286,15 @@ internally; callers rarely need to instantiate it directly.
    not in `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`. `year=None` is the one
    exception: it skips the year filter and uses every survey year at once.
 
-6. **`nhanesWeights` and `customWeights` are mutually exclusive.** Passing both raises
-   `RuntimeError`.
+6. **`nhanesWeights` and `customWeights` are mutually exclusive**, and `customWeights` is also
+   refused with `distributions=True`. Both checks run before any other work, so an argument
+   combination that cannot be honored fails immediately rather than after the fitting.
 
-7. **`distributions=True` is slow.** It fits multivariate Gaussians to every NHANES
-   categorical stratum, which is computationally expensive — it builds and advances a whole
-   NHANES population of that year just to produce the frame it fits. Prefer
-   `distributions=False` (default) for most simulations. It also does not honor `personFilters`
-   (see the parameter description above).
+7. **`distributions=True` is slow.** It partitions every NHANES year on gender, race ethnicity,
+   education and a 4-year age window, fits a Gaussian per group, and then redraws the continuous
+   variables of every row one row at a time. The first call in a process costs roughly 20s and
+   later ones about 8s, since `get_nhanesDf` is cached. Prefer `distributions=False` (default)
+   for most simulations.
 
 8. **Kaiser population attribute set differs from NHANES.** Kaiser includes `afib` and
    `pvd` as categorical variables that NHANES does not; Kaiser omits `education` and
@@ -315,18 +321,24 @@ internally; callers rarely need to instantiate it directly.
     get back. Never return the cached frame directly.
 
 12. **The `name` column is the frame's own index.** `get_nhanesDf` renames the data file's
-    `index` column to `name`, and that value is what `Person._name` holds, which is what the
-    `distributions=True` path merges on to reattach `WTINT2YR`. The rename previously targeted a
-    `level_0` column that the data file does not have, so no `name` column existed and
-    `distributions=True` died with a `KeyError`.
+    `index` column to `name`, and that value is what `Person._name` holds. The rename previously
+    targeted a `level_0` column that the data file does not have, so no `name` column existed at
+    all and the `distributions=True` path died with a `KeyError`.
 
-13. **`draw_from_distributions` bounds its redraws.** Each group gets `maxDraws` draws, default
-    `max(1000*size, 50000)`, and exhausting the budget raises a `RuntimeError` reporting the
-    group and its acceptance rate. The budget is deliberately generous: a group whose covariance
-    matrix is singular draws from an alternative group's distribution while keeping its own
-    bounds, and in NHANES 1999 that leaves at least one group accepting about 0.12% of its draws
-    (its own ages run 52–93 while the distribution it draws from is centered at 21). Such rows
-    are kept from far out in the tail of a distribution that is not really theirs.
+13. **`draw_from_distributions` bounds its redraws**, and only the Kaiser path uses it now. Each
+    group gets `maxDraws` draws, default `max(1000*size, 50000)`, and exhausting the budget raises
+    a `RuntimeError` reporting the group and its acceptance rate. The budget is generous because a
+    group whose covariance matrix is singular draws from an alternative group's distribution while
+    keeping its own bounds, which can leave the acceptance rate near zero. The NHANES path avoided
+    that problem rather than tuning around it, by grouping on four variables instead of nine (see
+    the `distributions` parameter above).
+
+14. **Two partitions of NHANES exist, for two different jobs.**
+    `get_partitioned_nhanes_people_crude` groups on gender, race ethnicity, education and a 4-year
+    age window and is what the Gaussians are fit on; `get_partitioned_nhanes_df_with_age_group`
+    groups on all nine categorical variables plus an age group and is used only to compute the mean
+    the crude draw is shifted to. The second one groups the dataframe rather than looping over the
+    ~180,000 combinations of nine variables, nearly all of which are empty.
 
 ## Integration with the Core Framework
 
