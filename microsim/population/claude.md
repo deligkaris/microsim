@@ -84,7 +84,7 @@ def get_nhanes_population(
     n=None,
     year=None,
     personFilters=None,
-    nhanesWeights=False,
+    nhanesWeights=None,
     distributions=False,
     customWeights=None,
     riskScaling=None,
@@ -115,10 +115,10 @@ Parameters:
   covariance that is not singular — all nine variables span ~10,800 cells for the ~5,400 adults of a
   single year, and ~96% of those fits come out singular. The redraw happens **per sampled row**, not
   once per NHANES row, so no two people come out alike: see gotcha 15.
-  `personFilters` are honored: they are applied to the redrawn dataframe, so a filter such as
-  SBP > 126 holds for the people that come back. `customWeights` is refused with `distributions=True`;
-  `nhanesWeights` applies as it does without it, since the sampling of the NHANES rows still decides
-  who the population is made of.
+  `personFilters` are honored: the df-level ones are applied to each row after it has been redrawn, so
+  a filter such as SBP > 126 holds for the drawn values the people actually carry, and whatever they
+  reject is drawn again. `customWeights` is refused with `distributions=True`, and `nhanesWeights`
+  defaults to `True` here, since the sampling of the NHANES rows decides who the population is made of.
 - `customWeights`: alternative Pandas Series of sampling weights; mutually exclusive with
   `nhanesWeights`; requires `n`.
 - `riskScaling`: optional `dict[OutcomeType, float]` applied to per-outcome risk inside
@@ -290,41 +290,59 @@ internally; callers rarely need to instantiate it directly.
    not in `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`. `year=None` is the one
    exception: it skips the year filter and uses every survey year at once.
 
-6. **`nhanesWeights` and `customWeights` are mutually exclusive**, and `customWeights` is also
-   refused with `distributions=True`. Both checks run before any other work, so an argument
-   combination that cannot be honored fails immediately rather than after the fitting.
+6. **`nhanesWeights` and `customWeights` are mutually exclusive**, `customWeights` is also refused
+   with `distributions=True`, and both require an `n`. All four checks run before any other work, so
+   an argument combination that cannot be honored fails in 0.000s rather than after the distributions
+   have been fit and every row redrawn. The `customWeights`-with-`distributions` check is deliberately
+   made *before* `nhanesWeights` is resolved from `distributions`, since resolving first would turn
+   that combination into the mutually-exclusive one and report the less useful of the two messages.
 
-7. **`distributions=True` is slow.** It partitions every NHANES year on gender, race ethnicity,
-   education and a 4-year age window and fits a Gaussian per group. The first call in a process costs
-   roughly 19s — about 14s of it reading the `.dta` and about 5s fitting — and later ones 0.3s, since
-   both `get_nhanesDf` and `get_crude_distributions` are cached. The redraw itself is a small part of
-   that: it is vectorized over the groups rather than the rows, and costs 0.69s for the whole 101,316
-   row NHANES df. Against `distributions=False` at 0.1s the warm difference is 0.2s, so the flag is no
-   longer a reason on its own to prefer the default.
+7. **`distributions=True` costs almost nothing once the caches are warm.** It partitions every NHANES
+   year on gender, race ethnicity, education and a 4-year age window and fits a Gaussian per group.
+   The first call in a process costs roughly 19s — about 14s of it reading the `.dta` and about 5s
+   fitting — and every later call is dominated by building the `Person` objects, not by the draw:
+
+   | n | `distributions=True` | `distributions=False` |
+   |---|---|---|
+   | 1,000 | 0.16s | 0.08s |
+   | 5,000 | 0.58s | 0.32s |
+   | 20,000 | 1.83s | 1.31s |
+
+   The redraw is vectorized over the distribution groups rather than the rows. The old advice to
+   prefer `distributions=False` for speed no longer holds; choose between them on what you want the
+   population to be, not on cost.
 
 8. **Kaiser population attribute set differs from NHANES.** Kaiser includes `afib` and
    `pvd` as categorical variables that NHANES does not; Kaiser omits `education` and
-   `alcoholPerWeek`. Code that iterates over population attributes via the
-   `nhanes_pop_attributes` / `kaiser_pop_attributes` dicts must use the correct set for
-   the population type.
+   `alcoholPerWeek`. Code that iterates over the variables of a population must use the set
+   matching its type, via `variable_types(varType, popType)`, which reads
+   `nhanes_variable_types` or `kaiser_variable_types`. Note that the parallel *attribute*
+   dict exists for NHANES only: `get_pop_attributes` returns `nhanes_pop_attributes` for
+   NHANES but reaches for a `kaiser_pop_attributes` that is defined nowhere, so its Kaiser
+   branch raises `AttributeError`. Nothing calls `get_pop_attributes` today.
 
-9. **The top-up must be given the sampling weights.** Person-level filters run after the
-   Person-objects are built, so `bring_people_to_target_n` redraws whatever they dropped.
-   It samples with the `weights=` it is handed — pass the same weights used for the initial
-   draw, otherwise the replacement people come from a different (unweighted) distribution
-   than the rest of the population.
+9. **`bring_people_to_target_n` is the draw loop, not just a top-up.** Filters drop a row only after
+   it has been drawn — the person-level ones only after a whole `Person` has been built from it — so
+   the loop keeps drawing until `n` people have passed. Called with an empty `people` it is the whole
+   draw (what `get_nhanes_people` does when `n` is given); called with the people of an earlier draw
+   it tops that draw up. Every pass must be handed the same `weights=` used by the first, otherwise
+   the people added later come from a different (unweighted) distribution than the rest. Its first
+   pass draws exactly the shortfall, having no acceptance rate to size itself with yet; later passes
+   scale by the observed rate with a 20% margin.
 
-10. **Over-restrictive person filters raise instead of hanging.** `bring_people_to_target_n`
-    stops after building `maxDraws` Person-objects (default `max(100*n, 500)`) and raises a
-    `RuntimeError` reporting the observed acceptance rate. Filters that are this restrictive
-    by design need an explicit larger `maxDraws`.
+10. **Over-restrictive filters raise instead of hanging.** `bring_people_to_target_n` stops after
+    sampling `maxDraws` rows (default `max(100*n, 500)`) and raises a `RuntimeError` reporting the
+    observed acceptance rate. Filters that are this restrictive by design need an explicit larger
+    `maxDraws`. Note the rate covers both filter levels once `distributions` is passed, since the
+    df-level filters run inside this loop too.
 
 11. **`get_nhanesDf` is cached and hands out copies.** Building the frame — reading the `.dta`
     and converting the columns — takes about 14 seconds, and every population build needs it,
     so it is built once into `PopulationFactory._nhanesDf`. Each call returns `.copy()` of the
-    cache, never the cached object, because `get_treatment_weights` and
-    `get_partitioned_nhanes_people_crude` add an `ageGroup` column and recast `age` on what they
-    get back. Never return the cached frame directly.
+    cache, never the cached object, because callers mutate what they get back:
+    `get_proportionForDefaultTreatments` adds an `ageGroup` column and recasts `age` to int, and
+    `get_partitioned_nhanes_df_with_age_group` adds `ageGroup` too. Never return the cached frame
+    directly.
 
 12. **The `name` column is the frame's own index.** `get_nhanesDf` renames the data file's
     `index` column to `name`, and that value is what `Person._name` holds. The rename previously

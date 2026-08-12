@@ -75,7 +75,9 @@ string, or a `TreatmentStrategyRepository`). Pass `assessor=` to override the de
 Kaiser) are forwarded to the corresponding description subclass.
 
 Note that `NhanesTrialDescription` defaults `nhanesWeights=True`, so an NHANES trial samples
-with the survey weights unless you ask it not to. `year` defaults to 1999.
+with the survey weights unless you ask it not to. `year` defaults to 1999. The description
+passes `nhanesWeights` on explicitly, so it does not inherit `PopulationFactory`'s behaviour
+of letting an unset `nhanesWeights` follow `distributions` — a trial is weighted either way.
 
 For finer control — inspecting populations before `run()`, swapping in a custom
 assessor between `run()` and `analyze()`, or skipping analysis entirely — use the
