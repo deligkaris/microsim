@@ -1219,15 +1219,25 @@ class PopulationFactory:
         continuousToRedraw = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
         continuousToRedraw.remove(DynamicRiskFactorsType.AGE.value)
         df = df.drop(columns=continuousToRedraw)
-        return PopulationFactory.append_dataframe_with_continuous(df, distributions)
+        #these rows carry a NHANES survey year, so each draw can be shifted to the mean of its group in
+        #that year: the distributions are pooled over all years, and NHANES levels move between them
+        return PopulationFactory.append_dataframe_with_continuous(df, distributions, matchYear=True)
 
     @staticmethod
-    def append_dataframe_with_continuous(dfWithCategoricals, distributions):
+    def append_dataframe_with_continuous(dfWithCategoricals, distributions, matchYear=False):
         '''Takes a dataframe where all categorical variables exist for each row, and uses the distributions to append columns
         with all continuous variables.
-        The complete dataframe is returned.'''
+        The complete dataframe is returned.
+
+        matchYear is for rows that carry a NHANES survey year, ie the rows of the NHANES df itself. It
+        shifts each draw to the mean of its group in that year rather than to the mean of its group over
+        all years. The state populations do not set it: their year is the year the projection is for, not
+        a survey year, so there would be no group to match.'''
         nhanesDfPartitioned = PopulationFactory.get_partitioned_nhanes_df_with_age_group()
-        dfWithContinuous = dfWithCategoricals.apply(PopulationFactory.get_draws_from_distributions_adjusted, args=(distributions, nhanesDfPartitioned), axis=1)
+        nhanesDfPartitionedByYear = (PopulationFactory.get_partitioned_nhanes_df_with_age_group(matchYear=True)
+                                     if matchYear else None)
+        dfWithContinuous = dfWithCategoricals.apply(PopulationFactory.get_draws_from_distributions_adjusted,
+                                                    args=(distributions, nhanesDfPartitioned, nhanesDfPartitionedByYear), axis=1)
         dfWithContinuous = pd.DataFrame(dfWithContinuous.tolist(), index=dfWithCategoricals.index)
         nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
         nhanesContinuousVariables.remove(DynamicRiskFactorsType.AGE.value)         
@@ -1236,7 +1246,7 @@ class PopulationFactory:
         return dfComplete 
 
     @staticmethod
-    def get_draws_from_distributions_adjusted(row, distributions, nhanesDfPartitioned):
+    def get_draws_from_distributions_adjusted(row, distributions, nhanesDfPartitioned, nhanesDfPartitionedByYear=None):
         '''For each group of categorical variables, first obtains values for the continuous variables by using distributions only from the
         main 3 or 4 categoricals and then shifts the draw for the continuous variables to an amount equal to the difference of the means
         between the NHANES people that match all categorical variables and the distribution of the NHANES people using only the 3 or 4 categoricals.
@@ -1265,8 +1275,17 @@ class PopulationFactory:
         distKey = distKey if distKey in distributions["mean"].keys() else (ge, ra, age)
         distMean = distributions["mean"][distKey]
 
-        if (ge, sm, ra, st, ed, al, a, an, ageGroup) in nhanesDfPartitioned.keys():
-            dfForGroup = nhanesDfPartitioned[ge, sm, ra, st, ed, al, a, an, ageGroup]
+        #the mean the draw is shifted to comes from the narrowest group that exists: the group of this
+        #survey year first, so that a 1999 person is not handed the levels of all years pooled together,
+        #then the group over all years, and if even that group is not in NHANES then no shift at all
+        groupKey = (ge, sm, ra, st, ed, al, a, an, ageGroup)
+        dfForGroup = None
+        if nhanesDfPartitionedByYear is not None:
+            yearKey = groupKey + (row["year"],)
+            dfForGroup = nhanesDfPartitionedByYear.get(yearKey)
+        if dfForGroup is None:
+            dfForGroup = nhanesDfPartitioned.get(groupKey)
+        if dfForGroup is not None:
             meanOfGroup = np.mean(np.array(dfForGroup[nhanesContinuousVariables]), axis=0)
             meandiff = meanOfGroup - distMean
         else:
@@ -1274,9 +1293,14 @@ class PopulationFactory:
         drawsShifted = np.array(draws[0]) + meandiff
         return drawsShifted
 
-    def get_partitioned_nhanes_df_with_age_group():
+    def get_partitioned_nhanes_df_with_age_group(matchYear=False):
         '''Uses all NHANES data, from all years, and then partitions the dataframe to a dictionary where keys are the set of categorical variables and values
-        are dataframes with all NHANES rows that correspond to the specific values of the categorical variables.'''
+        are dataframes with all NHANES rows that correspond to the specific values of the categorical variables.
+
+        matchYear appends the survey year to the key. The groups are then smaller, too small to fit a
+        covariance matrix on, but large enough to take a mean from, which is what they are used for:
+        the draws come from distributions pooled over all years and are shifted to the mean of a group,
+        so keying that mean by year is what keeps a 1999 population from being handed 2017 levels.'''
         df = PopulationFactory.get_nhanesDf()
         df["ageGroup"] = df["age"].apply(lambda x: PopulationFactory.get_ageGroup_from_age(x))
         #grouping the df is what the loop below used to do one combination at a time: the product of the
@@ -1292,6 +1316,8 @@ class PopulationFactory:
                           DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value,
                           DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value,
                           "ageGroup"]
+        if matchYear:
+            groupVariables = groupVariables + ["year"]
         return {key: dfForGroup for key, dfForGroup in df.groupby(groupVariables, observed=True)}
 
     def get_draws_from_distributions_crude(row, distributions):
