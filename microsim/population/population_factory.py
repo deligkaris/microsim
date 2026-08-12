@@ -1251,20 +1251,140 @@ class PopulationFactory:
         shifts each draw to the mean of its group in that year rather than to the mean of its group over
         all years. The state populations do not set it: their year is the year the projection is for, not
         a survey year, so there would be no group to match.'''
-        nhanesDfPartitioned = PopulationFactory.get_partitioned_nhanes_df_with_age_group()
-        nhanesDfPartitionedByYear = (PopulationFactory.get_partitioned_nhanes_df_with_age_group(matchYear=True)
-                                     if matchYear else None)
-        dfWithContinuous = dfWithCategoricals.apply(PopulationFactory.get_draws_from_distributions_adjusted,
-                                                    args=(distributions, nhanesDfPartitioned, nhanesDfPartitionedByYear), axis=1)
-        dfWithContinuous = pd.DataFrame(dfWithContinuous.tolist(), index=dfWithCategoricals.index)
-        nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
-        nhanesContinuousVariables.remove(DynamicRiskFactorsType.AGE.value)         
-        dfWithContinuous.columns = nhanesContinuousVariables 
-        dfComplete = pd.concat([dfWithCategoricals, dfWithContinuous], axis=1)
-        return dfComplete 
+        nhanesContinuousVariables = PopulationFactory.continuous_variables_drawn()
+        #a draw is a point of its own distribution, and what is wanted is a point of the group the person
+        #belongs to, so the draw is kept as its distance from the mean of the distribution it came from and
+        #that distance is measured out from the mean of the group instead
+        draws, drawMeans = PopulationFactory.get_draws_for_dataframe(dfWithCategoricals, distributions)
+        groupMeans = PopulationFactory.get_group_means_for_dataframe(dfWithCategoricals, drawMeans, matchYear=matchYear)
+        dfWithContinuous = pd.DataFrame(draws - drawMeans + groupMeans,
+                                        columns=nhanesContinuousVariables,
+                                        index=dfWithCategoricals.index)
+        return pd.concat([dfWithCategoricals, dfWithContinuous], axis=1)
+
+    @staticmethod
+    def continuous_variables_drawn():
+        '''The continuous variables that are drawn: all of them except age, which is not drawn but is one
+        of the keys the distributions are stored under.'''
+        continuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
+        continuousVariables.remove(DynamicRiskFactorsType.AGE.value)
+        return continuousVariables
+
+    @staticmethod
+    def get_draws_for_dataframe(dfWithCategoricals, distributions):
+        '''Draws the continuous variables for every row of dfWithCategoricals.
+
+        The rows are drawn one distribution at a time rather than one row at a time: every row with the
+        same gender, race ethnicity, education and age draws from the same Gaussian, so that Gaussian is
+        built once and asked for as many points as there are such rows.
+
+        Returns the draws and, alongside them, the mean of the distribution each row was drawn from, which
+        is what the caller needs in order to re-center the draw on the mean of a group.'''
+        continuousVariables = PopulationFactory.continuous_variables_drawn()
+        #the distributions do not go past age 80, older people draw from the age 80 distribution
+        keyFrame = pd.DataFrame({
+            StaticRiskFactorsType.GENDER.value: dfWithCategoricals[StaticRiskFactorsType.GENDER.value],
+            StaticRiskFactorsType.RACE_ETHNICITY.value: dfWithCategoricals[StaticRiskFactorsType.RACE_ETHNICITY.value],
+            StaticRiskFactorsType.EDUCATION.value: dfWithCategoricals[StaticRiskFactorsType.EDUCATION.value],
+            DynamicRiskFactorsType.AGE.value: dfWithCategoricals[DynamicRiskFactorsType.AGE.value].clip(upper=80)})
+
+        draws = np.empty((dfWithCategoricals.shape[0], len(continuousVariables)))
+        drawMeans = np.empty_like(draws)
+        for key, rowsOfKey in keyFrame.groupby(list(keyFrame.columns), observed=True).indices.items():
+            #a group whose own distribution was singular was fit without education, see get_distributions_crude
+            distKey = key if key in distributions["mean"].keys() else (key[0], key[1], key[3])
+            dist = multivariate_normal(distributions["mean"][distKey], distributions["cov"][distKey],
+                                       allow_singular=False)
+            draws[rowsOfKey] = PopulationFactory.draw_within_bounds(dist, distributions["min"][distKey],
+                                                                    distributions["max"][distKey], len(rowsOfKey))
+            drawMeans[rowsOfKey] = distributions["mean"][distKey]
+        return draws, drawMeans
+
+    @staticmethod
+    def draw_within_bounds(dist, distMin, distMax, size, maxDraws=None):
+        '''Returns size draws from dist, redrawing the ones that fall outside the bounds.
+
+        Gaussians extend to infinity while the people they were fit on do not, so a draw that no NHANES
+        person comes close to is thrown away and made again. The bounds are widened by 10% first, so that
+        the edges of the observed range stay reachable.
+
+        maxDraws bounds the work in case the bounds are ones this distribution almost never satisfies,
+        defaults to max(1000*size, 50000).'''
+        maxDraws = max(1000*size, 50000) if maxDraws is None else maxDraws
+        drawn = 0
+        kept = np.empty((0, len(distMin)))
+        while kept.shape[0] < size:
+            if drawn >= maxDraws:
+                raise RuntimeError(f"""Cannot draw {size} in-bounds points: kept {kept.shape[0]} of {drawn}
+                                       draws (acceptance rate: {kept.shape[0]/drawn:.4f}). The bounds are
+                                       almost never satisfied by the distribution being drawn from.""")
+            needed = size - kept.shape[0]
+            newDraws = np.atleast_2d(dist.rvs(size=needed))
+            drawn += needed
+            outOfBounds = np.zeros(newDraws.shape[0], dtype=bool)
+            for i, bound in enumerate(distMin):
+                outOfBounds = outOfBounds | (newDraws[:, i] < 0.9*bound)
+            for i, bound in enumerate(distMax):
+                outOfBounds = outOfBounds | (newDraws[:, i] > 1.1*bound)
+            kept = np.concatenate([kept, newDraws[~outOfBounds, :]], axis=0)
+        return kept[:size, :]
+
+    @staticmethod
+    def get_group_means_for_dataframe(dfWithCategoricals, drawMeans, matchYear=False):
+        '''Returns, for every row of dfWithCategoricals, the mean of its group.
+
+        The narrowest group that exists is used: the group of that survey year when matchYear is set,
+        then the group over all years, and where NHANES holds no such group at all the mean of the
+        distribution the row was drawn from, which leaves that row where its draw put it.'''
+        pooledMeans = PopulationFactory.get_group_means_with_age_group(matchYear=False)
+        groupMeans = np.full(drawMeans.shape, np.nan)
+        if matchYear:
+            byYearMeans = PopulationFactory.get_group_means_with_age_group(matchYear=True)
+            groupMeans = PopulationFactory.look_up_group_means(dfWithCategoricals, byYearMeans, matchYear=True)
+        pooled = PopulationFactory.look_up_group_means(dfWithCategoricals, pooledMeans, matchYear=False)
+        groupMeans = np.where(np.isnan(groupMeans), pooled, groupMeans)
+        return np.where(np.isnan(groupMeans), drawMeans, groupMeans)
+
+    @staticmethod
+    def look_up_group_means(dfWithCategoricals, groupMeans, matchYear=False):
+        '''Looks up the mean of the group of every row, np.nan for the rows whose group is not there.'''
+        keyFrame = dfWithCategoricals[PopulationFactory.group_variables_with_age_group(matchYear=matchYear)].copy()
+        #anyone past 80 is looked up in the age group below, as the oldest group holds too few people
+        keyFrame["ageGroup"] = keyFrame["ageGroup"].where(dfWithCategoricals[DynamicRiskFactorsType.AGE.value] <= 80, 16)
+        return groupMeans.reindex(pd.MultiIndex.from_frame(keyFrame)).to_numpy()
+
+    @staticmethod
+    def group_variables_with_age_group(matchYear=False):
+        '''The categorical variables, plus the age group, that a group is defined by.'''
+        groupVariables = [StaticRiskFactorsType.GENDER.value,
+                          StaticRiskFactorsType.SMOKING_STATUS.value,
+                          StaticRiskFactorsType.RACE_ETHNICITY.value,
+                          DefaultTreatmentsType.STATIN.value,
+                          StaticRiskFactorsType.EDUCATION.value,
+                          DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value,
+                          DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value,
+                          DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value,
+                          "ageGroup"]
+        return groupVariables + ["year"] if matchYear else groupVariables
+
+    @staticmethod
+    def get_group_means_with_age_group(matchYear=False):
+        '''The mean of every continuous variable, for every group of NHANES people.
+
+        This is all the draws need from those groups: a draw is re-centered on the mean of the group of
+        the person it is for. A group is far too small to fit a covariance matrix on, which is why the
+        distributions themselves are fit on a much coarser partition, but it is big enough for a mean.'''
+        df = PopulationFactory.get_nhanesDf()
+        df["ageGroup"] = df["age"].apply(lambda x: PopulationFactory.get_ageGroup_from_age(x))
+        return df.groupby(PopulationFactory.group_variables_with_age_group(matchYear=matchYear),
+                          observed=True)[PopulationFactory.continuous_variables_drawn()].mean()
 
     @staticmethod
     def get_draws_from_distributions_adjusted(row, distributions, nhanesDfPartitioned, nhanesDfPartitionedByYear=None):
+        #NOT IN USE at the moment: append_dataframe_with_continuous does this for the whole dataframe at
+        #once rather than one row at a time, see get_draws_for_dataframe and get_group_means_for_dataframe.
+        #It needed a partition of NHANES into 19365 dataframes only to take a mean from a few of them, and
+        #recomputed that mean for every person of a group.
         '''For each group of categorical variables, first obtains values for the continuous variables by using distributions only from the
         main 3 or 4 categoricals and then shifts the draw for the continuous variables to an amount equal to the difference of the means
         between the NHANES people that match all categorical variables and the distribution of the NHANES people using only the 3 or 4 categoricals.
@@ -1312,7 +1432,11 @@ class PopulationFactory:
         return drawsShifted
 
     def get_partitioned_nhanes_df_with_age_group(matchYear=False):
-        '''Uses all NHANES data, from all years, and then partitions the dataframe to a dictionary where keys are the set of categorical variables and values
+        '''NOT IN USE at the moment: the only thing the draws ever needed from these groups was the mean
+        of each one, and get_group_means_with_age_group computes all of those at once instead of holding
+        19365 dataframes to take a few means from.
+
+        Uses all NHANES data, from all years, and then partitions the dataframe to a dictionary where keys are the set of categorical variables and values
         are dataframes with all NHANES rows that correspond to the specific values of the categorical variables.
 
         matchYear appends the survey year to the key. The groups are then smaller, too small to fit a
@@ -1339,6 +1463,8 @@ class PopulationFactory:
         return {key: dfForGroup for key, dfForGroup in df.groupby(groupVariables, observed=True)}
 
     def get_draws_from_distributions_crude(row, distributions):
+        #NOT IN USE at the moment: its only caller is get_draws_from_distributions_adjusted, which is
+        #itself unused. draw_within_bounds draws a whole group at a time instead of one point at a time.
         '''Uses categorical variable information to access the distribution of the continuous variables for that particular set of categoricals
         and then makes a draw from that distribution.
         If the draw ends up corresponding to a point in space where no NHANES data exist, that is no person has that extreme value(s),
