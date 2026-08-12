@@ -63,6 +63,11 @@ class PopulationFactory:
     #the NHANES df as get_nhanesDf builds it, cached because every population build needs it
     _nhanesDf = None
 
+    #the distributions the continuous variables are drawn from when distributions=True, cached because
+    #neither the partition nor the fit depends on any argument: they are the same for the life of the
+    #process and cost about 5 seconds to build
+    _crudeDistributions = None
+
     #NOT IN USE at the moment: only get_partitioned_nhanes_people reads it, and that is itself unused.
     #how many weighted draws get_partitioned_nhanes_people partitions in order to fit the distributions.
     #Measured on 1999: this yields ~1450 groups of which 644 hold at least 12 people, against 1558 groups
@@ -343,9 +348,8 @@ class PopulationFactory:
         #Grouping on those four variables only, over all NHANES years and with overlapping age windows,
         #is what leaves enough people per group to fit a covariance matrix that is not singular.
         if distributions:
-            partitionedNhanesDf = PopulationFactory.get_partitioned_nhanes_people_crude()
-            crudeDistributions = PopulationFactory.get_distributions_crude(partitionedNhanesDf)
-            nhanesDf = PopulationFactory.redraw_continuous_variables(nhanesDf, crudeDistributions)
+            nhanesDf = PopulationFactory.redraw_continuous_variables(nhanesDf,
+                                                                     PopulationFactory.get_crude_distributions())
 
         #the df-level filters are applied here, after the block above, rather than before it: with
         #distributions the rows that go on to become Person-objects are draws from the fitted
@@ -1015,8 +1019,7 @@ class PopulationFactory:
         #df with only categorical variables completed
         dfWithCategoricals = PopulationFactory.get_dataframe_with_categoricals(year=year, state=state, samplingRate=samplingRate) 
         #get Gaussian distributions of continuous variables stratified...
-        partitionedNhanesDf = PopulationFactory.get_partitioned_nhanes_people_crude()
-        distributions = PopulationFactory.get_distributions_crude(partitionedNhanesDf)
+        distributions = PopulationFactory.get_crude_distributions()
         #each row of dfWithCategoricals gets values for continuous variables based on the distributions
         df = PopulationFactory.append_dataframe_with_continuous(dfWithCategoricals, distributions)
         imr = InitializationModelRepository()
@@ -1024,6 +1027,21 @@ class PopulationFactory:
         people = pd.DataFrame.apply(df, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=opmr, axis="columns")
         PopulationFactory.set_index_in_people(people)
         return people
+
+    @staticmethod
+    def get_crude_distributions():
+        '''Returns the Gaussians the continuous variables are drawn from, fit on the partition of NHANES
+        by gender, race ethnicity, education and a 4-year age window.
+
+        Built once and kept in _crudeDistributions. Neither the partition nor the fit takes an argument,
+        so both give the same answer every time they are called, and together they cost about 5 seconds:
+        partitioning scans the whole NHANES df once per combination of the four variables. Unlike
+        get_nhanesDf this hands back the cached object itself rather than a copy, because everything
+        downstream only reads from it.'''
+        if PopulationFactory._crudeDistributions is None:
+            partitionedNhanesDf = PopulationFactory.get_partitioned_nhanes_people_crude()
+            PopulationFactory._crudeDistributions = PopulationFactory.get_distributions_crude(partitionedNhanesDf)
+        return PopulationFactory._crudeDistributions
 
     @staticmethod
     def get_partitioned_nhanes_people_crude():
