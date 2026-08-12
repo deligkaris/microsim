@@ -102,15 +102,19 @@ Parameters:
   people from different years against each other, which is not what NHANES weights mean.
 - `personFilters`: a `PersonFilter` instance; defaults to an adults-only (age >= 18) filter
   when `None`.
-- `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires `n`.
+- `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires `n`. Left unset
+  (`None`, the default) it follows `distributions`: a population built from the distributions is
+  weighted by default, since the sampled rows are what that population is made of. Pass it explicitly
+  to override in either direction; every existing caller does.
 - `distributions`: if `True`, keep the categorical variables and the age of each NHANES row and
   replace only its continuous variables with a draw. This is the construction the state populations
   use: the draw comes from a multivariate Gaussian fit on gender, race ethnicity, education and a
   4-year age window, pooled over all NHANES years, and is then shifted by the difference between the
-  mean of the group matching *every* categorical variable and the mean of that crude group (see
-  `get_draws_from_distributions_adjusted`). Grouping on four variables rather than all nine is what
-  leaves enough people per group to fit a covariance that is not singular — all nine variables span
-  ~10,800 cells for the ~5,400 adults of a single year, and ~96% of those fits come out singular.
+  mean of the person's group and the mean of that crude group (see `group_key_frame` for what a group
+  is). Grouping on four variables rather than all nine is what leaves enough people per group to fit a
+  covariance that is not singular — all nine variables span ~10,800 cells for the ~5,400 adults of a
+  single year, and ~96% of those fits come out singular. The redraw happens **per sampled row**, not
+  once per NHANES row, so no two people come out alike: see gotcha 15.
   `personFilters` are honored: they are applied to the redrawn dataframe, so a filter such as
   SBP > 126 holds for the people that come back. `customWeights` is refused with `distributions=True`;
   `nhanesWeights` applies as it does without it, since the sampling of the NHANES rows still decides
@@ -291,10 +295,12 @@ internally; callers rarely need to instantiate it directly.
    combination that cannot be honored fails immediately rather than after the fitting.
 
 7. **`distributions=True` is slow.** It partitions every NHANES year on gender, race ethnicity,
-   education and a 4-year age window, fits a Gaussian per group, and then redraws the continuous
-   variables of every row one row at a time. The first call in a process costs roughly 20s and
-   later ones about 8s, since `get_nhanesDf` is cached. Prefer `distributions=False` (default)
-   for most simulations.
+   education and a 4-year age window and fits a Gaussian per group. The first call in a process costs
+   roughly 19s — about 14s of it reading the `.dta` and about 5s fitting — and later ones 0.3s, since
+   both `get_nhanesDf` and `get_crude_distributions` are cached. The redraw itself is a small part of
+   that: it is vectorized over the groups rather than the rows, and costs 0.69s for the whole 101,316
+   row NHANES df. Against `distributions=False` at 0.1s the warm difference is 0.2s, so the flag is no
+   longer a reason on its own to prefer the default.
 
 8. **Kaiser population attribute set differs from NHANES.** Kaiser includes `afib` and
    `pvd` as categorical variables that NHANES does not; Kaiser omits `education` and
@@ -333,12 +339,42 @@ internally; callers rarely need to instantiate it directly.
     that problem rather than tuning around it, by grouping on four variables instead of nine (see
     the `distributions` parameter above).
 
-14. **Two partitions of NHANES exist, for two different jobs.**
-    `get_partitioned_nhanes_people_crude` groups on gender, race ethnicity, education and a 4-year
-    age window and is what the Gaussians are fit on; `get_partitioned_nhanes_df_with_age_group`
-    groups on all nine categorical variables plus an age group and is used only to compute the mean
-    the crude draw is shifted to. The second one groups the dataframe rather than looping over the
-    ~180,000 combinations of nine variables, nearly all of which are empty.
+14. **Two groupings of NHANES exist, for two different jobs, and they are not the same width.**
+    `get_partitioned_nhanes_people_crude` groups on gender, race ethnicity, education and a 4-year age
+    window, and is what the Gaussians are fit on. `group_key_frame` defines the group whose *mean* a
+    draw is shifted to: those same four (with age as a 5-year age group) plus whether the person is on
+    antihypertensives and whether they are physically active, both as yes/no. The second key is
+    deliberately narrow. It used to be all nine categorical variables plus an age group plus the
+    survey year, which is 39,964 cells for 59,204 adults — the median cell held ONE person, so 90.6%
+    of adults were shifted to a "mean" that was one individual's values. That inflated the spread of
+    every drawn variable by 11-33% and produced shifts of up to 35 sd. The current key holds 2,530
+    cells with a median of 54 people. What it gives up is any contrast it does not carry: a person on
+    a statin is no longer centred on lower ldl, since statin is not in the key. The survey year went
+    with it, so a single-year population is centred on levels pooled over 1999-2017 rather than on
+    that year's — for 1999 that moves the mean of a variable by up to 0.24 sd and narrows the sbp gap
+    between people on and off antihypertensives from 18.1 to 15.1 mmHg. `append_dataframe_with_continuous`
+    lost its `matchYear` argument along with it.
+
+15. **With `distributions=True` the redraw happens after the sampling, one draw per person.** It used
+    to redraw each NHANES row once and then bootstrap `n` people out of that fixed set, so a row drawn
+    twice produced two people with byte-identical continuous variables — and weighted sampling makes
+    that common, since the survey weights span a 196-fold range. A weighted draw of 20,000 people from
+    NHANES 1999 held only ~4,200 distinct risk-factor profiles, one of them stamped out 23 times; it
+    now holds 20,000. The draw, the redraw and both levels of filtering all happen inside
+    `bring_people_to_target_n`, which keeps drawing until `n` people have passed, because the df-level
+    filters have to be checked against the drawn values and those do not exist until a row has been
+    sampled. `distributions=False` is unchanged and still bootstraps NHANES rows as it always did.
+
+16. **The bounds hold for the shifted draw, not the raw one.** A draw is made from the crude group's
+    Gaussian and then shifted to the mean of the fine group, so the value that is kept is the shifted
+    one and that is the one `draw_within_bounds` checks: the shift is handed to it and applied before
+    the bounds are tested, rather than added afterwards. Checking the raw draw instead left 27% of the
+    people of NHANES 1999 outside the observed range of their own group and 151 of 5448 with a
+    negative trig, ldl, hdl or creatinine. Each row is redrawn on its own, since rows sharing a
+    distribution do not share a shift, and a row that cannot meet the bounds within `maxAttempts`
+    keeps its last draw clipped into them — the shift of such a row comes from a group of very few
+    people (see gotcha 14 and `get_group_means_for_dataframe`), and it is about 0.02% of them. The
+    count is printed as a warning.
 
 ## Integration with the Core Framework
 

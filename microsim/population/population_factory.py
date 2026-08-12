@@ -68,6 +68,10 @@ class PopulationFactory:
     #process and cost about 5 seconds to build
     _crudeDistributions = None
 
+    #the mean of every continuous variable for every group of NHANES people, the mean a draw is shifted
+    #to. Cached for the same reason: it takes no argument and every population build needs it.
+    _groupMeans = None
+
     #NOT IN USE at the moment: only get_partitioned_nhanes_people reads it, and that is itself unused.
     #how many weighted draws get_partitioned_nhanes_people partitions in order to fit the distributions.
     #Measured on 1999: this yields ~1450 groups of which 644 hold at least 12 people, against 1558 groups
@@ -292,7 +296,7 @@ class PopulationFactory:
         return df
 
     @staticmethod
-    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None):
+    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=None, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None):
         '''Returns a Pandas Series object with Person-Objects of all persons included in NHANES for year
            with or without sampling.
            year: the NHANES survey year, one of 1999 to 2017 in odd steps of 2. year=None uses the entire
@@ -303,33 +307,57 @@ class PopulationFactory:
               with customWeights, and with neither (in which case rows are drawn uniformly). n=None means that
               no sampling takes place and every NHANES person of that year that passes the filters is returned;
               nhanesWeights and customWeights both require an n.
-           Sampling always takes place with replacement and the returned people always number exactly n: person-level
-           filters are applied after the Person-objects have been built, and whatever they drop is drawn again with
-           the same sampling weights (see bring_people_to_target_n).
-           Df-level filters are applied prior to sampling in order to maximize efficiency and minimize
-           memory utilization. This does not affect the distribution of the relative percentages of groups
-           represented in people.
+           nhanesWeights: sample the NHANES rows with the survey weights (WTINT2YR). Left unset it follows
+              distributions: a population drawn from the distributions is weighted by default, because the
+              draw is what that population is made of and there is no reason to build it out of an
+              unrepresentative sample of NHANES rows. Pass it explicitly to override either way.
+           Sampling always takes place with replacement and the returned people always number exactly n: the
+           filters are applied after a row has been drawn, and whatever they drop is drawn again with the same
+           sampling weights (see bring_people_to_target_n).
+           Without distributions the df-level filters are applied prior to sampling, in order to maximize
+           efficiency and minimize memory utilization. This does not affect the distribution of the relative
+           percentages of groups represented in people.
            The flag distributions controls if the Person-objects will come directly from the NHANES data or
            if Gaussian distributions will first be fit to the NHANES data and then draws are obtained from the distributions.
            distributions=True keeps the categorical variables and the age of each NHANES row and redraws
            only the continuous ones, so which rows are sampled is still what decides the make-up of the
-           population: nhanesWeights applies as it does without distributions. customWeights is refused
-           with distributions=True.'''
+           population. The redraw is made for each row AFTER it has been sampled, not once per NHANES row
+           before it: a row that is sampled more than once, which is what sampling with replacement and a
+           196-fold range of survey weights makes common, then yields people whose continuous variables all
+           differ. The df-level filters move with it, since the values they have to hold for are the drawn
+           ones. customWeights is refused with distributions=True.'''
 
         if (year is not None) & (year not in [2011, 2015, 2007, 2003, 2009, 2001, 2005, 1999, 2013, 2017]):
             raise RuntimeError(f"NHANES data for year {year} is not available")
 
-        #both weight checks are made here, before any of the work below, so that an argument combination
-        #that cannot be honored is refused immediately rather than after the distributions have been fit
-        if nhanesWeights & (customWeights is not None):
-            raise RuntimeError("Cannot use both nhanesWeights (nhanesWeights=True) and custom weights (customWeights is not None).")
-
+        #every check on the arguments is made here, before any of the work below, so that an argument
+        #combination that cannot be honored is refused immediately rather than after the distributions
+        #have been fit and the continuous variables redrawn.
+        #This one is made before nhanesWeights is resolved below, because resolving it first would turn
+        #this combination into the both-weight-kinds one and report the less useful of the two messages
         if distributions & (customWeights is not None):
             raise RuntimeError("""Cannot use customWeights with distributions=True. With distributions the
                                   categorical variables and the age of each person still come from the
                                   NHANES rows and only the continuous variables are drawn, so it is the
                                   sampling of those rows that decides who the population is made of, and
                                   nhanesWeights is what makes that sampling representative.""")
+
+        #nhanesWeights follows distributions unless the caller said otherwise: the draw is what a
+        #distributions population is made of, so it is weighted by default. n=None means that no sampling
+        #takes place at all, and weights that nothing ever samples with would only raise below
+        if nhanesWeights is None:
+            nhanesWeights = distributions & (n is not None)
+
+        if nhanesWeights & (customWeights is not None):
+            raise RuntimeError("Cannot use both nhanesWeights (nhanesWeights=True) and custom weights (customWeights is not None).")
+
+        if nhanesWeights & (n is None):
+            raise RuntimeError("""Cannot set nhanesWeights True without specifying n.
+                                  NHANES weights are defined for each year independently and for sampling
+                                  to occur the sampling size is needed.""")
+
+        if (customWeights is not None) & (n is None):
+            raise RuntimeError("Cannot use customWeights without specifying n, for sampling to occur the sampling size is needed.")
 
         nhanesDf = PopulationFactory.get_nhanesDf()
 
@@ -341,51 +369,51 @@ class PopulationFactory:
         elif "adult" not in personFilters.filters["df"]: #warn only when the caller's filters do not already exclude children
             print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
 
-        #with distributions the continuous variables of each NHANES row are replaced by a draw, exactly as
-        #the state populations are built: the categorical variables and the age of the row stay as they
-        #are and only the continuous variables are drawn, from a Gaussian fit on gender, race ethnicity,
-        #education and age and then shifted to the mean of the group matching every categorical variable.
-        #Grouping on those four variables only, over all NHANES years and with overlapping age windows,
-        #is what leaves enough people per group to fit a covariance matrix that is not singular.
-        if distributions:
-            nhanesDf = PopulationFactory.redraw_continuous_variables(nhanesDf,
-                                                                     PopulationFactory.get_crude_distributions())
+        #with distributions the continuous variables of a row are replaced by a draw, exactly as the state
+        #populations are built: the categorical variables and the age of the row stay as they are and only
+        #the continuous variables are drawn, from a Gaussian fit on gender, race ethnicity, education and
+        #age and then shifted to the mean of the group the row belongs to, see group_key_frame. Grouping on
+        #those four variables only, over all NHANES years and with overlapping age windows, is what leaves
+        #enough people per group to fit a covariance matrix that is not singular.
+        crudeDistributions = PopulationFactory.get_crude_distributions() if distributions else None
 
-        #the df-level filters are applied here, after the block above, rather than before it: with
-        #distributions the rows that go on to become Person-objects are draws from the fitted
-        #distributions and not NHANES rows, and it is those rows the filters have to hold for. Applying
-        #them here also leaves the merge above doing only what it is for, which is attaching the weights:
-        #merging against an already filtered df would drop a draw whenever the person whose name it
-        #borrowed had been filtered out, which has nothing to do with the values the draw actually has.
-        nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)
-        if nhanesDf.shape[0] == 0:
-            raise RuntimeError("""The df-level filters of personFilters rejected every row, so there is
-                                  nobody left to build Person-objects from.""")
+        #without distributions the df-level filters run here, before the sampling, so that the rows that
+        #cannot become people are not carried through it. With distributions they cannot run here at all:
+        #the values they have to hold for are the drawn ones, and a row has no drawn values until it has
+        #been sampled, so they run on each drawn row instead, inside the loop that samples.
+        if not distributions:
+            nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)
+            if nhanesDf.shape[0] == 0:
+                raise RuntimeError("""The df-level filters of personFilters rejected every row, so there is
+                                      nobody left to build Person-objects from.""")
 
-        #the weights of the initial draw are kept because the top-up below must draw from the same distribution
+        #the weights of the initial draw are kept because the top-up must draw from the same distribution.
+        #They are picked here, and not with the checks above, because the NHANES weights have to come from
+        #the df the sampling is done on, ie after the filters have run
         if nhanesWeights:
-            if n is None:
-                raise RuntimeError("""Cannot set nhanesWeights True without specifying n.
-                                    NHANES weights are defined for each year independently and for sampling
-                                    to occur the sampling size is needed.""")
             weights = nhanesDf.WTINT2YR
         elif customWeights is not None:
-            if n is None:
-                raise RuntimeError("Cannot use customWeights without specifying n, for sampling to occur the sampling size is needed.")
             weights = customWeights
         else:
             weights = None
 
         imr = InitializationModelRepository()
-        #n is None means that no sampling takes place and every person that passed the df-level filters is returned
-        nhanesDfForPeople = nhanesDf if n is None else nhanesDf.sample(n, weights=weights, replace=True)
-        people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_person, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
-
-        people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
-
-        #person-level filters drop people after they were built, so sampled populations need to be brought back to n
-        if n is not None:
-            people = PopulationFactory.bring_people_to_target_n(n, people, nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, weights=weights)
+        if n is None:
+            #no sampling: every row becomes a person, so with distributions every row is redrawn exactly
+            #once and there is no row for a second draw to differ from
+            nhanesDfForPeople = nhanesDf
+            if distributions:
+                nhanesDfForPeople = PopulationFactory.redraw_continuous_variables(nhanesDfForPeople, crudeDistributions)
+                nhanesDfForPeople = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDfForPeople)
+                if nhanesDfForPeople.shape[0] == 0:
+                    raise RuntimeError("""The df-level filters of personFilters rejected every drawn row, so
+                                          there is nobody left to build Person-objects from.""")
+            people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_person, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
+            people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
+        else:
+            #the draw, the redraw and both levels of filtering all happen in the one loop, which keeps
+            #drawing until n people have passed: filters drop people only after a row has been drawn
+            people = PopulationFactory.bring_people_to_target_n(n, pd.Series([], dtype=object), nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, weights=weights, distributions=crudeDistributions)
 
         PopulationFactory.set_index_in_people(people)
         return people
@@ -407,9 +435,10 @@ class PopulationFactory:
                                          CohortStaticRiskFactorModelRepository())
 
     @staticmethod
-    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, riskScaling=None, prevalenceRiskScaling=None):
+    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=None, distributions=False, customWeights=None, riskScaling=None, prevalenceRiskScaling=None):
         '''Returns a Population-object with Person-objects being all NHANES persons with or without sampling.
            Person attributes can originate either from the NHANES dataset directly or from distributions fit to the NHANES dataset.
+           nhanesWeights: left unset it follows distributions, see get_nhanes_people.
            riskScaling: optional dict[OutcomeType, float] applied to per-outcome risk inside the OutcomeModelRepository.
            prevalenceRiskScaling: optional dict[OutcomeType, float] applied to per-outcome priorToSim risk inside the OutcomePrevalenceModelRepository.'''
         people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository(riskScaling=prevalenceRiskScaling))
@@ -944,20 +973,26 @@ class PopulationFactory:
         return people
 
     @staticmethod
-    def bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=None, outcomePrevalenceModelRepository=None, weights=None, maxDraws=None):
-        """Resamples rows from df until people holds exactly n Person-objects that pass personFilters.
+    def bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=None, outcomePrevalenceModelRepository=None, weights=None, maxDraws=None, distributions=None):
+        """Samples rows from df until people holds exactly n Person-objects that pass personFilters.
 
-           Person-level filters can only be applied after a Person-object has been built, so the initial
-           draw of n rows usually yields fewer than n people. This function draws the shortfall.
+           Filters drop a row only after it has been drawn -- the person-level ones only after a whole
+           Person-object has been built from it -- so a draw of n rows usually yields fewer than n people
+           and the shortfall has to be drawn again. Called with an empty people this is the whole draw,
+           called with the people of an earlier draw it is the top-up of that draw.
 
-           weights: the same sampling weights used for the initial draw (a Pandas Series aligned on the
-                    index of df, or None for uniform sampling). Passing them is what keeps the people
-                    added here drawn from the same distribution as the people from the initial draw --
-                    with weights=None on a weighted population, the top-up would silently bias the sample.
-           maxDraws: budget on the total number of Person-objects built here, defaults to
-                     max(100*n, 500). Person-level filters that accept (almost) nothing would otherwise
-                     loop forever, so exhausting the budget raises a RuntimeError that reports the
-                     observed acceptance rate."""
+           weights: the sampling weights (a Pandas Series aligned on the index of df, or None for uniform
+                    sampling). Every pass here uses them, which is what keeps the people added by a later
+                    pass drawn from the same distribution as the people of the first -- with weights=None
+                    on a weighted population the top-up would silently bias the sample.
+           distributions: when given, the continuous variables of every sampled row are redrawn from these
+                    before the row becomes a Person, so that a row sampled more than once yields people
+                    whose continuous variables differ. The df-level filters are then applied here too,
+                    because the values they have to hold for are the drawn ones and those do not exist
+                    until the row has been sampled.
+           maxDraws: budget on the total number of rows sampled here, defaults to max(100*n, 500). Filters
+                     that accept (almost) nothing would otherwise loop forever, so exhausting the budget
+                     raises a RuntimeError that reports the observed acceptance rate."""
         if df.shape[0]==0:
             raise RuntimeError(f"""Cannot bring people to the target n={n}: the dataframe to sample from is empty.
                                    The df-level filters of personFilters rejected every row.""")
@@ -969,19 +1004,25 @@ class PopulationFactory:
             if drawn>=maxDraws:
                 rate = accepted/drawn if drawn>0 else 0.
                 raise RuntimeError(f"""Cannot bring people to the target n={n}: reached {people.shape[0]} people after
-                                       building {drawn} Person-objects (acceptance rate of the person-level filters:
-                                       {rate:.4f}). The person-level filters of personFilters may be too restrictive,
-                                       or incompatible with its df-level filters. Increase maxDraws if the filters are
-                                       this restrictive by design.""")
-            #the first pass has no information about how many draws survive the person filters, later passes size the
-            #draw with the acceptance rate observed so far (with a 20% margin) so that restrictive filters converge
-            #in a few passes instead of one pass per person
+                                       sampling {drawn} rows (acceptance rate of the filters: {rate:.4f}). The filters
+                                       of personFilters may be too restrictive, or incompatible with each other.
+                                       Increase maxDraws if the filters are this restrictive by design.""")
+            #the first pass has no information about how many draws survive the filters and so draws exactly
+            #the shortfall, later passes size the draw with the acceptance rate observed so far (with a 20%
+            #margin) so that restrictive filters converge in a few passes instead of one pass per person
             rate = accepted/drawn if accepted>0 else 1.
-            batch = min( int(np.ceil(nRemaining/rate*1.2)), maxDraws-drawn )
+            margin = 1.2 if accepted>0 else 1.
+            batch = min( int(np.ceil(nRemaining/rate*margin)), maxDraws-drawn )
             dfForPeople = df.sample(batch, replace=True, weights=weights)
+            drawn += batch
+            if distributions is not None:
+                #each sampled row is redrawn on its own, so the people that came from one NHANES row differ
+                dfForPeople = PopulationFactory.redraw_continuous_variables(dfForPeople, distributions)
+                dfForPeople = PopulationFactory.apply_person_filters_on_df(personFilters, dfForPeople)
+                if dfForPeople.shape[0]==0: #every drawn row was rejected, and apply on an empty df has no rows
+                    continue
             peopleRemaining = pd.DataFrame.apply(dfForPeople, PersonFactory.get_person, popType=popType, initializationModelRepository=initializationModelRepository, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
             peopleRemaining = PopulationFactory.apply_person_filters_on_people(personFilters, peopleRemaining)
-            drawn += batch
             accepted += peopleRemaining.shape[0]
             people = pd.concat([people, peopleRemaining])
             nRemaining = n - people.shape[0]
@@ -1222,6 +1263,7 @@ class PopulationFactory:
                     proportionForTreatments[ageGroup, gender, raceEthnicity][statin, antiHypertensiveCount] = proportion
         return proportionForTreatments
 
+    @staticmethod
     def redraw_continuous_variables(df, distributions):
         '''Replaces the continuous variables of every row of df with a draw from the distributions.
 
@@ -1230,34 +1272,36 @@ class PopulationFactory:
         from a state projection, here they come from the NHANES rows themselves, and in both cases only
         the continuous variables are drawn. The draw is made from a Gaussian fit on the few categorical
         variables that matter most for the continuous ones, and is then shifted to the mean of the group
-        that matches every categorical variable (see get_draws_from_distributions_adjusted).'''
+        the row belongs to (see group_key_frame).'''
         df = df.copy()
         df["ageGroup"] = df[DynamicRiskFactorsType.AGE.value].apply(PopulationFactory.get_ageGroup_from_age)
         #age is not redrawn, it is one of the keys the distributions are stored under
         continuousToRedraw = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
         continuousToRedraw.remove(DynamicRiskFactorsType.AGE.value)
         df = df.drop(columns=continuousToRedraw)
-        #these rows carry a NHANES survey year, so each draw can be shifted to the mean of its group in
-        #that year: the distributions are pooled over all years, and NHANES levels move between them
-        return PopulationFactory.append_dataframe_with_continuous(df, distributions, matchYear=True)
+        return PopulationFactory.append_dataframe_with_continuous(df, distributions)
 
     @staticmethod
-    def append_dataframe_with_continuous(dfWithCategoricals, distributions, matchYear=False):
+    def append_dataframe_with_continuous(dfWithCategoricals, distributions):
         '''Takes a dataframe where all categorical variables exist for each row, and uses the distributions to append columns
         with all continuous variables.
-        The complete dataframe is returned.
-
-        matchYear is for rows that carry a NHANES survey year, ie the rows of the NHANES df itself. It
-        shifts each draw to the mean of its group in that year rather than to the mean of its group over
-        all years. The state populations do not set it: their year is the year the projection is for, not
-        a survey year, so there would be no group to match.'''
+        The complete dataframe is returned.'''
         nhanesContinuousVariables = PopulationFactory.continuous_variables_drawn()
         #a draw is a point of its own distribution, and what is wanted is a point of the group the person
         #belongs to, so the draw is kept as its distance from the mean of the distribution it came from and
         #that distance is measured out from the mean of the group instead
-        draws, drawMeans = PopulationFactory.get_draws_for_dataframe(dfWithCategoricals, distributions)
-        groupMeans = PopulationFactory.get_group_means_for_dataframe(dfWithCategoricals, drawMeans, matchYear=matchYear)
-        dfWithContinuous = pd.DataFrame(draws - drawMeans + groupMeans,
+        distKeysForRows = PopulationFactory.get_dist_keys_for_dataframe(dfWithCategoricals, distributions)
+        drawMeans = np.empty((dfWithCategoricals.shape[0], len(nhanesContinuousVariables)))
+        for distKey, rowsOfKey in distKeysForRows:
+            drawMeans[rowsOfKey] = distributions["mean"][distKey]
+        groupMeans = PopulationFactory.get_group_means_for_dataframe(dfWithCategoricals, drawMeans)
+        #the shift is handed to the draw rather than added to the draw afterwards because the value that is
+        #kept is the shifted one, so the shifted one is what the bounds have to hold for: a draw inside the
+        #bounds of its distribution can be shifted outside of them, and outside of them meant a negative
+        #trig, ldl, hdl or creatinine for 151 of the 5448 people of NHANES 1999 when the shift was applied
+        #after the bounds had been checked
+        draws = PopulationFactory.get_draws_for_dataframe(distKeysForRows, distributions, groupMeans - drawMeans)
+        dfWithContinuous = pd.DataFrame(draws,
                                         columns=nhanesContinuousVariables,
                                         index=dfWithCategoricals.index)
         return pd.concat([dfWithCategoricals, dfWithContinuous], axis=1)
@@ -1271,113 +1315,142 @@ class PopulationFactory:
         return continuousVariables
 
     @staticmethod
-    def get_draws_for_dataframe(dfWithCategoricals, distributions):
-        '''Draws the continuous variables for every row of dfWithCategoricals.
+    def get_dist_keys_for_dataframe(dfWithCategoricals, distributions):
+        '''Returns, for every distribution that has rows drawing from it, that distribution's key and the
+        positions of those rows.
 
-        The rows are drawn one distribution at a time rather than one row at a time: every row with the
+        The rows are handled one distribution at a time rather than one row at a time: every row with the
         same gender, race ethnicity, education and age draws from the same Gaussian, so that Gaussian is
-        built once and asked for as many points as there are such rows.
-
-        Returns the draws and, alongside them, the mean of the distribution each row was drawn from, which
-        is what the caller needs in order to re-center the draw on the mean of a group.'''
-        continuousVariables = PopulationFactory.continuous_variables_drawn()
+        built once and asked for as many points as there are such rows.'''
         #the distributions do not go past age 80, older people draw from the age 80 distribution
         keyFrame = pd.DataFrame({
             StaticRiskFactorsType.GENDER.value: dfWithCategoricals[StaticRiskFactorsType.GENDER.value],
             StaticRiskFactorsType.RACE_ETHNICITY.value: dfWithCategoricals[StaticRiskFactorsType.RACE_ETHNICITY.value],
             StaticRiskFactorsType.EDUCATION.value: dfWithCategoricals[StaticRiskFactorsType.EDUCATION.value],
             DynamicRiskFactorsType.AGE.value: dfWithCategoricals[DynamicRiskFactorsType.AGE.value].clip(upper=80)})
-
-        draws = np.empty((dfWithCategoricals.shape[0], len(continuousVariables)))
-        drawMeans = np.empty_like(draws)
+        distKeysForRows = list()
         for key, rowsOfKey in keyFrame.groupby(list(keyFrame.columns), observed=True).indices.items():
             #a group whose own distribution was singular was fit without education, see get_distributions_crude
             distKey = key if key in distributions["mean"].keys() else (key[0], key[1], key[3])
-            dist = multivariate_normal(distributions["mean"][distKey], distributions["cov"][distKey],
-                                       allow_singular=False)
-            draws[rowsOfKey] = PopulationFactory.draw_within_bounds(dist, distributions["min"][distKey],
-                                                                    distributions["max"][distKey], len(rowsOfKey))
-            drawMeans[rowsOfKey] = distributions["mean"][distKey]
-        return draws, drawMeans
+            distKeysForRows.append((distKey, rowsOfKey))
+        return distKeysForRows
 
     @staticmethod
-    def draw_within_bounds(dist, distMin, distMax, size, maxDraws=None):
-        '''Returns size draws from dist, redrawing the ones that fall outside the bounds.
+    def get_draws_for_dataframe(distKeysForRows, distributions, shift):
+        '''Draws the continuous variables of every row, one distribution at a time.
+
+        distKeysForRows: the (distribution key, row positions) pairs of get_dist_keys_for_dataframe.
+        shift: what is added to the draw of each row in order to move it from the mean of the distribution
+               it was drawn from to the mean of the group the row belongs to. It is applied before the
+               bounds are checked, see draw_within_bounds.
+
+        Returns the drawn, shifted values.'''
+        draws = np.empty_like(shift)
+        clipped = 0
+        for distKey, rowsOfKey in distKeysForRows:
+            dist = multivariate_normal(distributions["mean"][distKey], distributions["cov"][distKey],
+                                       allow_singular=False)
+            draws[rowsOfKey], clippedForKey = PopulationFactory.draw_within_bounds(dist,
+                                                                    distributions["min"][distKey],
+                                                                    distributions["max"][distKey],
+                                                                    len(rowsOfKey), shift=shift[rowsOfKey])
+            clipped += clippedForKey
+        if clipped > 0:
+            print(f"""Warning: {clipped} of {draws.shape[0]} people had a group mean too far from the distribution
+                      they were drawn from for the bounds of that distribution to be met, and were clipped to
+                      those bounds. Their group holds too few people for its mean to be a reliable one.""")
+        return draws
+
+    @staticmethod
+    def draw_within_bounds(dist, distMin, distMax, size, shift=None, maxAttempts=100):
+        '''Returns size draws from dist, shifted by shift, redrawing the ones that fall outside the bounds.
 
         Gaussians extend to infinity while the people they were fit on do not, so a draw that no NHANES
         person comes close to is thrown away and made again. The bounds are widened by 10% first, so that
         the edges of the observed range stay reachable.
 
-        maxDraws bounds the work in case the bounds are ones this distribution almost never satisfies,
-        defaults to max(1000*size, 50000).'''
-        maxDraws = max(1000*size, 50000) if maxDraws is None else maxDraws
-        drawn = 0
-        kept = np.empty((0, len(distMin)))
-        while kept.shape[0] < size:
-            if drawn >= maxDraws:
-                raise RuntimeError(f"""Cannot draw {size} in-bounds points: kept {kept.shape[0]} of {drawn}
-                                       draws (acceptance rate: {kept.shape[0]/drawn:.4f}). The bounds are
-                                       almost never satisfied by the distribution being drawn from.""")
-            needed = size - kept.shape[0]
-            newDraws = np.atleast_2d(dist.rvs(size=needed))
-            drawn += needed
-            outOfBounds = np.zeros(newDraws.shape[0], dtype=bool)
-            for i, bound in enumerate(distMin):
-                outOfBounds = outOfBounds | (newDraws[:, i] < 0.9*bound)
-            for i, bound in enumerate(distMax):
-                outOfBounds = outOfBounds | (newDraws[:, i] > 1.1*bound)
-            kept = np.concatenate([kept, newDraws[~outOfBounds, :]], axis=0)
-        return kept[:size, :]
+        shift, one row of it per draw, is added to a draw before its bounds are checked, because it is the
+        shifted value that is kept and therefore the shifted value the bounds have to hold for. Rows of the
+        same distribution do not share a shift, so each row is redrawn on its own until its own shifted
+        draw is in bounds.
+
+        maxAttempts bounds the number of redraws of a single row, because a shift can be large enough that
+        almost no draw meets the bounds under it. A row that exhausts it keeps its last draw clipped into
+        the bounds, and is counted in the second return value: such a shift comes from the mean of a group
+        of very few people, and leaving that row at the edge of what NHANES holds is better than both
+        raising on data that is otherwise fine and keeping a value that no person could have.
+
+        Returns the draws and how many of them had to be clipped.'''
+        lowerBound, upperBound = 0.9*distMin, 1.1*distMax
+        shift = np.zeros((size, len(distMin))) if shift is None else shift
+        draws = np.empty((size, len(distMin)))
+        pending = np.arange(size)
+        for attempt in range(maxAttempts):
+            newDraws = np.atleast_2d(dist.rvs(size=pending.shape[0])) + shift[pending]
+            inBounds = ((newDraws >= lowerBound) & (newDraws <= upperBound)).all(axis=1)
+            draws[pending[inBounds]] = newDraws[inBounds]
+            pending = pending[~inBounds]
+            if pending.shape[0] == 0:
+                return draws, 0
+            #the rows that are still pending keep this draw if the attempts run out, hence the bookkeeping
+            lastDraws = newDraws[~inBounds]
+        draws[pending] = np.clip(lastDraws, lowerBound, upperBound)
+        return draws, pending.shape[0]
 
     @staticmethod
-    def get_group_means_for_dataframe(dfWithCategoricals, drawMeans, matchYear=False):
-        '''Returns, for every row of dfWithCategoricals, the mean of its group.
-
-        The narrowest group that exists is used: the group of that survey year when matchYear is set,
-        then the group over all years, and where NHANES holds no such group at all the mean of the
-        distribution the row was drawn from, which leaves that row where its draw put it.'''
-        pooledMeans = PopulationFactory.get_group_means_with_age_group(matchYear=False)
-        groupMeans = np.full(drawMeans.shape, np.nan)
-        if matchYear:
-            byYearMeans = PopulationFactory.get_group_means_with_age_group(matchYear=True)
-            groupMeans = PopulationFactory.look_up_group_means(dfWithCategoricals, byYearMeans, matchYear=True)
-        pooled = PopulationFactory.look_up_group_means(dfWithCategoricals, pooledMeans, matchYear=False)
-        groupMeans = np.where(np.isnan(groupMeans), pooled, groupMeans)
+    def get_group_means_for_dataframe(dfWithCategoricals, drawMeans):
+        '''Returns, for every row of dfWithCategoricals, the mean of its group, and for the rows whose
+        group NHANES does not hold at all the mean of the distribution the row was drawn from, which
+        leaves that row where its draw put it.'''
+        groupMeans = PopulationFactory.look_up_group_means(dfWithCategoricals)
         return np.where(np.isnan(groupMeans), drawMeans, groupMeans)
 
     @staticmethod
-    def look_up_group_means(dfWithCategoricals, groupMeans, matchYear=False):
+    def look_up_group_means(dfWithCategoricals):
         '''Looks up the mean of the group of every row, np.nan for the rows whose group is not there.'''
-        keyFrame = dfWithCategoricals[PopulationFactory.group_variables_with_age_group(matchYear=matchYear)].copy()
-        #anyone past 80 is looked up in the age group below, as the oldest group holds too few people
-        keyFrame["ageGroup"] = keyFrame["ageGroup"].where(dfWithCategoricals[DynamicRiskFactorsType.AGE.value] <= 80, 16)
-        return groupMeans.reindex(pd.MultiIndex.from_frame(keyFrame)).to_numpy()
+        keyFrame = PopulationFactory.group_key_frame(dfWithCategoricals)
+        return PopulationFactory.get_group_means().reindex(pd.MultiIndex.from_frame(keyFrame)).to_numpy()
 
     @staticmethod
-    def group_variables_with_age_group(matchYear=False):
-        '''The categorical variables, plus the age group, that a group is defined by.'''
-        groupVariables = [StaticRiskFactorsType.GENDER.value,
-                          StaticRiskFactorsType.SMOKING_STATUS.value,
-                          StaticRiskFactorsType.RACE_ETHNICITY.value,
-                          DefaultTreatmentsType.STATIN.value,
-                          StaticRiskFactorsType.EDUCATION.value,
-                          DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value,
-                          DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value,
-                          DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value,
-                          "ageGroup"]
-        return groupVariables + ["year"] if matchYear else groupVariables
+    def group_key_frame(df):
+        '''The variables a group is defined by, read off any df that carries the categorical variables.
+
+        Both the means and the look-up of those means are built from this one function, so the key that
+        the means are stored under and the key they are asked for cannot drift apart. The columns are
+        cast because the two sides do not always arrive with the same dtype -- the age of a state
+        projection, for one, comes out of an explode as object -- and a MultiIndex whose level dtype
+        differs matches nothing, which would silently leave every row unshifted.
+
+        Which variables these are is a compromise. A group has to be fine enough to say something the
+        crude distribution does not already say, and large enough for its mean to be worth using: the
+        draw already conditions on gender, race ethnicity, education and age, so what a group adds is
+        whether the person is on antihypertensives (which decides sbp and dbp) and whether they are
+        physically active (bmi and waist). Both are taken as yes/no rather than as the count and any
+        finer grouping, which keeps the median group at 54 people. Grouping on all nine categorical
+        variables, as this used to, left the median group holding ONE person, so the "mean" was that
+        person and the shift carried their noise into everyone drawn for that group.'''
+        return pd.DataFrame({
+            StaticRiskFactorsType.GENDER.value: df[StaticRiskFactorsType.GENDER.value].astype(int),
+            StaticRiskFactorsType.RACE_ETHNICITY.value: df[StaticRiskFactorsType.RACE_ETHNICITY.value].astype(int),
+            StaticRiskFactorsType.EDUCATION.value: df[StaticRiskFactorsType.EDUCATION.value].astype(int),
+            "ageGroup": df[DynamicRiskFactorsType.AGE.value].apply(PopulationFactory.get_ageGroup_from_age).astype(int),
+            "anyAntiHypertensive": (df[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value] > 0).astype(bool),
+            DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: df[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value].astype(bool)})
 
     @staticmethod
-    def get_group_means_with_age_group(matchYear=False):
+    def get_group_means():
         '''The mean of every continuous variable, for every group of NHANES people.
 
         This is all the draws need from those groups: a draw is re-centered on the mean of the group of
         the person it is for. A group is far too small to fit a covariance matrix on, which is why the
         distributions themselves are fit on a much coarser partition, but it is big enough for a mean.'''
-        df = PopulationFactory.get_nhanesDf()
-        df["ageGroup"] = df["age"].apply(lambda x: PopulationFactory.get_ageGroup_from_age(x))
-        return df.groupby(PopulationFactory.group_variables_with_age_group(matchYear=matchYear),
-                          observed=True)[PopulationFactory.continuous_variables_drawn()].mean()
+        if PopulationFactory._groupMeans is None:
+            df = PopulationFactory.get_nhanesDf()
+            keyFrame = PopulationFactory.group_key_frame(df)
+            PopulationFactory._groupMeans = df[PopulationFactory.continuous_variables_drawn()].groupby(
+                                                [keyFrame[column] for column in keyFrame.columns],
+                                                observed=True).mean()
+        return PopulationFactory._groupMeans
 
     @staticmethod
     def get_draws_from_distributions_adjusted(row, distributions, nhanesDfPartitioned, nhanesDfPartitionedByYear=None):
@@ -1433,8 +1506,8 @@ class PopulationFactory:
 
     def get_partitioned_nhanes_df_with_age_group(matchYear=False):
         '''NOT IN USE at the moment: the only thing the draws ever needed from these groups was the mean
-        of each one, and get_group_means_with_age_group computes all of those at once instead of holding
-        19365 dataframes to take a few means from.
+        of each one, and get_group_means computes all of those at once instead of holding 19365
+        dataframes to take a few means from. It also groups on fewer variables, see group_key_frame.
 
         Uses all NHANES data, from all years, and then partitions the dataframe to a dictionary where keys are the set of categorical variables and values
         are dataframes with all NHANES rows that correspond to the specific values of the categorical variables.
