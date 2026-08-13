@@ -398,8 +398,8 @@ class PopulationFactory:
 
         if personFilters is None: #since we started including children in the NHANES df, by default use an adult filter on the df
             personFilters = PersonFilterFactory.get_person_filter(["adult"])
-        elif "adult" not in personFilters.filters["df"]: #warn only when the caller's filters do not already exclude children
-            print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
+        else:
+            print("Warning: NHANES populations now include children. If you need an adult population you need to add an age filter.")
 
         #with distributions the continuous variables of a row are replaced by a draw, exactly as the state
         #populations are built: from a Gaussian fit on gender, race ethnicity, education and age, shifted
