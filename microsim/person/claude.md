@@ -159,7 +159,7 @@ The two-level design exists for efficiency: dataframe-level filters avoid constr
 
 `PopulationFactory` calls `get_person_filter(["adult"])` as the default NHANES filter when `personFilters is None`. Call sites name `["adult"]` explicitly rather than relying on the default, so that what a call selects is readable without opening this factory; the bare `get_person_filter()` form appears only in the examples above, which exist to document the default itself.
 
-When `personFilters` **is** supplied, `get_nhanes_people` warns that NHANES now includes children unless the supplied filter already carries a filter named `adult`. A hand-rolled age filter registered under a different name will still trigger the warning.
+When `personFilters` **is** supplied, `get_nhanes_people` warns that NHANES now includes children. The warning is unconditional on what the supplied filter contains: it fires even for a filter built from `["adult"]`, since the caller who passes a filter is the one responsible for the age range of the population and the warning is what says so. Only `personFilters=None`, which gets the `adult` default, is silent.
 
 ## Common Gotchas
 
