@@ -296,31 +296,11 @@ class PopulationFactory:
         return df
 
     @staticmethod
-    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None, maxDraws=None):
-        '''Returns a Pandas Series of Person-objects built from NHANES, with or without sampling.
-           year: NHANES survey year, 1999 to 2017 in steps of 2. year=None uses every year at once, and is
-              refused with nhanesWeights=True since those weights cannot weigh a 1999 person against a 2017
-              one; a weighted pooled draw needs customWeights.
-           n: number of Person-objects to return, honored in every sampling mode. n=None means no sampling:
-              every NHANES person of that year that passes the filters is returned. nhanesWeights and
-              customWeights both require an n.
-           nhanesWeights: sample the rows with the survey weights (WTINT2YR), which is what makes a sample
-              representative of the US population of that year. Must be True or False, defaults to False and
-              is inferred from nothing, so the call itself says whether a population is weighted. Requires
-              an n; refused with customWeights and with year=None.
-           distributions: keep the categorical variables and the age of each row and redraw only the
-              continuous ones from Gaussians fit to NHANES, so which rows are sampled still decides the
-              make-up of the population. The redraw happens per sampled row, so a row drawn twice yields
-              two people with different continuous variables. The df-level filters move after the sampling
-              with it, since they have to hold for the drawn values. Refused with customWeights.
-           maxDraws: budget on the NHANES rows sampled to reach n people, default max(100*n, 500) in
-              bring_people_to_target_n. Filters reject a row only after it is drawn, so a selective set
-              needs many more than n draws (0.3% acceptance is ~330 draws per person against a budget of
-              100) and raises asking for this argument. Requires an n.
-           Sampling is always with replacement and returns exactly n people: filters run after a row is
-           drawn and whatever they drop is drawn again with the same weights (see bring_people_to_target_n).
-           Without distributions the df-level filters run before the sampling, for speed and memory, which
-           does not affect the relative make-up of the people returned.'''
+    def check_nhanes_people_arguments(n=None, year=None, nhanesWeights=False, distributions=False, customWeights=None, maxDraws=None):
+        '''Raises RuntimeError for any argument of get_nhanes_people that cannot be honored, see its
+           docstring for what each one means. Called before any of the work, so a call that cannot be
+           served fails in 0.000s rather than after the distributions have been fit and every row redrawn.
+           The order of the checks is what decides which message a call gets, see the two comments below.'''
 
         if (year is not None) & (year not in [2011, 2015, 2007, 2003, 2009, 2001, 2005, 1999, 2013, 2017]):
             raise RuntimeError(f"NHANES data for year {year} is not available")
@@ -340,10 +320,8 @@ class PopulationFactory:
                                    Person-objects to return and must be at least 1. Pass n=None to get
                                    every NHANES person of that year instead.""")
 
-        #every argument check is made here, before any of the work below, so a combination that cannot be
-        #honored is refused immediately rather than after the distributions have been fit and every row
-        #redrawn. This one comes before the nhanesWeights checks, which would otherwise report this
-        #combination as the both-weight-kinds one and give the less useful of the two messages
+        #this one comes before the nhanesWeights checks, which would otherwise report this combination
+        #as the both-weight-kinds one and give the less useful of the two messages
         if distributions & (customWeights is not None):
             raise RuntimeError("""Cannot use customWeights with distributions=True. With distributions the
                                   categorical variables and the age of each person still come from the
@@ -382,6 +360,36 @@ class PopulationFactory:
         if (maxDraws is not None) & (n is None):
             raise RuntimeError("""Cannot use maxDraws without specifying n. maxDraws budgets the sampling
                                   of NHANES rows and without an n no sampling takes place at all.""")
+
+    @staticmethod
+    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None, maxDraws=None):
+        '''Returns a Pandas Series of Person-objects built from NHANES, with or without sampling.
+           year: NHANES survey year, 1999 to 2017 in steps of 2. year=None uses every year at once, and is
+              refused with nhanesWeights=True since those weights cannot weigh a 1999 person against a 2017
+              one; a weighted pooled draw needs customWeights.
+           n: number of Person-objects to return, honored in every sampling mode. n=None means no sampling:
+              every NHANES person of that year that passes the filters is returned. nhanesWeights and
+              customWeights both require an n.
+           nhanesWeights: sample the rows with the survey weights (WTINT2YR), which is what makes a sample
+              representative of the US population of that year. Must be True or False, defaults to False and
+              is inferred from nothing, so the call itself says whether a population is weighted. Requires
+              an n; refused with customWeights and with year=None.
+           distributions: keep the categorical variables and the age of each row and redraw only the
+              continuous ones from Gaussians fit to NHANES, so which rows are sampled still decides the
+              make-up of the population. The redraw happens per sampled row, so a row drawn twice yields
+              two people with different continuous variables. The df-level filters move after the sampling
+              with it, since they have to hold for the drawn values. Refused with customWeights.
+           maxDraws: budget on the NHANES rows sampled to reach n people, default max(100*n, 500) in
+              bring_people_to_target_n. Filters reject a row only after it is drawn, so a selective set
+              needs many more than n draws (0.3% acceptance is ~330 draws per person against a budget of
+              100) and raises asking for this argument. Requires an n.
+           Sampling is always with replacement and returns exactly n people: filters run after a row is
+           drawn and whatever they drop is drawn again with the same weights (see bring_people_to_target_n).
+           Without distributions the df-level filters run before the sampling, for speed and memory, which
+           does not affect the relative make-up of the people returned.
+           Which combinations of the arguments are refused, and why, is in check_nhanes_people_arguments.'''
+
+        PopulationFactory.check_nhanes_people_arguments(n=n, year=year, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, maxDraws=maxDraws)
 
         nhanesDf = PopulationFactory.get_nhanesDf()
 
