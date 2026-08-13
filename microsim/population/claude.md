@@ -84,11 +84,12 @@ def get_nhanes_population(
     n=None,
     year=None,
     personFilters=None,
-    nhanesWeights=None,
+    nhanesWeights=False,
     distributions=False,
     customWeights=None,
     riskScaling=None,
     prevalenceRiskScaling=None,
+    maxDraws=None,
 ) -> Population:
 ```
 
@@ -96,16 +97,23 @@ Parameters:
 - `n`: number of people to sample. Honored in every sampling mode — with `nhanesWeights`,
   with `customWeights`, and with neither (rows are then drawn uniformly). `n=None` means no
   sampling at all: every person of that year who passes the filters is returned. Both
-  `nhanesWeights=True` and `customWeights` require an `n`.
+  `nhanesWeights=True` and `customWeights` require an `n`. When given, `n` must be an integer of at
+  least 1: a float is refused rather than rounded, `bool` is refused although it subclasses `int`,
+  and `n=0` is refused because an empty population advances and reports a prevalence of 0 for every
+  outcome instead of failing.
 - `year`: NHANES survey year; must be one of `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`,
-  or `None` to use every survey year at once. Note that `nhanesWeights=True` with `year=None` weighs
-  people from different years against each other, which is not what NHANES weights mean.
+  or `None` to use every survey year at once. `year=None` is refused with `nhanesWeights=True`: those
+  weights are defined for each year on its own and cannot weigh a 1999 person against a 2017 one. A
+  pooled draw that has to be weighted needs `customWeights` built for pooling.
 - `personFilters`: a `PersonFilter` instance; defaults to an adults-only (age >= 18) filter
   when `None`.
-- `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`); requires `n`. Left unset
-  (`None`, the default) it follows `distributions`: a population built from the distributions is
-  weighted by default, since the sampled rows are what that population is made of. Pass it explicitly
-  to override in either direction; every existing caller does.
+- `nhanesWeights`: if `True`, sample with NHANES survey weights (`WTINT2YR`), which is what makes a
+  sample representative of the US population of that survey year. Must be `True` or `False` (numpy
+  bools accepted) and **defaults to `False`** — anything else, `None` included, raises. It is inferred
+  from nothing. It used to follow `distributions`, which meant a call saying only `distributions=True`
+  came out weighted without the word appearing in it, and a reader could not tell what the population
+  represented without knowing the rule. Requires an `n`; refused with `customWeights` and with
+  `year=None`.
 - `distributions`: if `True`, keep the categorical variables and the age of each NHANES row and
   replace only its continuous variables with a draw. This is the construction the state populations
   use: the draw comes from a multivariate Gaussian fit on gender, race ethnicity, education and a
@@ -117,8 +125,10 @@ Parameters:
   once per NHANES row, so no two people come out alike: see gotcha 15.
   `personFilters` are honored: the df-level ones are applied to each row after it has been redrawn, so
   a filter such as SBP > 126 holds for the drawn values the people actually carry, and whatever they
-  reject is drawn again. `customWeights` is refused with `distributions=True`, and `nhanesWeights`
-  defaults to `True` here, since the sampling of the NHANES rows decides who the population is made of.
+  reject is drawn again. `customWeights` is refused with `distributions=True`. `nhanesWeights` gets no
+  special default here — a `distributions=True` population is unweighted unless the call says
+  `nhanesWeights=True`, and it usually should, since it is the sampling of the NHANES rows that decides
+  who the population is made of.
 - `customWeights`: alternative Pandas Series of sampling weights; mutually exclusive with
   `nhanesWeights`; requires `n`.
 - `riskScaling`: optional `dict[OutcomeType, float]` applied to per-outcome risk inside
@@ -287,15 +297,18 @@ internally; callers rarely need to instantiate it directly.
    Population's does not).
 
 5. **NHANES year validation.** `get_nhanes_population` raises `RuntimeError` for any year
-   not in `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`. `year=None` is the one
-   exception: it skips the year filter and uses every survey year at once.
+   not in `{1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017}`. `year=None` skips the year
+   filter and uses every survey year at once, but only unweighted — see the next gotcha.
 
 6. **`nhanesWeights` and `customWeights` are mutually exclusive**, `customWeights` is also refused
-   with `distributions=True`, and both require an `n`. All four checks run before any other work, so
+   with `distributions=True`, `nhanesWeights` is refused with `year=None`, and `nhanesWeights`,
+   `customWeights` and `maxDraws` all require an `n`. Every check runs before any other work, so
    an argument combination that cannot be honored fails in 0.000s rather than after the distributions
-   have been fit and every row redrawn. The `customWeights`-with-`distributions` check is deliberately
-   made *before* `nhanesWeights` is resolved from `distributions`, since resolving first would turn
-   that combination into the mutually-exclusive one and report the less useful of the two messages.
+   have been fit and every row redrawn. `nhanesWeights` is also type-checked, because the checks
+   combine it with `&`, where a non-bool either raises out of the operator or slips through silently.
+   The `customWeights`-with-`distributions` check is deliberately made *first*, ahead of every
+   `nhanesWeights` check, since otherwise that combination would be reported as the
+   mutually-exclusive one and give the less useful of the two messages.
 
 7. **`distributions=True` costs almost nothing once the caches are warm.** It partitions every NHANES
    year on gender, race ethnicity, education and a 4-year age window and fits a Gaussian per group.

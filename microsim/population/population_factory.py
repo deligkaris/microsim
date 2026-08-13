@@ -296,21 +296,25 @@ class PopulationFactory:
         return df
 
     @staticmethod
-    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=None, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None):
+    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None, maxDraws=None):
         '''Returns a Pandas Series object with Person-Objects of all persons included in NHANES for year
            with or without sampling.
            year: the NHANES survey year, one of 1999 to 2017 in odd steps of 2. year=None uses the entire
-              dataframe, ie every survey year at once. Because the NHANES weights are defined for each year
-              independently, nhanesWeights=True with year=None weighs people from different years against
-              each other, which is not what those weights mean.
+              dataframe, ie every survey year at once. The NHANES weights are defined for each year
+              independently and cannot weigh people of different years against each other, so year=None
+              is refused with nhanesWeights=True. A pooled draw that has to be weighted needs weights
+              built for pooling, which is what customWeights is for.
            n: the number of Person-objects to return. n is honored in every sampling mode: with nhanesWeights,
               with customWeights, and with neither (in which case rows are drawn uniformly). n=None means that
               no sampling takes place and every NHANES person of that year that passes the filters is returned;
               nhanesWeights and customWeights both require an n.
-           nhanesWeights: sample the NHANES rows with the survey weights (WTINT2YR). Left unset it follows
-              distributions: a population drawn from the distributions is weighted by default, because the
-              draw is what that population is made of and there is no reason to build it out of an
-              unrepresentative sample of NHANES rows. Pass it explicitly to override either way.
+           nhanesWeights: sample the NHANES rows with the survey weights (WTINT2YR), which is what makes
+              a sample representative of the US population of that survey year. Must be True or False,
+              and defaults to False; it is not inferred from any other argument. It used to follow
+              distributions, so a call that said only distributions=True came out weighted without ever
+              saying so, and a reader of the call could not tell what the population represented without
+              knowing this rule. Whether a population is weighted is now stated where the population is
+              asked for. Requires an n, and is refused with customWeights and with year=None.
            Sampling always takes place with replacement and the returned people always number exactly n: the
            filters are applied after a row has been drawn, and whatever they drop is drawn again with the same
            sampling weights (see bring_people_to_target_n).
@@ -325,10 +329,38 @@ class PopulationFactory:
            before it: a row that is sampled more than once, which is what sampling with replacement and a
            196-fold range of survey weights makes common, then yields people whose continuous variables all
            differ. The df-level filters move with it, since the values they have to hold for are the drawn
-           ones. customWeights is refused with distributions=True.'''
+           ones. customWeights is refused with distributions=True.
+           maxDraws: budget on the number of NHANES rows sampled in order to reach n people, defaulting to
+              max(100*n, 500) in bring_people_to_target_n. Filters reject a row only after it has been
+              drawn, so a selective set of them needs many more than n draws: at an acceptance rate of
+              0.3%, which a combination such as lowSBPLimit + lowDBPLimit + highCVLimit can reach, about
+              330 draws per person are needed and the default budget allows 100. Such a call raises, and
+              this is the argument that raise asks for. Requires an n, since without one no sampling
+              takes place and there is no budget to set.'''
 
         if (year is not None) & (year not in [2011, 2015, 2007, 2003, 2009, 2001, 2005, 1999, 2013, 2017]):
             raise RuntimeError(f"NHANES data for year {year} is not available")
+
+        #n is a count of Person-objects, so it has to be a whole number and it has to be at least one.
+        #Both are refused rather than worked around: a float is not rounded here, because which way to
+        #round it is the caller's decision, and it would otherwise survive the whole draw only to die at
+        #people.iloc[:n] with a pandas TypeError that never mentions n. An n below 1 is refused for the
+        #reason the person-level filter wipe-out further down is: an empty population does not fail on
+        #its own, it advances without error and reports a prevalence of 0 for every outcome, so it reads
+        #as a result rather than as a mistake, and n=0 is far more often an arithmetic slip upstream than
+        #a request. n=None stays allowed, it is how a call asks for every NHANES person of that year.
+        #These two use 'and' rather than the '&' of the checks below, because '&' evaluates both sides
+        #and both right-hand sides raise on n=None.
+        #bool is a subclass of int, so it is excluded explicitly: n=True would otherwise pass as a
+        #request for one person, and it is far more likely a flag typed into the wrong argument
+        if (n is not None) and (isinstance(n, bool) or not isinstance(n, (int, np.integer))):
+            raise RuntimeError(f"""Cannot build a population of n={n!r} people: n is a count of
+                                   Person-objects and must be an integer, not a {type(n).__name__}.""")
+
+        if (n is not None) and (n < 1):
+            raise RuntimeError(f"""Cannot build a population of n={n} people: n is the number of
+                                   Person-objects to return and must be at least 1. Pass n=None to get
+                                   every NHANES person of that year instead.""")
 
         #every check on the arguments is made here, before any of the work below, so that an argument
         #combination that cannot be honored is refused immediately rather than after the distributions
@@ -342,11 +374,18 @@ class PopulationFactory:
                                   sampling of those rows that decides who the population is made of, and
                                   nhanesWeights is what makes that sampling representative.""")
 
-        #nhanesWeights follows distributions unless the caller said otherwise: the draw is what a
-        #distributions population is made of, so it is weighted by default. n=None means that no sampling
-        #takes place at all, and weights that nothing ever samples with would only raise below
-        if nhanesWeights is None:
-            nhanesWeights = distributions & (n is not None)
+        #nhanesWeights is inferred from nothing and defaults to False: whether a population is weighted
+        #decides what that population represents, so it is the caller who says, in the call. It used to
+        #follow distributions, which meant a call saying only distributions=True came out weighted
+        #without the word appearing anywhere in it.
+        #The type is checked because the checks below combine it with '&': a non-bool would either raise
+        #a TypeError from the operator or, worse, pass through it silently. numpy bools are accepted for
+        #the same reason numpy integers are accepted for n, they arrive from dataframe comparisons
+        if not isinstance(nhanesWeights, (bool, np.bool_)):
+            raise RuntimeError(f"""nhanesWeights must be True or False, not {nhanesWeights!r}
+                                   ({type(nhanesWeights).__name__}). It says whether the NHANES rows are
+                                   sampled with the survey weights; it is not inferred from any other
+                                   argument, and None is not a way of leaving it open.""")
 
         if nhanesWeights & (customWeights is not None):
             raise RuntimeError("Cannot use both nhanesWeights (nhanesWeights=True) and custom weights (customWeights is not None).")
@@ -356,8 +395,22 @@ class PopulationFactory:
                                   NHANES weights are defined for each year independently and for sampling
                                   to occur the sampling size is needed.""")
 
+        #WTINT2YR weighs a person against the others of their own two-year cycle and says nothing about
+        #how a 1999 person should weigh against a 2017 one, so sampling every year at once with these
+        #weights does not mean what it looks like it means. Refused rather than left to build a
+        #population nobody can interpret
+        if nhanesWeights & (year is None):
+            raise RuntimeError("""Cannot use nhanesWeights True with year=None. The NHANES weights are
+                                  defined for each survey year independently, so they cannot weigh people
+                                  of different years against each other. Pass a year, or nhanesWeights
+                                  False, or supply customWeights built for a pooled draw.""")
+
         if (customWeights is not None) & (n is None):
             raise RuntimeError("Cannot use customWeights without specifying n, for sampling to occur the sampling size is needed.")
+
+        if (maxDraws is not None) & (n is None):
+            raise RuntimeError("""Cannot use maxDraws without specifying n. maxDraws budgets the sampling
+                                  of NHANES rows and without an n no sampling takes place at all.""")
 
         nhanesDf = PopulationFactory.get_nhanesDf()
 
@@ -410,11 +463,28 @@ class PopulationFactory:
                                           there is nobody left to build Person-objects from.""")
             people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_person, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
             people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
+            #the third way to end up with nobody, guarded like the two df-level ones above it. An empty
+            #population does not fail on its own: it advances without error and reports a prevalence of 0
+            #for every outcome, so what an unguarded wipe-out produces is not a crash but a set of numbers
+            #that look like results. The n path cannot reach here -- there the same filters exhaust the
+            #draw budget and raise with the acceptance rate they reject at
+            if people.shape[0] == 0:
+                raise RuntimeError(f"""The person-level filters of personFilters
+                                       ({sorted(personFilters.filters["person"].keys())}) rejected all
+                                       {nhanesDfForPeople.shape[0]} of the Person-objects built, so the
+                                       population would be empty.""")
         else:
             #the draw, the redraw and both levels of filtering all happen in the one loop, which keeps
             #drawing until n people have passed: filters drop people only after a row has been drawn
-            people = PopulationFactory.bring_people_to_target_n(n, pd.Series([], dtype=object), nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, weights=weights, distributions=crudeDistributions)
+            people = PopulationFactory.bring_people_to_target_n(n, pd.Series([], dtype=object), nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, weights=weights, maxDraws=maxDraws, distributions=crudeDistributions)
 
+        #the labels of the returned Series are an artifact of how the people were assembled and mean
+        #different things in the two branches above: the NHANES row numbers when nothing is sampled,
+        #but repeated labels once sampling with replacement draws a row more than once, and a per-batch
+        #renumbering from 0 once apply_person_filters_on_people rebuilds the Series of every batch. They
+        #are dropped rather than handed out as if they identified anything. What identifies a person is
+        #_index, set right below; the NHANES row they came from is _name.
+        people = people.reset_index(drop=True)
         PopulationFactory.set_index_in_people(people)
         return people
 
@@ -435,13 +505,15 @@ class PopulationFactory:
                                          CohortStaticRiskFactorModelRepository())
 
     @staticmethod
-    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=None, distributions=False, customWeights=None, riskScaling=None, prevalenceRiskScaling=None):
+    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, riskScaling=None, prevalenceRiskScaling=None, maxDraws=None):
         '''Returns a Population-object with Person-objects being all NHANES persons with or without sampling.
            Person attributes can originate either from the NHANES dataset directly or from distributions fit to the NHANES dataset.
-           nhanesWeights: left unset it follows distributions, see get_nhanes_people.
+           nhanesWeights: True or False, defaulting to False and inferred from nothing, see get_nhanes_people.
            riskScaling: optional dict[OutcomeType, float] applied to per-outcome risk inside the OutcomeModelRepository.
-           prevalenceRiskScaling: optional dict[OutcomeType, float] applied to per-outcome priorToSim risk inside the OutcomePrevalenceModelRepository.'''
-        people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository(riskScaling=prevalenceRiskScaling))
+           prevalenceRiskScaling: optional dict[OutcomeType, float] applied to per-outcome priorToSim risk inside the OutcomePrevalenceModelRepository.
+           maxDraws: budget on the NHANES rows sampled to reach n people, raise it for restrictive
+              personFilters, see get_nhanes_people.'''
+        people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository(riskScaling=prevalenceRiskScaling), maxDraws=maxDraws)
         popModelRepository = PopulationFactory.get_nhanes_population_model_repo(riskScaling=riskScaling)
         return Population(people, popModelRepository)
 

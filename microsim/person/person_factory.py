@@ -80,8 +80,11 @@ class PersonFactory:
 
         rng = np.random.default_rng()
 
-        name = x.name
- 
+        #x["name"], not x.name: x is a row of a dataframe, ie a Series, and a Series carries a name
+        #attribute of its own -- its index label -- which shadows the column of that name. Read as an
+        #attribute this silently returned the row's position in the frame rather than its NHANES identifier
+        name = x["name"]
+
         adult = x.age>=18. #need to know for making the right bounds with the risk model repository below  
   
         personStaticRiskFactors = {
