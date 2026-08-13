@@ -401,18 +401,14 @@ class PopulationFactory:
         else:
             print("Warning: NHANES populations now include children. If you need an adult population you need to add an age filter.")
 
-        #with distributions the continuous variables of a row are replaced by a draw, exactly as the state
-        #populations are built: from a Gaussian fit on gender, race ethnicity, education and age, shifted
-        #to the mean of the group the row belongs to (see group_key_frame). Grouping on those four only,
-        #over all years and with overlapping age windows, is what leaves enough people per group to fit a
-        #covariance matrix that is not singular
-        crudeDistributions = PopulationFactory.get_crude_distributions() if distributions else None
-
-        #without distributions the df-level filters run here, before the sampling, so rows that cannot
-        #become people are not carried through it. With distributions they have to hold for the drawn
-        #values, which do not exist until a row is sampled, so they run on each drawn row instead
-        if not distributions:
-            nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)
+        #with distributions the continuous variables of a row are replaced by a draw from a Gaussian fit on gender, race ethnicity, education and age, shifted
+        #to the mean of the group the row belongs to (see group_key_frame). Grouping on those four only, over all years and with overlapping age windows, 
+        #is what leaves enough people per group to fit a covariance matrix that is not singular
+        if distributions:
+            crudeDistributions = PopulationFactory.get_crude_distributions()
+        else:
+            crudeDistributions = None
+            nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf) #without distributions the df-level filters run here, before the sampling
             if nhanesDf.shape[0] == 0:
                 raise RuntimeError("""The df-level filters of personFilters rejected every row, so there is
                                       nobody left to build Person-objects from.""")
