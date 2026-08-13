@@ -413,7 +413,7 @@ class PopulationFactory:
             crudeDistributions = None
             nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf) #without distributions the df-level filters run here, before the sampling
 
-        if nhanesDf.shape[0] == 0: #if filters are too restrictive stop here
+        if nhanesDf.shape[0] == 0: #if filters are too restrictive stop here (distributions=True + n not None bypass the filters and that is ok)
             raise RuntimeError("""The df-level filters of personFilters rejected every row, so there is nobody left to build Person-objects from.""")
 
         #the weights are picked here because the NHANES weights have to come from the df the sampling is done on, ie after the filters have run
@@ -1015,7 +1015,9 @@ class PopulationFactory:
                     until the row has been sampled.
            maxDraws: budget on the total number of rows sampled here, defaults to max(100*n, 500). Filters
                      that accept (almost) nothing would otherwise loop forever, so exhausting the budget
-                     raises a RuntimeError that reports the observed acceptance rate."""
+                     raises a RuntimeError: with the observed acceptance rate when some rows did pass and
+                     the budget is what ran out, and without it when none did, since then no budget is
+                     large enough and the rate carries nothing but zero."""
         if df.shape[0]==0:
             raise RuntimeError(f"""Cannot bring people to the target n={n}: the dataframe to sample from is empty.
                                    The df-level filters of personFilters rejected every row.""")
@@ -1023,19 +1025,25 @@ class PopulationFactory:
         drawn = 0
         accepted = 0
         nRemaining = n - people.shape[0]
+        batch = nRemaining
         while nRemaining>0:
             if drawn>=maxDraws:
-                rate = accepted/drawn if drawn>0 else 0.
-                raise RuntimeError(f"""Cannot bring people to the target n={n}: reached {people.shape[0]} people after
-                                       sampling {drawn} rows (acceptance rate of the filters: {rate:.4f}). The filters
-                                       of personFilters may be too restrictive, or incompatible with each other.
-                                       Increase maxDraws if the filters are this restrictive by design.""")
+                #nothing passed at all, so no budget is large enough and asking for a larger one misleads
+                if accepted==0:
+                    raise RuntimeError(f"None of the {drawn} rows sampled passed personFilters.")
+                raise RuntimeError(f"""Reached {people.shape[0]} of n={n} people in {drawn} draws
+                                       (acceptance rate {accepted/drawn:.4f}). Raise maxDraws.""")
             #the first pass has no information about how many draws survive the filters and so draws exactly
             #the shortfall, later passes size the draw with the acceptance rate observed so far (with a 20%
-            #margin) so that restrictive filters converge in a few passes instead of one pass per person
-            rate = accepted/drawn if accepted>0 else 1.
-            margin = 1.2 if accepted>0 else 1.
-            batch = min( int(np.ceil(nRemaining/rate*margin)), maxDraws-drawn )
+            #margin) so that restrictive filters converge in a few passes instead of one pass per person.
+            #While nothing has been accepted there is still no rate to size with, and repeating the shortfall
+            #would spend the budget one shortfall at a time, so the batch doubles instead and the filters
+            #that accept nobody are found out in ~log2 passes rather than maxDraws/n of them
+            if accepted>0:
+                batch = int(np.ceil(nRemaining/(accepted/drawn)*1.2))
+            elif drawn>0:
+                batch = 2*batch
+            batch = min(batch, maxDraws-drawn)
             dfForPeople = df.sample(batch, replace=True, weights=weights)
             drawn += batch
             if distributions is not None:

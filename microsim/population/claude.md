@@ -341,13 +341,18 @@ internally; callers rarely need to instantiate it directly.
    it tops that draw up. Every pass must be handed the same `weights=` used by the first, otherwise
    the people added later come from a different (unweighted) distribution than the rest. Its first
    pass draws exactly the shortfall, having no acceptance rate to size itself with yet; later passes
-   scale by the observed rate with a 20% margin.
+   scale by the observed rate with a 20% margin. While nothing at all has been accepted there is still
+   no rate to size with, and the batch doubles rather than repeating the shortfall, so filters that
+   accept nobody spend the budget in ~log2 passes instead of one pass per shortfall.
 
 10. **Over-restrictive filters raise instead of hanging.** `bring_people_to_target_n` stops after
-    sampling `maxDraws` rows (default `max(100*n, 500)`) and raises a `RuntimeError` reporting the
-    observed acceptance rate. Filters that are this restrictive by design need an explicit larger
-    `maxDraws`. Note the rate covers both filter levels once `distributions` is passed, since the
-    df-level filters run inside this loop too.
+    sampling `maxDraws` rows (default `max(100*n, 500)`) and raises a `RuntimeError`, of one of two
+    kinds. If some rows did pass, the budget is what ran out: the message reports the observed
+    acceptance rate, and filters this restrictive by design need an explicit larger `maxDraws`. If
+    none did, no budget is large enough and the message says only that none of the rows sampled
+    passed, since the rate carries nothing but zero and asking for a larger `maxDraws` would mislead.
+    Note the rate covers both filter levels once `distributions` is passed, since the df-level
+    filters run inside this loop too.
 
 11. **`get_nhanesDf` is cached and hands out copies.** Building the frame — reading the `.dta`
     and converting the columns — takes about 14 seconds, and every population build needs it,
