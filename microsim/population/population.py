@@ -950,10 +950,14 @@ class Population:
             }
         return rates
 
-    def print_cv_standardized_rates(self):
+    def print_cv_standardized_rates(self, rates=None):
         '''Prints the standardized rates from get_cv_standardized_rates: per outcome, the
-           all / Black / White age-sex-standardized rates per 100,000.'''
-        rates = self.get_cv_standardized_rates()
+           all / Black / White age-sex-standardized rates per 100,000.
+           rates: the get_cv_standardized_rates dictionary, when the caller already holds it.
+           Standardizing 6 outcomes over 3 subgroups walks the entire population 18 times, so a
+           caller that needs the rates as well as this printout should obtain them once and pass
+           them in rather than have them computed a second time here.'''
+        rates = self.get_cv_standardized_rates() if rates is None else rates
         print("standardized rates (per 100,000)    all        black      white")
         for ot, r in rates.items():
             print(f"{ot.value:>30} {r['all']:> 10.1f} {r['black']:> 10.1f} {r['white']:> 10.1f}")
@@ -975,10 +979,12 @@ class Population:
         rateOverall = len(outcomeAges) / len(personYears) if len(personYears) > 0 else 0
         return {"by_age": incidentRate, "pooled_65_plus": rate65plus, "pooled_overall": rateOverall}
 
-    def print_outcome_incidence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
+    def print_outcome_incidence(self, outcomeType=OutcomeType.DEMENTIA, groups=True, summary=None):
         '''Prints the first-incidence rates from get_outcome_incidence: a row per age (or age
-           group, if groups=True), then pooled rate (>=65) and rate (overall).'''
-        summary = self.get_outcome_incidence(outcomeType, groups=groups)
+           group, if groups=True), then pooled rate (>=65) and rate (overall).
+           summary: the get_outcome_incidence dictionary, when the caller already holds it, so that
+           the incidence is not computed a second time here.'''
+        summary = self.get_outcome_incidence(outcomeType, groups=groups) if summary is None else summary
         self._print_rule()
         print(" "*25, f"{outcomeType.value} incidence rate (first incidence only)")
         self._print_rule()
