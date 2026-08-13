@@ -58,7 +58,7 @@ class Validation:
         print("\nVALIDATION OF CV EVENT INCIDENCE AND MORTALITY")
         pop.print_cv_standardized_rates()
         print("\nVALIDATION OF DEMENTIA INCIDENCE")
-        pop.print_outcome_incidence(path=path, outcomeType=OutcomeType.DEMENTIA)
+        pop.print_outcome_incidence(outcomeType=OutcomeType.DEMENTIA)
 
     @staticmethod
     def nhanes_treatment_effects(sampleSize=2000000, nWorkers=1):
@@ -67,7 +67,8 @@ class Validation:
         print("\nVALIDATION OF TREATMENT EFFECTS")
         nYears=5
         nSimulations = 4
-        pf = PersonFilterFactory.get_person_filter([])
+        #NHANES includes children, so the adult filter is what keeps this an adult treatment effect
+        pf = PersonFilterFactory.get_person_filter(["adult"])
         for bpMedsAdded in [1,2,3,4]:
             miRRList = list()
             strokeRRList = list()
