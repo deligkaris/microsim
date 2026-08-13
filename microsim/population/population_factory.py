@@ -406,6 +406,15 @@ class PopulationFactory:
         #is what leaves enough people per group to fit a covariance matrix that is not singular
         if distributions:
             crudeDistributions = PopulationFactory.get_crude_distributions()
+            if n is None:
+                #no sampling: every row becomes a person, so every row is redrawn exactly once here and
+                #there is no row for a second draw to differ from. The df-level filters run on the drawn
+                #values, which is why they wait until the redraw; with an n both move into the draw loop
+                nhanesDf = PopulationFactory.redraw_continuous_variables(nhanesDf, crudeDistributions)
+                nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)
+                if nhanesDf.shape[0] == 0:
+                    raise RuntimeError("""The df-level filters of personFilters rejected every drawn row, so
+                                          there is nobody left to build Person-objects from.""")
         else:
             crudeDistributions = None
             nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf) #without distributions the df-level filters run here, before the sampling
@@ -423,17 +432,8 @@ class PopulationFactory:
             weights = None
 
         imr = InitializationModelRepository()
-        if n is None:
-            #no sampling: every row becomes a person, so with distributions every row is redrawn exactly
-            #once and there is no row for a second draw to differ from
-            nhanesDfForPeople = nhanesDf
-            if distributions:
-                nhanesDfForPeople = PopulationFactory.redraw_continuous_variables(nhanesDfForPeople, crudeDistributions)
-                nhanesDfForPeople = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDfForPeople)
-                if nhanesDfForPeople.shape[0] == 0:
-                    raise RuntimeError("""The df-level filters of personFilters rejected every drawn row, so
-                                          there is nobody left to build Person-objects from.""")
-            people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_person, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
+        if n is None: #no sampling: every row that passed the df-level filters above becomes a person
+            people = pd.DataFrame.apply(nhanesDf, PersonFactory.get_person, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
             people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
             #the third way to end up with nobody, guarded like the two df-level ones above it: an empty
             #population advances without error and reports a prevalence of 0 for every outcome, so an
@@ -442,7 +442,7 @@ class PopulationFactory:
             if people.shape[0] == 0:
                 raise RuntimeError(f"""The person-level filters of personFilters
                                        ({sorted(personFilters.filters["person"].keys())}) rejected all
-                                       {nhanesDfForPeople.shape[0]} of the Person-objects built, so the
+                                       {nhanesDf.shape[0]} of the Person-objects built, so the
                                        population would be empty.""")
         else:
             #the draw, the redraw and both levels of filtering all happen in the one loop, which keeps
