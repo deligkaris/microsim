@@ -18,16 +18,9 @@ class Burke2024:
     '''The published values that Burke et al., "Development and validation of the Michigan Chronic
        Disease Simulation Model (MICROSIM)", PLOS ONE 19(5):e0300005 (2024), validated MICROSIM
        against, so that a run of the NHANES validation can be printed next to them.
-
        Every value here comes from outside MICROSIM: survey-weighted NHANES estimates (Table 2 and
        the text describing Fig 2), population-based incidence studies and US population mortality
-       (Table 3), and a meta-analysis of BP-lowering trials.
-
-       Quantities the paper puts no published number on are not here, and so are not printed: the
-       probability of death by age (Fig 3) and dementia incidence (Fig 4), which are published as
-       figures only; the "hypertension prevalence by the Eighth Joint National Committee criteria"
-       row of Table 2, whose age-dependent thresholds the paper does not state; and the relative
-       risks of more than one added BP medication.'''
+       (Table 3), and a meta-analysis of BP-lowering trials.'''
 
     #Table 2, the survey-weighted NHANES 2007-2010 cohort.
     baseline2007 = {
@@ -50,17 +43,12 @@ class Burke2024:
         "BMI, kg/m2 (mean)": 31.0,
         "SBP, mm Hg (mean)": 133.4,
         "DBP, mm Hg (mean)": 71.6,
-        #Table 2 gives this row the same value as the statin row underneath it, which cannot be
-        #what the row measures: the table defines this population as SBP > 140/90 mm Hg OR on an
-        #anti-hypertensive medication, and a weighted NHANES 2013 draw of it comes out about 84%
-        #medicated here. The value is printed as the table has it.
         "anti-hypertensive use (%)": 41.0,
         "statin use (%)": 41.0,
     }
 
-    #Fig 2 carries no numbers, but the text describing it quotes the DBP and total cholesterol
-    #levels of the NHANES 2017 pseudo-cohort that the 18-year simulation was compared against.
-    #Those are the only vascular risk factor quantities of Fig 2 with a published value.
+    #Fig 2 carries no numbers, but the text describing it quotes the DBP and total cholesterol levels of the NHANES 2017 pseudo-cohort 
+    #that the 18-year simulation was compared against.
     nhanes2017 = {
         (DynamicRiskFactorsType.DBP.value, "mean"): 71.6,
         (DynamicRiskFactorsType.DBP.value, "sd"): 10.9,
@@ -68,10 +56,7 @@ class Burke2024:
         (DynamicRiskFactorsType.TOT_CHOL.value, "sd"): 41.3,
     }
 
-    #Table 3 and the mortality sentence that follows it. Events per 100,000 population per year,
-    #age-sex standardized. The MI estimates are from Kaiser Permanente 1999-2008, the stroke ones
-    #from population-based studies 1999-2015, the mortality one is a US population-level estimate.
-    #The two all-race estimates are published as ranges.
+    #Table 3 and the mortality sentence that follows it. Events per 100,000 population per year age-sex standardized. The two all-race estimates are published as ranges.
     cvIncidence = {
         "MI incidence, all (per 100,000)": (208., 284.),
         "MI incidence, white (per 100,000)": 199.,
@@ -82,8 +67,7 @@ class Burke2024:
         "mortality, all (per 100,000)": 729.,
     }
 
-    #Relative risks per added BP medication, from the meta-analysis of BP-lowering trials that the
-    #paper calibrated against. It covers a single added medication.
+    #Relative risks per added BP medication, 
     treatmentEffects = {
         "stroke RR, 1 BP medication added": 0.79,
         "MI RR, 1 BP medication added": 0.87,
