@@ -15,131 +15,78 @@ from microsim.trials.trial_type import TrialType
 from microsim.outcomes.outcome import OutcomeType
 
 class Burke2024:
-    '''External validation standards for the NHANES arm of MICROSIM, from Burke et al.,
-       "Development and validation of the Michigan Chronic Disease Simulation Model (MICROSIM)",
-       PLOS ONE 19(5):e0300005 (2024).
+    '''The published values that Burke et al., "Development and validation of the Michigan Chronic
+       Disease Simulation Model (MICROSIM)", PLOS ONE 19(5):e0300005 (2024), validated MICROSIM
+       against, so that a run of the NHANES validation can be printed next to them.
 
-       Every "standard" below is the external yardstick the paper validated MICROSIM against
-       (published NHANES estimates, population-based incidence studies, US life tables, a
-       meta-analysis of BP-lowering trials), NOT MICROSIM's own output. "paperValue" records what
-       the paper's simulation obtained against that standard, and is where each tolerance comes
-       from: no tolerance here is tighter than the deviation the paper itself reported and
-       accepted. A check that fails is therefore a departure from Burke2024, not merely a
-       departure from the literature.
+       Every value here comes from outside MICROSIM: survey-weighted NHANES estimates (Table 2 and
+       the text describing Fig 2), population-based incidence studies and US population mortality
+       (Table 3), and a meta-analysis of BP-lowering trials.
 
-       Not represented here, because the paper publishes them as figures with no numbers in the
-       text: the probability of death by age against life tables (Fig 3) and dementia incidence
-       against the Brookmeyer et al. meta-analysis (Fig 4). The "hypertension prevalence by the
-       Eighth Joint National Committee criteria" row of Table 2 is also left out: JNC-8 uses
-       age-dependent thresholds that the paper does not state, so any implementation of that row
-       would be a guess at what was measured.'''
+       Quantities the paper puts no published number on are not here, and so are not printed: the
+       probability of death by age (Fig 3) and dementia incidence (Fig 4), which are published as
+       figures only; the "hypertension prevalence by the Eighth Joint National Committee criteria"
+       row of Table 2, whose age-dependent thresholds the paper does not state; and the relative
+       risks of more than one added BP medication.'''
 
-    #Table 2, the published survey-weighted NHANES 2007-2010 cohort.
-    #The paper's simulation matched every one of these to within 0.1, so the tolerances are set by
-    #what a 100,000-person weighted draw can be expected to reproduce rather than by the paper.
+    #Table 2, the survey-weighted NHANES 2007-2010 cohort.
     baseline2007 = {
-        "age, years (mean)": {"standard": 45.9, "tol": 1.0, "paperValue": 45.9},
-        "female (%)": {"standard": 51.7, "tol": 1.5, "paperValue": 51.7},
-        "white (%)": {"standard": 68.4, "tol": 2.0, "paperValue": 68.3},
-        "black (%)": {"standard": 11.5, "tol": 2.0, "paperValue": 11.4},
-        "hispanic (%)": {"standard": 13.6, "tol": 2.0, "paperValue": 13.6},
-        "BMI, kg/m2 (mean)": {"standard": 28.5, "tol": 0.7, "paperValue": 28.5},
+        "age, years (mean)": 45.9,
+        "female (%)": 51.7,
+        "white (%)": 68.4,
+        "black (%)": 11.5,
+        "hispanic (%)": 13.6,
+        "BMI, kg/m2 (mean)": 28.5,
     }
 
-    #Table 2, the published survey-weighted NHANES 2013 cohort with hypertension, defined there as
+    #Table 2, the survey-weighted NHANES 2013 cohort with hypertension, defined there as
     #SBP > 140/90 mm Hg or taking any anti-hypertensive medication.
     baseline2013Hypertension = {
-        #the paper's simulated population was 1.6 years younger than the NHANES one, its largest
-        #Table 2 deviation, and the tolerance is set to accept it
-        "age, years (mean)": {"standard": 60.0, "tol": 2.5, "paperValue": 58.4},
-        "female (%)": {"standard": 50.0, "tol": 2.0, "paperValue": 49.7},
-        "white (%)": {"standard": 71.0, "tol": 3.0, "paperValue": 69.6},
-        "black (%)": {"standard": 14.0, "tol": 2.0, "paperValue": 14.0},
-        "hispanic (%)": {"standard": 10.0, "tol": 2.0, "paperValue": 10.3},
-        "BMI, kg/m2 (mean)": {"standard": 31.0, "tol": 0.7, "paperValue": 30.9},
-        "SBP, mm Hg (mean)": {"standard": 133.4, "tol": 3.0, "paperValue": 132.1},
-        "DBP, mm Hg (mean)": {"standard": 71.6, "tol": 2.0, "paperValue": 72.2},
-        #Table 2 gives this row the same two values as the statin row underneath it, 41.0% for
-        #NHANES and 41.4% for the simulation, which cannot be what the row measures: the table
-        #defines this population as SBP > 140/90 mm Hg OR on an anti-hypertensive medication, and a
-        #weighted NHANES 2013 draw of it comes out about 84% medicated here. The row is reported
-        #rather than checked, since the number to check it against appears to be the statin one.
-        "anti-hypertensive use (%)": {"status": "INFO", "paperValue": 41.4,
-                                      "note": "Table 2 repeats the statin values in this row (41.0%/41.4%), "
-                                              "which its own definition of the population rules out"},
-        "statin use (%)": {"standard": 41.0, "tol": 2.0, "paperValue": 41.4},
+        "age, years (mean)": 60.0,
+        "female (%)": 50.0,
+        "white (%)": 71.0,
+        "black (%)": 14.0,
+        "hispanic (%)": 10.0,
+        "BMI, kg/m2 (mean)": 31.0,
+        "SBP, mm Hg (mean)": 133.4,
+        "DBP, mm Hg (mean)": 71.6,
+        #Table 2 gives this row the same value as the statin row underneath it, which cannot be
+        #what the row measures: the table defines this population as SBP > 140/90 mm Hg OR on an
+        #anti-hypertensive medication, and a weighted NHANES 2013 draw of it comes out about 84%
+        #medicated here. The value is printed as the table has it.
+        "anti-hypertensive use (%)": 41.0,
+        "statin use (%)": 41.0,
     }
 
-    #The two risk factors the paper quotes numbers for when describing Fig 2, for the NHANES 2017
-    #pseudo-cohort it compares the advanced simulation against. Checking these says whether the
-    #comparison population this code builds is the one the paper compared against.
-    nhanes2017Comparator = {
-        "DBP, mm Hg (mean)": {"standard": 71.6, "relTol": 0.05},
-        "DBP, mm Hg (sd)": {"standard": 10.9, "relTol": 0.15},
-        "totChol, mg/dL (mean)": {"standard": 196.8, "relTol": 0.05},
-        "totChol, mg/dL (sd)": {"standard": 41.3, "relTol": 0.15},
+    #Fig 2 carries no numbers, but the text describing it quotes the DBP and total cholesterol
+    #levels of the NHANES 2017 pseudo-cohort that the 18-year simulation was compared against.
+    #Those are the only vascular risk factor quantities of Fig 2 with a published value.
+    nhanes2017 = {
+        (DynamicRiskFactorsType.DBP.value, "mean"): 71.6,
+        (DynamicRiskFactorsType.DBP.value, "sd"): 10.9,
+        (DynamicRiskFactorsType.TOT_CHOL.value, "mean"): 196.8,
+        (DynamicRiskFactorsType.TOT_CHOL.value, "sd"): 41.3,
     }
-
-    #The vascular risk factors of Fig 2, whose distributions the paper reports the simulation
-    #"generally closely reproduced" in both central tendency and variance after 18 years.
-    fig2RiskFactors = [DynamicRiskFactorsType.SBP.value,
-                       DynamicRiskFactorsType.DBP.value,
-                       DynamicRiskFactorsType.A1C.value,
-                       DynamicRiskFactorsType.HDL.value,
-                       DynamicRiskFactorsType.LDL.value,
-                       DynamicRiskFactorsType.TOT_CHOL.value,
-                       DynamicRiskFactorsType.BMI.value]
-
-    #Each Fig 2 risk factor is checked against the NHANES 2017 comparison population built in the
-    #same run, so its standard is only known at run time. The four entries below are the ones the
-    #paper puts a number on, including both deviations it documents as accepted; their tolerances
-    #are what make those deviations pass. Every other risk factor uses fig2DefaultTolerance.
-    fig2 = {
-        #the paper's own over-prediction is +9.9%, so the tolerance is a little above that rather
-        #than exactly at it, which would leave the value the paper reports sitting on the boundary
-        (DynamicRiskFactorsType.DBP.value, "mean"): {"relTol": 0.12, "paperValue": 78.7,
-                          "note": "Burke2024 reports 78.7 vs 71.6 mm Hg (+9.9%), its documented "
-                                  "over-prediction of DBP"},
-        (DynamicRiskFactorsType.DBP.value, "sd"): {"relTol": 0.28, "paperValue": 9.2,
-                        "note": "Burke2024 reports SD 9.2 vs 10.9 (-15.6%)"},
-        (DynamicRiskFactorsType.TOT_CHOL.value, "mean"): {"relTol": 0.10, "paperValue": 200.0,
-                              "note": "Burke2024 reports 200.0 vs 196.8 mg/dL (+1.6%)"},
-        (DynamicRiskFactorsType.TOT_CHOL.value, "sd"): {"relTol": 0.28, "paperValue": 31.0,
-                            "note": "Burke2024 reports SD 31.0 vs 41.3 (-24.9%), its documented "
-                                    "under-prediction of total cholesterol variance"},
-    }
-    fig2DefaultTolerance = {"mean": {"relTol": 0.10}, "sd": {"relTol": 0.28}}
 
     #Table 3 and the mortality sentence that follows it. Events per 100,000 population per year,
-    #age-sex standardized. The stroke and MI standards published as a range are checked for
-    #containment; the race-specific ones are single published estimates that the paper's own
-    #simulation departed from substantially, and each tolerance is set to accept that departure.
+    #age-sex standardized. The MI estimates are from Kaiser Permanente 1999-2008, the stroke ones
+    #from population-based studies 1999-2015, the mortality one is a US population-level estimate.
+    #The two all-race estimates are published as ranges.
     cvIncidence = {
-        "MI incidence, all (per 100,000)": {"standard": (208., 284.), "paperValue": 234.,
-                                            "note": "Kaiser Permanente 1999-2008"},
-        "MI incidence, white (per 100,000)": {"standard": 199., "relTol": 0.30, "paperValue": 249.,
-                                              "note": "Burke2024 obtained 249 vs 199 (+25%)"},
-        "MI incidence, black (per 100,000)": {"standard": 189., "relTol": 0.30, "paperValue": 219.,
-                                              "note": "Burke2024 obtained 219 vs 189 (+16%)"},
-        "stroke incidence, all (per 100,000)": {"standard": (130., 400.), "paperValue": 153.,
-                                                "note": "population-based studies 1999-2015"},
-        "stroke incidence, white (per 100,000)": {"standard": 208., "relTol": 0.45, "paperValue": 123.,
-                                                  "note": "Burke2024 obtained 123 vs 208 (-41%)"},
-        "stroke incidence, black (per 100,000)": {"standard": 331., "relTol": 0.30, "paperValue": 243.,
-                                                  "note": "Burke2024 obtained 243 vs 331 (-27%)"},
-        #the disparity itself, which is what the paper claims to reproduce ("about double")
-        "stroke incidence, black:white ratio": {"standard": (1.5, 2.5), "paperValue": 1.98, "fmt": "{:.2f}",
-                                                "note": "the literature reports stroke incidence in Black "
-                                                        "individuals at about double that in White individuals"},
-        "mortality, all (per 100,000)": {"standard": 729., "relTol": 0.10, "paperValue": 699.,
-                                         "note": "US population-level estimate"},
+        "MI incidence, all (per 100,000)": (208., 284.),
+        "MI incidence, white (per 100,000)": 199.,
+        "MI incidence, black (per 100,000)": 189.,
+        "stroke incidence, all (per 100,000)": (130., 400.),
+        "stroke incidence, white (per 100,000)": 208.,
+        "stroke incidence, black (per 100,000)": 331.,
+        "mortality, all (per 100,000)": 729.,
     }
 
-    #Relative risks per added BP medication from the meta-analysis of BP-lowering trials that the
-    #paper calibrated against, next to what its 15 simulations obtained.
+    #Relative risks per added BP medication, from the meta-analysis of BP-lowering trials that the
+    #paper calibrated against. It covers a single added medication.
     treatmentEffects = {
-        "stroke RR, 1 BP medication added": {"standard": 0.79, "tol": 0.05, "paperValue": 0.76, "fmt": "{:.2f}"},
-        "MI RR, 1 BP medication added": {"standard": 0.87, "tol": 0.05, "paperValue": 0.85, "fmt": "{:.2f}"},
+        "stroke RR, 1 BP medication added": 0.79,
+        "MI RR, 1 BP medication added": 0.87,
     }
 
 class Validation:
@@ -149,7 +96,8 @@ class Validation:
         '''Returns, as a percentage, the share of a proportions dictionary (see
            Population.get_summary_at_index) held by the given category values. Keys are compared
            as ints, so the enum members the proportions are keyed by and plain ints both match.'''
-        return 100. * sum([prop for key, prop in proportions.items() if int(key) in categoryValues])
+        return 100. * sum([prop for key, prop in proportions.items()
+                           if int(key) in categoryValues])
 
     @staticmethod
     def _baseline_metrics(pop):
@@ -183,7 +131,7 @@ class Validation:
     def nhanes_baseline_pop():
         '''This function performs the simulation for the validation of the creation of the population (baseline models only).
            Returns {"2007": metrics, "2013Hypertension": metrics}, the Table 2 quantities of each of
-           the two populations (see _baseline_metrics), for compare_baseline_pop_to_burke2024.'''
+           the two populations (see _baseline_metrics), for print_baseline_pop_with_burke2024.'''
         print(f"\nVALIDATION OF BASELINE SIMULATED POPULATION")
         print("2007 Nhanes")
         popSize=100000
@@ -215,7 +163,7 @@ class Validation:
            path=None will result in displaying the figures whereas an actual path will export them to that path
            Returns {"simSummary", "nhanesSummary", "cvRates", "dementiaIncidence"}: the last-wave
            distribution summary of the advanced population and of the NHANES comparison population,
-           the standardized CV rates and the dementia incidence, for compare_over_time_to_burke2024.'''
+           the standardized CV rates and the dementia incidence, for print_over_time_with_burke2024.'''
         nYears = 18
         popSize = 100000
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=None, nhanesWeights=True, distributions=False)
@@ -249,7 +197,7 @@ class Validation:
            BP medication treatment effect on the MI relative risk and the stroke relative risk.
            Returns {bpMedsAdded: {"strokeRR", "miRR", "strokeRRs", "miRRs"}}, the mean relative risk
            of each arm over its simulations and the individual simulation results, for
-           compare_treatment_effects_to_burke2024.'''
+           print_treatment_effects_with_burke2024.'''
         print("\nVALIDATION OF TREATMENT EFFECTS")
         nYears=5
         nSimulations = 4
@@ -288,197 +236,90 @@ class Validation:
         return results
 
     # ==========================================================================
-    # Comparison of the NHANES validation results with the Burke2024 standards
+    # The NHANES validation results next to the published values of Burke2024
     # ==========================================================================
 
     @staticmethod
-    def _check(name, value, standard=None, tol=None, relTol=None, paperValue=None, note=None,
-               status=None, fmt="{:.1f}"):
-        '''Compares one simulated quantity against its external standard in Burke2024 and returns
-           the outcome as a dictionary, for _print_checks and _print_verdict.
-           name: the metric, used as the key of the Burke2024 reference dictionaries as well
-           value: what the simulation obtained
-           standard: the published value, or a (low, high) tuple for a standard published as a range
-           tol, relTol: the absolute/relative tolerance of a single-valued standard, one or the
-                        other; a range standard is checked for containment and needs neither
-           paperValue: what the simulation of Burke2024 obtained against the same standard
-           status: pass "INFO" for a quantity that is reported but has no standard to judge it by
-           Returns the display strings alongside the result, so that the formatting decisions of a
-           metric (its units, its precision) are made once, here, where its reference data is.'''
-        if status == "INFO":
-            return {"name": name, "value": value, "standardString": "-", "deviationString": "-",
-                    "toleranceString": "-", "paperValue": paperValue, "note": note,
-                    "result": "INFO", "fmt": fmt}
-        if type(standard) == tuple:
-            low, high = standard
-            result = "PASS" if (low <= value) & (value <= high) else "FAIL"
-            standardString = f"{fmt.format(low)}-{fmt.format(high)}"
-            outside = value - low if value < low else value - high
-            deviationString = "in range" if result == "PASS" else f"{'+' if outside>0 else ''}{fmt.format(outside)}"
-            toleranceString = "range"
-        else:
-            tolerance = tol if tol is not None else relTol*abs(standard)
-            deviation = value - standard
-            result = "PASS" if abs(deviation) <= tolerance else "FAIL"
-            standardString = fmt.format(standard)
-            deviationString = f"{'+' if deviation>=0 else ''}{fmt.format(deviation)}"
-            toleranceString = f"+/-{fmt.format(tolerance)}"
-        return {"name": name, "value": value, "standardString": standardString,
-                "deviationString": deviationString, "toleranceString": toleranceString,
-                "paperValue": paperValue, "note": note, "result": result, "fmt": fmt}
-
-    @staticmethod
-    def _check_against(references, name, value, **kwargs):
-        '''Checks value against the Burke2024 reference data of metric name, see _check.
-           An unknown name raises a KeyError: the metric names of the reference dictionaries are
-           the only names the comparison functions may use.'''
-        return Validation._check(name=name, value=value, **references[name], **kwargs)
-
-    @staticmethod
-    def _print_checks(title, checks):
-        '''Prints one section of the comparison report: a row per metric with its standard, what
-           the simulation obtained, the deviation and the tolerance it is allowed, what the
-           simulation of Burke2024 obtained, and the result. Notes are printed underneath the rows
-           that did not pass, where they explain what the tolerance was set from.'''
+    def _print_side_by_side(title, columns, rows, fmt="{:.1f}"):
+        '''Prints one section of the report: a row per quantity, the value Burke2024 publishes for
+           it next to the value this run obtained.
+           columns: the headers of the columns of this run, one per value of a row
+           rows: (quantity, published value, [values of this run]); a published value given as a
+                 (low, high) tuple is one the paper publishes as a range
+           fmt: the format of every number of the section'''
         print(f"\n{title}")
         print("-"*len(title))
-        print(f"{'metric':<44}{'standard':>14}{'simulation':>12}{'deviation':>11}"
-              f"{'tolerance':>11}{'Burke2024':>11}{'result':>8}")
-        for check in checks:
-            fmt = check["fmt"]
-            paperValue = "-" if check["paperValue"] is None else fmt.format(check["paperValue"])
-            print(f"{check['name']:<44}{check['standardString']:>14}{fmt.format(check['value']):>12}"
-                  f"{check['deviationString']:>11}{check['toleranceString']:>11}{paperValue:>11}"
-                  f"{check['result']:>8}")
-            if (check["note"] is not None) & (check["result"] != "PASS"):
-                print(f"{' '*4}note: {check['note']}")
+        print(f"{'quantity':<44}{'published':>14}" +
+              "".join([f"{column:>14}" for column in columns]))
+        for quantity, published, values in rows:
+            publishedString = (f"{fmt.format(published[0])}-{fmt.format(published[1])}"
+                               if type(published) == tuple else fmt.format(published))
+            print(f"{quantity:<44}{publishedString:>14}" +
+                  "".join([f"{fmt.format(value):>14}" for value in values]))
 
     @staticmethod
-    def _print_verdict(checks):
-        '''Prints the overall verdict of the comparison and returns whether the simulation is
-           consistent with every Burke2024 standard it was checked against. INFO quantities have no
-           standard and so do not take part in the verdict.'''
-        assessed = [check for check in checks if check["result"] != "INFO"]
-        failed = [check for check in assessed if check["result"] == "FAIL"]
-        informational = [check for check in checks if check["result"] == "INFO"]
-        print("\n")
-        if len(failed) == 0:
-            print(f"VALIDATED: all {len(assessed)} checked quantities are consistent with the "
-                  f"external standards of Burke2024.")
-        else:
-            print(f"NOT VALIDATED: {len(failed)} of {len(assessed)} checked quantities are "
-                  f"inconsistent with the external standards of Burke2024:")
-            for check in failed:
-                fmt = check["fmt"]
-                paperValue = "-" if check["paperValue"] is None else fmt.format(check["paperValue"])
-                print(f"{' '*4}{check['name']}: standard {check['standardString']}, "
-                      f"simulation {fmt.format(check['value'])}, allowed {check['toleranceString']}, "
-                      f"Burke2024 obtained {paperValue}")
-        print(f"{' '*4}Reported without a standard to check them against: {len(informational)}.")
-        print(f"{' '*4}Dementia incidence is reported but not checked: Burke2024 publishes it as Fig 4 only,")
-        print(f"{' '*4}with no numeric values in the text and no reference data for it in this repository.")
-        return len(failed) == 0
+    def print_baseline_pop_with_burke2024(results):
+        '''Prints the baseline populations next to the published NHANES estimates of Table 2.
+           results: what nhanes_baseline_pop returns.'''
+        for title, published, metrics in [
+                ("Baseline population (Table 2, published NHANES 2007-2010)",
+                 Burke2024.baseline2007, results["2007"]),
+                ("Baseline population with hypertension (Table 2, published NHANES 2013)",
+                 Burke2024.baseline2013Hypertension, results["2013Hypertension"])]:
+            Validation._print_side_by_side(title, ["simulation"],
+                                           [(quantity, value, [metrics[quantity]])
+                                            for quantity, value in published.items()])
 
     @staticmethod
-    def compare_baseline_pop_to_burke2024(results):
-        '''Compares the baseline populations against the published NHANES estimates of Table 2.
-           results: what nhanes_baseline_pop returns.
-           Returns a list of (section title, list of checks) for nhanes_burke2024_report.'''
-        return [("Baseline population vs published NHANES 2007-2010 (Table 2)",
-                 [Validation._check_against(Burke2024.baseline2007, name, results["2007"][name])
-                  for name in Burke2024.baseline2007]),
-                ("Baseline population with hypertension vs published NHANES 2013 (Table 2)",
-                 [Validation._check_against(Burke2024.baseline2013Hypertension, name,
-                                            results["2013Hypertension"][name])
-                  for name in Burke2024.baseline2013Hypertension])]
-
-    @staticmethod
-    def compare_over_time_to_burke2024(results):
-        '''Compares the population advanced for 18 years against the NHANES 2017 pseudo-cohort
-           (Fig 2) and against the published event rates of Table 3.
-           results: what nhanes_over_time returns.
-           Returns a list of (section title, list of checks) for nhanes_burke2024_report.'''
+    def print_over_time_with_burke2024(results):
+        '''Prints the population advanced for 18 years next to the published NHANES 2017 levels of
+           the Fig 2 text and the published event rates of Table 3. The NHANES 2017 column is the
+           comparison population that nhanes_over_time built in the same run, which is what the
+           simulation is held against in Fig 2.
+           results: what nhanes_over_time returns.'''
         simSummary = results["simSummary"]["continuous"]
         nhanesSummary = results["nhanesSummary"]["continuous"]
-        dbp = DynamicRiskFactorsType.DBP.value
-        totChol = DynamicRiskFactorsType.TOT_CHOL.value
-
-        #does the NHANES 2017 comparison population this code builds have the levels that Burke2024
-        #reports for the population it compared the simulation against?
-        comparatorValues = {"DBP, mm Hg (mean)": nhanesSummary[dbp]["mean"],
-                            "DBP, mm Hg (sd)": nhanesSummary[dbp]["sd"],
-                            "totChol, mg/dL (mean)": nhanesSummary[totChol]["mean"],
-                            "totChol, mg/dL (sd)": nhanesSummary[totChol]["sd"]}
-        comparatorChecks = [Validation._check_against(Burke2024.nhanes2017Comparator, name, value)
-                            for name, value in comparatorValues.items()]
-
-        #and does the simulation reproduce that population's vascular risk factor levels, which is
-        #the claim Fig 2 makes? The standard of each of these is the comparison population itself.
-        riskFactorChecks = []
-        for riskFactor in Burke2024.fig2RiskFactors:
-            for stat in ["mean", "sd"]:
-                reference = Burke2024.fig2.get((riskFactor, stat),
-                                               Burke2024.fig2DefaultTolerance[stat])
-                riskFactorChecks += [Validation._check(name=f"{riskFactor} ({stat})",
-                                                       value=simSummary[riskFactor][stat],
-                                                       standard=nhanesSummary[riskFactor][stat],
-                                                       **reference)]
+        Validation._print_side_by_side(
+            "Vascular risk factors after 18 years (Fig 2, published NHANES 2017)",
+            ["NHANES 2017", "simulation"],
+            [(f"{riskFactor} ({stat})", published,
+              [nhanesSummary[riskFactor][stat], simSummary[riskFactor][stat]])
+             for (riskFactor, stat), published in Burke2024.nhanes2017.items()])
 
         cvRates = results["cvRates"]
-        miRates = cvRates[OutcomeType.MI]
-        strokeRates = cvRates[OutcomeType.STROKE]
-        cvChecks = [
-            Validation._check_against(Burke2024.cvIncidence, "MI incidence, all (per 100,000)", miRates["all"]),
-            Validation._check_against(Burke2024.cvIncidence, "MI incidence, white (per 100,000)", miRates["white"]),
-            Validation._check_against(Burke2024.cvIncidence, "MI incidence, black (per 100,000)", miRates["black"]),
-            Validation._check_against(Burke2024.cvIncidence, "stroke incidence, all (per 100,000)", strokeRates["all"]),
-            Validation._check_against(Burke2024.cvIncidence, "stroke incidence, white (per 100,000)", strokeRates["white"]),
-            Validation._check_against(Burke2024.cvIncidence, "stroke incidence, black (per 100,000)", strokeRates["black"]),
-            Validation._check_against(Burke2024.cvIncidence, "mortality, all (per 100,000)",
-                                      cvRates[OutcomeType.DEATH]["all"])]
-        #the racial disparity in stroke incidence, which is the part of Table 3 the paper claims to
-        #reproduce; a zero rate in white individuals would mean no events at all in that subgroup
-        if strokeRates["white"] > 0:
-            cvChecks += [Validation._check_against(Burke2024.cvIncidence, "stroke incidence, black:white ratio",
-                                                   strokeRates["black"]/strokeRates["white"])]
-
-        #dementia incidence has no numeric standard in Burke2024, it is published as Fig 4 only
-        dementiaChecks = [Validation._check(name="dementia incidence, ages 65+ (per 100,000)",
-                                            value=10**5 * results["dementiaIncidence"]["pooled_65_plus"],
-                                            status="INFO",
-                                            note="Burke2024 compares this with the Brookmeyer et al. "
-                                                 "meta-analysis in Fig 4, without publishing the values")]
-        return [("Vascular risk factors of the NHANES 2017 comparison population vs Burke2024 (Fig 2)", comparatorChecks),
-                ("Simulated vascular risk factors after 18 years vs the NHANES 2017 comparison population (Fig 2)", riskFactorChecks),
-                ("Event incidence and mortality vs population standards (Table 3)", cvChecks),
-                ("Dementia incidence (Fig 4)", dementiaChecks)]
+        rates = {"MI incidence, all (per 100,000)": cvRates[OutcomeType.MI]["all"],
+                 "MI incidence, white (per 100,000)": cvRates[OutcomeType.MI]["white"],
+                 "MI incidence, black (per 100,000)": cvRates[OutcomeType.MI]["black"],
+                 "stroke incidence, all (per 100,000)": cvRates[OutcomeType.STROKE]["all"],
+                 "stroke incidence, white (per 100,000)": cvRates[OutcomeType.STROKE]["white"],
+                 "stroke incidence, black (per 100,000)": cvRates[OutcomeType.STROKE]["black"],
+                 "mortality, all (per 100,000)": cvRates[OutcomeType.DEATH]["all"]}
+        Validation._print_side_by_side(
+            "Event incidence and mortality (Table 3)", ["simulation"],
+            [(quantity, published, [rates[quantity]])
+             for quantity, published in Burke2024.cvIncidence.items()])
 
     @staticmethod
-    def compare_treatment_effects_to_burke2024(results):
-        '''Compares the estimated BP medication treatment effects against the meta-analysis of
-           BP-lowering trials that Burke2024 calibrated against. That standard covers a single
-           added medication, so the other arms are reported without being checked.
-           results: what nhanes_treatment_effects returns.
-           Returns a list of (section title, list of checks) for nhanes_burke2024_report.'''
-        checks = []
-        if 1 in results:
-            checks += [Validation._check_against(Burke2024.treatmentEffects, "stroke RR, 1 BP medication added",
-                                                 results[1]["strokeRR"]),
-                       Validation._check_against(Burke2024.treatmentEffects, "MI RR, 1 BP medication added",
-                                                 results[1]["miRR"])]
-        for bpMedsAdded in sorted([arm for arm in results.keys() if arm != 1]):
-            for outcome, key in [("stroke", "strokeRR"), ("MI", "miRR")]:
-                checks += [Validation._check(name=f"{outcome} RR, {bpMedsAdded} BP medications added",
-                                             value=results[bpMedsAdded][key],
-                                             status="INFO", fmt="{:.2f}",
-                                             note="Burke2024 validated a single added BP medication only")]
-        return [("BP medication treatment effects vs trial meta-analysis", checks)]
+    def print_treatment_effects_with_burke2024(results):
+        '''Prints the estimated BP medication treatment effects next to the meta-analysis of
+           BP-lowering trials that Burke2024 calibrated against. The meta-analysis covers a single
+           added medication, so that is the arm printed here; nhanes_treatment_effects prints all
+           of the arms it runs.
+           results: what nhanes_treatment_effects returns.'''
+        if 1 not in results:
+            return
+        relativeRisks = {"stroke RR, 1 BP medication added": results[1]["strokeRR"],
+                         "MI RR, 1 BP medication added": results[1]["miRR"]}
+        Validation._print_side_by_side(
+            "BP medication treatment effects (trial meta-analysis)", ["simulation"],
+            [(quantity, published, [relativeRisks[quantity]])
+             for quantity, published in Burke2024.treatmentEffects.items()],
+            fmt="{:.2f}")
 
     @staticmethod
     def nhanes_burke2024_report(baselineResults=None, overTimeResults=None,
                                 treatmentEffectsResults=None, path=None, nWorkers=5):
-        '''Compares the NHANES validation results against the external standards of Burke2024 and
-           reports whether the simulation is still consistent with them.
+        '''Prints the results of the NHANES validation next to the values published in Burke2024.
 
            Each argument is what the corresponding nhanes_* function returns, and any that is None
            is obtained by running that function here. So
@@ -487,9 +328,7 @@ class Validation:
 
            runs the entire NHANES validation and reports on it, whereas passing results that are
            already in hand reports on them without running anything again - which is what the
-           arguments are for, since these runs take hours.
-
-           Returns {"checks": every check made, "validated": whether all of them passed}.'''
+           arguments are for, since these runs take hours.'''
         if baselineResults is None:
             baselineResults = Validation.nhanes_baseline_pop()
         if overTimeResults is None:
@@ -497,47 +336,37 @@ class Validation:
         if treatmentEffectsResults is None:
             treatmentEffectsResults = Validation.nhanes_treatment_effects()
 
-        print("\n\nCOMPARISON WITH BURKE2024")
-        print("=========================")
-        print("Burke et al., Development and validation of the Michigan Chronic Disease Simulation")
-        print("Model (MICROSIM), PLOS ONE 19(5):e0300005, 2024.")
-        print("Each quantity is checked against the external standard the paper validated against:")
-        print("published NHANES estimates, population-based incidence studies, US population")
-        print("mortality, and a meta-analysis of BP-lowering trials. The Burke2024 column is what")
-        print("the simulation of the paper obtained against the same standard, and is where the")
-        print("tolerances come from: no tolerance here is tighter than the deviation the paper")
-        print("itself reported and accepted.")
-        print("\nThe runs this reports on differ from the ones the paper describes: 100,000 people")
-        print("rather than 500,000 at baseline and 250,000 over time, 4 simulations rather than 15")
-        print("for the treatment effects, and a population advanced over time that, unlike the")
-        print("paper's, is not restricted to people without prior stroke, MI or dementia.")
+        print("\n\nTHIS RUN AND BURKE2024")
+        print("======================")
+        print("Burke et al., Development and validation of the Michigan Chronic Disease")
+        print("Simulation Model (MICROSIM), PLOS ONE 19(5):e0300005, 2024.")
+        print("The published column holds the external values the paper validated MICROSIM")
+        print("against: survey-weighted NHANES estimates, population-based incidence studies,")
+        print("US population mortality, and a meta-analysis of BP-lowering trials.")
+        print("\nThe runs printed here differ from the ones the paper describes: 100,000 people")
+        print("rather than 500,000 at baseline and 250,000 over time, 4 simulations rather than")
+        print("15 for the treatment effects, and a population advanced over time that, unlike")
+        print("the paper's, is not restricted to people without prior stroke, MI or dementia.")
 
-        sections = (Validation.compare_baseline_pop_to_burke2024(baselineResults) +
-                    Validation.compare_over_time_to_burke2024(overTimeResults) +
-                    Validation.compare_treatment_effects_to_burke2024(treatmentEffectsResults))
-        checks = []
-        for title, sectionChecks in sections:
-            Validation._print_checks(title, sectionChecks)
-            checks += sectionChecks
-        return {"checks": checks, "validated": Validation._print_verdict(checks)}
+        Validation.print_baseline_pop_with_burke2024(baselineResults)
+        Validation.print_over_time_with_burke2024(overTimeResults)
+        Validation.print_treatment_effects_with_burke2024(treatmentEffectsResults)
 
     @staticmethod
     def nhanes(path=None, compare=True, nWorkers=5):
         '''Runs the entire NHANES validation.
-           compare=True also compares the results with the external standards of Burke2024 and
-           reports whether the simulation is consistent with them, see nhanes_burke2024_report.
-           Returns the results of the three validation runs, and the comparison report when one
-           was made.'''
+           compare=True also prints the results next to the published values of Burke2024, see
+           nhanes_burke2024_report.
+           Returns the results of the three validation runs.'''
         baselineResults = Validation.nhanes_baseline_pop()
         overTimeResults = Validation.nhanes_over_time(nWorkers=nWorkers, path=path)
         treatmentEffectsResults = Validation.nhanes_treatment_effects()
-        results = {"baseline": baselineResults,
-                   "overTime": overTimeResults,
-                   "treatmentEffects": treatmentEffectsResults}
         if compare:
-            results["report"] = Validation.nhanes_burke2024_report(baselineResults, overTimeResults,
-                                                                   treatmentEffectsResults)
-        return results
+            Validation.nhanes_burke2024_report(baselineResults, overTimeResults,
+                                               treatmentEffectsResults)
+        return {"baseline": baselineResults,
+                "overTime": overTimeResults,
+                "treatmentEffects": treatmentEffectsResults}
 
     @staticmethod
     def kaiser_baseline_pop(wmhSpecific=True):
