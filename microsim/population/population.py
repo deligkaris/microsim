@@ -252,11 +252,11 @@ class Population:
         ages = list(itertools.chain.from_iterable(ages)) #flattened list of ages
         return ages
 
-    def get_at_risk_ages(self, outcomeType):
+    def get_first_incidence_at_risk_ages(self, outcomeType):
         '''Returns the flattened at-risk person-years for outcomeType across the population.
-           Delegates to Person.get_at_risk_ages, which returns [] for priorToSim cases and
+           Delegates to Person.get_first_incidence_at_risk_ages, which returns [] for priorToSim cases and
            truncates the rest at first in-sim event age.'''
-        ages = map(lambda p: p.get_at_risk_ages(outcomeType), self._people)
+        ages = map(lambda p: p.get_first_incidence_at_risk_ages(outcomeType), self._people)
         return list(itertools.chain.from_iterable(ages))
 
     def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
@@ -270,17 +270,17 @@ class Population:
            NOTE: For recurrent outcomes (e.g., STROKE, MI) with inSim=True, a priorToSim case can
            contribute its in-sim recurrence age here, since that recurrence is the first in-sim
            event. That is NOT a first incidence in the cohort sense. For first-incidence analyses,
-           use get_at_risk_age_at_first_outcome instead, which excludes priorToSim cases entirely.'''
+           use get_first_incidence_age instead, which excludes priorToSim cases entirely.'''
         ages = list(map(lambda x: x.get_age_at_first_outcome(outcomeType, inSim=inSim), self._people))
         ages = list(filter(lambda x: x is not None,ages))
         return ages
 
-    def get_at_risk_age_at_first_outcome(self, outcomeType):
+    def get_first_incidence_age(self, outcomeType):
         '''First in-sim outcome ages, restricted to people without a priorToSim outcome
-           (the at-risk set for first incidence). Delegates to Person.get_at_risk_age_at_first_outcome.
+           (the at-risk set for first incidence). Delegates to Person.get_first_incidence_age.
            Use this for first-incidence rate calculations; use get_age_at_first_outcome only when
            you genuinely want first in-sim events including recurrences.'''
-        ages = map(lambda p: p.get_at_risk_age_at_first_outcome(outcomeType), self._people)
+        ages = map(lambda p: p.get_first_incidence_age(outcomeType), self._people)
         return list(filter(lambda a: a is not None, ages))
 
     def get_min_age_of_first_outcomes(self, outcomeTypeList, inSim=True):
@@ -364,8 +364,8 @@ class Population:
         or the age group (string, groups=True) and the values being the counts for that age or age group.
         Restricted to the at-risk set for first incidence (excludes people with a priorToSim outcome);
         each person's person-years are truncated at the age of their first in-sim event.'''
-        outcomeAges = self.get_at_risk_age_at_first_outcome(outcomeType) #first in-sim incidence among at-risk people
-        ages = self.get_at_risk_ages(outcomeType)
+        outcomeAges = self.get_first_incidence_age(outcomeType) #first in-sim incidence among at-risk people
+        ages = self.get_first_incidence_at_risk_ages(outcomeType)
         agesCounter = Counter(ages)
         outcomeAgesCounter = Counter(outcomeAges)
         if groups: #if true, then get the counter for age groups, keys are strings now, values are counts for age group category
@@ -415,10 +415,10 @@ class Population:
         Covariates are include via the personFunctionsList argument, the list must include pure functions that can be applied to a person object.'''
         return list(map(lambda x: x.get_outcome_survival_info(outcomesTypeList=outcomesTypeList, personFunctionsList=personFunctionsList), self._people))
 
-    def get_person_years_at_risk_by_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
+    def get_followup_person_years_by_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
         '''Returns a list with all person years at risk for any of the outcomes in the outcome list by end of wave.
         This includes all person objects in the population even the ones that died during the simulation.'''
-        return list(map(lambda x: x.get_person_years_at_risk_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave), self._people))
+        return list(map(lambda x: x.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave), self._people))
 
     def get_outcome_incidence_rates_at_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
         '''Returns outcome incidence rate per 1000 person-years at the end of the wave argument.
@@ -431,7 +431,7 @@ class Population:
         anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[False,True,False,False,True,...]
         anyOutcome = list(map(lambda y: int(y), anyOutcome)) #convert to integer eg [0,0,1,1,0,...1,0]
         #get the number of years each person in the population was at risk
-        personYearsAtRisk = self.get_person_years_at_risk_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[3,4,2,5,...]
+        personYearsAtRisk = self.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[3,4,2,5,...]
         popSize = len(anyOutcome) #how many people are part of the SCD and Modality group
         outcomeCounts = sum(anyOutcome) if popSize>0 else 0 #how many people had any of the outcomes
         rate = 1000. * outcomeCounts / sum(personYearsAtRisk)
@@ -970,8 +970,8 @@ class Population:
            at each person's first in-sim event. pooled_65_plus / pooled_overall are pooled
            person-year rates over ages 65+ and over all ages.'''
         incidentRate = self.get_raw_incidence_by_age(outcomeType, groups=groups)
-        outcomeAges = self.get_at_risk_age_at_first_outcome(outcomeType)
-        personYears = self.get_at_risk_ages(outcomeType)
+        outcomeAges = self.get_first_incidence_age(outcomeType)
+        personYears = self.get_first_incidence_at_risk_ages(outcomeType)
         scope65plus = AgeScope(lo=65)
         outcomeAges65plus = [a for a in outcomeAges if scope65plus.contains(a)]
         personYears65plus = [a for a in personYears if scope65plus.contains(a)]

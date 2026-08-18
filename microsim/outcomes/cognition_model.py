@@ -153,7 +153,7 @@ class GCPModel:
                 totChol=person._totChol[-1],
                 meanSBP=np.array(person._sbp).mean(),
                 anyAntiHpertensive=((person._antiHypertensiveCount[-1]>0) | person.is_in_bp_treatment),
-                fastingGlucose=person.get_fasting_glucose(not test, rng),
+                fastingGlucose=person.get_fasting_glucose(not test),
                 physicalActivity=person._anyPhysicalActivity[-1],
                 afib=person._afib[-1],
             )

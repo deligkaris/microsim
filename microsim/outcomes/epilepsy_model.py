@@ -31,7 +31,7 @@ class EpilepsyPrevalenceModel(OutcomePrevalenceBase):
                    person._ldl[-1],
                    person._stroke,
                    person._mi,
-                   person._current_diabetes,
+                   person.has_diabetes(),
                    person._any_antiHypertensive,
                    person._current_ckd)
 
@@ -150,7 +150,7 @@ class EpilepsyIncidenceModel():
                    person._ldl[-1],
                    person._stroke,
                    person._mi,
-                   person._current_diabetes,
+                   person.has_diabetes(),
                    person._any_antiHypertensive,
                    person._current_ckd)
 

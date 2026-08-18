@@ -3,7 +3,7 @@ import pandas as pd
 
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.risk_factors.risk_model_repository import RiskModelRepository
+from microsim.risk_factors.risk_factor_bounds import RiskFactorBounds
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.person.person import Person
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
@@ -94,9 +94,6 @@ class PersonFactory:
                             StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus(x.smokingStatus),
                             StaticRiskFactorsType.MODALITY.value: None}
    
-        #use this to get the bounds imposed on the risk factors in a bit
-        rfRepository = RiskModelRepository()
-
         #TO DO: find a way to include everything here, including the rfs that need initialization
         #the PVD model would be easy to implement, eg with an estimate_next_risk_for_patient_characteristics function
         #but the AFIB model would be more difficult because it relies on the logistic_risk_factor_model file
@@ -107,7 +104,7 @@ class PersonFactory:
                 personDynamicRiskFactors[rfd.value] = AlcoholCategory(x[rfd.value])
             else:
                 if (rfd!=DynamicRiskFactorsType.PVD) & (rfd!=DynamicRiskFactorsType.AFIB):
-                    personDynamicRiskFactors[rfd.value] = rfRepository.apply_bounds(rfd.value, x[rfd.value], adult=adult)
+                    personDynamicRiskFactors[rfd.value] = RiskFactorBounds.apply(rfd.value, x[rfd.value], adult=adult)
         personDynamicRiskFactors[DynamicRiskFactorsType.AFIB.value] = None
         personDynamicRiskFactors[DynamicRiskFactorsType.PVD.value] = None
 
@@ -191,15 +188,13 @@ class PersonFactory:
                             StaticRiskFactorsType.GENDER.value: NHANESGender(int(x.gender)),
                             StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus(int(x.smokingStatus))}
     
-        rfRepository = RiskModelRepository()
-    
         personDynamicRiskFactors = dict()
         for rfd in DynamicRiskFactorsType:
             if rfd==DynamicRiskFactorsType.ALCOHOL_PER_WEEK:
                 personDynamicRiskFactors[rfd.value] = None
             else:
                 if (rfd!=DynamicRiskFactorsType.WAIST):
-                    personDynamicRiskFactors[rfd.value] = rfRepository.apply_bounds(rfd.value, x[rfd.value])
+                    personDynamicRiskFactors[rfd.value] = RiskFactorBounds.apply(rfd.value, x[rfd.value])
         personDynamicRiskFactors[DynamicRiskFactorsType.WAIST.value] = None
     
         personDefaultTreatments = {
