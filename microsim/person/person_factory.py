@@ -1,10 +1,7 @@
-import numpy as np
-import pandas as pd
-
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.risk_factors.risk_factor_bounds import RiskFactorBounds
-from microsim.outcomes.outcome import Outcome, OutcomeType
+from microsim.outcomes.outcome import OutcomeType
 from microsim.person.person import Person
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.education import Education
@@ -12,13 +9,17 @@ from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
-from microsim.outcomes.stroke_outcome import StrokeOutcome
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.common.population_type import PopulationType
 from microsim.outcomes.wmh_model_repository import WMHModelRepository
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
 from microsim.outcomes.cognition_model import CognitionPrevalenceModel
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
+
+#shared by get_kaiser_person so the models are not rebuilt for every person
+_kaiserWMHModelRepository = WMHModelRepository()
+_kaiserEpilepsyPrevalenceModel = EpilepsyPrevalenceModel()
+_kaiserCognitionPrevalenceModel = CognitionPrevalenceModel()
 
 class PersonFactory:
     """A class used to obtain Person-objects using data from a variety of sources."""
@@ -70,15 +71,13 @@ class PersonFactory:
         if popType==PopulationType.NHANES.value:
             return PersonFactory.get_nhanes_person(x, initializationModelRepository, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
         elif popType==PopulationType.KAISER.value:
-            return PersonFactory.get_kaiser_person(x)
+            return PersonFactory.get_kaiser_person(x, initializationModelRepository)
         else:
             raise RuntimeError("Unrecognized population type in PersonFactory.get_person.")
 
     @staticmethod
     def get_nhanes_person_init_information(x):
         """Takes all Person-instance-related data via x and and organizes it."""
-
-        rng = np.random.default_rng()
 
         #x["name"], not x.name: x is a row of a dataframe, ie a Series, and a Series carries a name
         #attribute of its own -- its index label -- which shadows the column of that name. Read as an
@@ -110,9 +109,9 @@ class PersonFactory:
 
         #Q: do we need otherLipid treatment? I am not bringing it to the Person objects for now.
         #A: it is ok to leave it out as we do not have a model to update this. It is also very rarely taking place in the population anyway.
-        #also: used to have round(x.statin) but NHANES includes statin=2...
+        #bool: NHANES includes statin=2 but models expect a 0/1 indicator; matches the Kaiser path
         personDefaultTreatments = {
-                            DefaultTreatmentsType.STATIN.value: x.statin,
+                            DefaultTreatmentsType.STATIN.value: bool(x.statin),
                             #DefaultTreatmentsType.OTHER_LIPID_LOWERING_MEDICATION_COUNT.value: x.otherLipidLowering,
                             DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: x.antiHypertensiveCount}
 
@@ -211,8 +210,10 @@ class PersonFactory:
         return (name, personStaticRiskFactors, personDynamicRiskFactors, personDefaultTreatments, personTreatmentStrategies, personOutcomes)
 
     @staticmethod
-    def get_kaiser_person(x):
-        (name, 
+    def get_kaiser_person(x, initializationModelRepository=None):
+        """initializationModelRepository: pass a shared instance when constructing many persons;
+           when omitted, one is built for this person alone."""
+        (name,
          personStaticRiskFactors, 
          personDynamicRiskFactors, 
          personDefaultTreatments, 
@@ -226,20 +227,21 @@ class PersonFactory:
                         personTreatmentStrategies,
                         personOutcomes)
     
-        imr = InitializationModelRepository()
+        imr = initializationModelRepository if initializationModelRepository is not None \
+              else InitializationModelRepository()
         person._waist = [imr[DynamicRiskFactorsType.WAIST.value].estimate_next_risk(person)]
         person._alcoholPerWeek = [imr[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value].estimate_next_risk(person)]
         person._education = imr[StaticRiskFactorsType.EDUCATION.value].estimate_next_risk(person)
 
         #originally this outcome was obtained along with the rest of the outcomes, however treatment strategies need the CV risk, some of them at least,
         #the CV risks requires knowledge of wmh severity and the rest of the wmh parameters, so I am adding this outcome here... 
-        outcome = WMHModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
-        person.add_outcome(outcome)
- 
-        outcome = EpilepsyPrevalenceModel().get_prevalent_outcome(person)
+        outcome = _kaiserWMHModelRepository.select_outcome_model_for_person(person).get_next_outcome(person)
         person.add_outcome(outcome)
 
-        cognitionOutcome = CognitionPrevalenceModel().get_prevalent_outcome(person)
+        outcome = _kaiserEpilepsyPrevalenceModel.get_prevalent_outcome(person)
+        person.add_outcome(outcome)
+
+        cognitionOutcome = _kaiserCognitionPrevalenceModel.get_prevalent_outcome(person)
         person.add_outcome(cognitionOutcome)
 
         return person

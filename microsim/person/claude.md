@@ -45,7 +45,7 @@ Person (individual agent)
 
 ### Wave / Subscript Semantics
 
-A "wave" represents one annual time-step forward. The semantics are explained in the `Person` class docstring (`person.py`, lines 32–50) and the `advance()` docstring (lines 103–108):
+A "wave" represents one annual time-step forward. The semantics are explained in the `Person` class docstring (`person.py`, lines 24–41) and the `advance()` docstring (lines 94–99):
 
 - `_waveCompleted` is initialized to `-1` before the first `advance()` call.
 - After the first complete advance, `_waveCompleted` becomes `0`; after the second, `1`; and so on.
@@ -55,7 +55,7 @@ A "wave" represents one annual time-step forward. The semantics are explained in
 
 ### priorToSim Outcomes and age=None
 
-Outcomes that occurred before the simulation started are represented with `outcome.priorToSim == True`. In `add_outcome()` (line 249):
+Outcomes that occurred before the simulation started are represented with `outcome.priorToSim == True`. In `add_outcome()` (line 237):
 
 ```python
 age = None if outcome.priorToSim else self._current_age
@@ -110,7 +110,7 @@ person.advance(5, dynamicRiskFactorRepository, defaultTreatmentRepository, outco
   3. Applies `InitializationModelRepository` to set `_pvd`, `_afib` (as single-element lists), and `_modality` (scalar) — these cannot be initialized from the raw NHANES row directly.
   4. If `outcomePrevalenceModelRepository` is provided, calls `person.seed_prevalent_outcomes(...)` to seed priorToSim outcomes via logistic prevalence models.
 
-- **`get_kaiser_person(x)`** — Builds a Person from a Kaiser data row. Uses `InitializationModelRepository` to fill in `_waist`, `_alcoholPerWeek`, and `_education` (missing from the Kaiser raw data). Then adds WMH, epilepsy, and cognition outcomes directly via their model classes.
+- **`get_kaiser_person(x, initializationModelRepository=None)`** — Builds a Person from a Kaiser data row. Uses `InitializationModelRepository` (pass a shared instance when constructing many persons; one is built per call when omitted) to fill in `_waist`, `_alcoholPerWeek`, and `_education` (missing from the Kaiser raw data). Then adds WMH, epilepsy, and cognition outcomes via module-level shared model instances.
 
 ### Column Name Mapping
 
@@ -167,7 +167,7 @@ When `personFilters` **is** supplied, `get_nhanes_people` warns that NHANES now 
 
 2. **Per-person RNG**: Each `Person` owns an independent `_rng = np.random.default_rng()` seeded from OS entropy at construction. This ensures each person gets statistically independent draws even under multiprocessing, where processes share memory but not state.
 
-3. **priorToSim outcomes carry `age=None`**: The `add_outcome()` method (line 249 of `person.py`) stores `age=None` for any outcome where `outcome.priorToSim is True`. All code that consumes outcome ages must call `get_outcomes_during_simulation()` or check `outcome.priorToSim` first to avoid operating on `None` ages.
+3. **priorToSim outcomes carry `age=None`**: The `add_outcome()` method (line 237 of `person.py`) stores `age=None` for any outcome where `outcome.priorToSim is True`. All code that consumes outcome ages must call `get_outcomes_during_simulation()` or check `outcome.priorToSim` first to avoid operating on `None` ages.
 
 4. **Static risk factors are scalars; dynamic risk factors and treatments are lists**: After `__init__`, `self._age` is a list `[baseline_age]`; `self._raceEthnicity` is a scalar enum. This asymmetry is intrinsic to the design.
 

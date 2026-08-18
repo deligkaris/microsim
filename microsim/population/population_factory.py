@@ -1075,10 +1075,11 @@ class PopulationFactory:
         df = PopulationFactory.get_df_from_draws(drawsForGroups, namesForGroups, popType=PopulationType.KAISER.value)
         df = PopulationFactory.apply_person_filters_on_df(personFilters, df)
         dfForPeople = df.sample(n, weights=None, replace=True)
-        people = pd.DataFrame.apply(dfForPeople, PersonFactory.get_kaiser_person, axis="columns")
+        imr = InitializationModelRepository()
+        people = pd.DataFrame.apply(dfForPeople, PersonFactory.get_kaiser_person, args=(imr,), axis="columns")
         people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
         #weights=None because the initial Kaiser draw above is unweighted as well
-        people = PopulationFactory.bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.KAISER.value, weights=None)
+        people = PopulationFactory.bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.KAISER.value, initializationModelRepository=imr, weights=None)
         PopulationFactory.set_index_in_people(people)
         return people
 

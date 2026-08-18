@@ -3,6 +3,9 @@ from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRisk
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.outcomes.cv_model_repository import CVModelRepository
 
+#shared by the highCVLimit filter so the CV models are not rebuilt for every person tested
+_cvModelRepository = CVModelRepository()
+
 class PersonFilterFactory:
     '''Factory that builds a PersonFilter, the object used to include/exclude individuals from a Population.
 
@@ -87,7 +90,7 @@ class PersonFilterFactory:
         "lowDBPLimit": ("df", lambda x: x[DynamicRiskFactorsType.DBP.value]>85),
         "highAntiHypertensivesLimit": ("df", lambda x: x[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]<=3),
         "highCVLimit": ("person",
-            lambda x: (CVModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x)< (0.00477) )),
+            lambda x: (_cvModelRepository.select_outcome_model_for_person(x).get_risk_for_person(x)< (0.00477) )),
         "noMCI": ("person",
             lambda x: not x.has_mci(inSim=False)),
         "hasEpilepsy": ("person",
