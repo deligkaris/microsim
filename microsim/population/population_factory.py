@@ -587,7 +587,8 @@ class PopulationFactory:
     @staticmethod
     def is_singular(cov):
        """Checks if a covariance matrix is singular or not."""
-       return True if not np.all(np.linalg.eig(cov)[0]>10**(-3)) else False
+       #eigvalsh, not eig: cov is symmetric, and eig can return complex eigenvalues, which '>' refuses to order
+       return not np.all(np.linalg.eigvalsh(cov) > 10**(-3))
 
     @staticmethod
     def get_kaiser_distributions():
