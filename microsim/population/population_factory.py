@@ -948,13 +948,18 @@ class PopulationFactory:
         df = PopulationFactory.get_nhanesDf() 
         dictForCategoricals = dict()
         for gender, raceEthnicity, education, age in product(
-                                                       set(df[StaticRiskFactorsType.GENDER.value].tolist()), 
+                                                       set(df[StaticRiskFactorsType.GENDER.value].tolist()),
                                                        set(df[StaticRiskFactorsType.RACE_ETHNICITY.value].tolist()),
                                                        set(df[StaticRiskFactorsType.EDUCATION.value].tolist()),
                                                        set(range(0,82,1))): #for age
-            #symmetric window of ages age-2 to age+2, clamped at 0; range excludes ageMax
+            #symmetric window of ages age-2 to age+2, clamped at 0; range excludes ageMax.
+            #The top key's window runs to 85 instead: the file holds ages up to 85 (NHANES top-codes
+            #age there), and the 988 people aged 84-85 are too few for keys of their own — extending
+            #the keys past 81 leaves groups singular even after pooling education, while widening the
+            #top window to 79-85 keeps every fit non-singular and lets their data feed the fit that
+            #serves them (see get_dist_keys_for_dataframe, which clips the draw key to 81)
             ageMin = max(age-2, 0)
-            ageMax = age+3
+            ageMax = 86 if age==81 else age+3
             dfForCategoricals = df.loc[(df[StaticRiskFactorsType.GENDER.value]==gender) & 
                                        (df[DynamicRiskFactorsType.AGE.value].isin(list(range(ageMin,ageMax,1)))) & 
                                        (df[StaticRiskFactorsType.EDUCATION.value]==education) &
@@ -1172,12 +1177,13 @@ class PopulationFactory:
         The rows are handled one distribution at a time rather than one row at a time: every row with the
         same gender, race ethnicity, education and age draws from the same Gaussian, so that Gaussian is
         built once and asked for as many points as there are such rows.'''
-        #the distributions do not go past age 80, older people draw from the age 80 distribution
+        #the keys stop at 81, rows older than that (state projections carry ages to 89) draw from the
+        #81 key, whose window runs to 85 so its fit includes the NHANES people it serves
         keyFrame = pd.DataFrame({
             StaticRiskFactorsType.GENDER.value: dfWithCategoricals[StaticRiskFactorsType.GENDER.value],
             StaticRiskFactorsType.RACE_ETHNICITY.value: dfWithCategoricals[StaticRiskFactorsType.RACE_ETHNICITY.value],
             StaticRiskFactorsType.EDUCATION.value: dfWithCategoricals[StaticRiskFactorsType.EDUCATION.value],
-            DynamicRiskFactorsType.AGE.value: dfWithCategoricals[DynamicRiskFactorsType.AGE.value].clip(upper=80)})
+            DynamicRiskFactorsType.AGE.value: dfWithCategoricals[DynamicRiskFactorsType.AGE.value].clip(upper=81)})
         distKeysForRows = list()
         for key, rowsOfKey in keyFrame.groupby(list(keyFrame.columns), observed=True).indices.items():
             #a group whose own distribution was singular was fit without education, see get_distributions_crude
