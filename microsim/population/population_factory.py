@@ -709,6 +709,8 @@ class PopulationFactory:
         #just use the "mean" for the keys
         for key in distributions["mean"].keys():
             size = distributions["size"][key]
+            if size == 0: #a group too small to hold a person contributes no rows, and the loop below would leave draws None
+                continue
             namesForGroups[key] = distributions["names"][key]
             #use either the original distribution or the alternative if the cov matrix is singular
             distKey = key if not distributions["singular"][key] else distributions["alt"][key]
@@ -723,7 +725,6 @@ class PopulationFactory:
                 distMin = distributions["min"][distKey]
                 distMax = distributions["max"][distKey]
 
-            nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value]
             drawsNeeded = size
             draws = None
             #the batch is always exactly the shortfall, so it never exceeds size and does not need to be
@@ -743,8 +744,8 @@ class PopulationFactory:
                 if draws is None:
                     draws = dist.rvs(size=drawsNeeded)
                 else:
-                    if len(draws.shape)==1:
-                        draws = draws.reshape((1, len(nhanesContinuousVariables)))
+                    #draws is always 2-D here: the only 1-D producer is the initial rvs of a size-1
+                    #group, which the size==1 reshape below fixes within the same iteration
                     if (drawsNeeded==1):
                         draws = np.concatenate( (draws, dist.rvs(size=drawsNeeded).reshape((1,distMean.shape[0]))), axis=0 )
                     else:
@@ -905,12 +906,17 @@ class PopulationFactory:
         drawsForGroups, namesForGroups = PopulationFactory.draw_from_distributions(distributions)
         df = PopulationFactory.get_df_from_draws(drawsForGroups, namesForGroups, popType=PopulationType.KAISER.value)
         df = PopulationFactory.apply_person_filters_on_df(personFilters, df)
+        if df.shape[0] == 0: #stop with a clear error, df.sample on an empty df raises an opaque one
+            raise RuntimeError("""The df-level filters of personFilters rejected every row drawn from
+                                  the Kaiser distributions, so there is nobody left to build Person-objects from.""")
         dfForPeople = df.sample(n, weights=None, replace=True)
         imr = InitializationModelRepository()
         people = pd.DataFrame.apply(dfForPeople, PersonFactory.get_kaiser_person, args=(imr,), axis="columns")
         people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
         #weights=None because the initial Kaiser draw above is unweighted as well
         people = PopulationFactory.bring_people_to_target_n(n, people, df, personFilters, popType=PopulationType.KAISER.value, initializationModelRepository=imr, weights=None)
+        #sampling with replacement leaves duplicate index labels, what identifies a person is _index
+        people = people.reset_index(drop=True)
         PopulationFactory.set_index_in_people(people)
         return people
 
