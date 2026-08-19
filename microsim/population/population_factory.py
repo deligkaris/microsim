@@ -786,9 +786,8 @@ class PopulationFactory:
 
     @staticmethod
     def get_nhanes_age_standardized_population(n, year):
-        #nhanesDf is needed just for the index
-        #nhanesDf = pd.read_stata("microsim/data/fullyImputedDataset.dta")
-        nhanesDf = PopulationFactory.get_nhanesDf() 
+        #the df supplies the age and gender of every row, so the merge below can hand each row its weight
+        nhanesDf = PopulationFactory.get_nhanesDf()
         standardizedPop = StandardizedPopulation(year=year)
         weights = standardizedPop.populationWeightedStandard
         #it is ok weights are merged with the entire nhanesDf, because pandas sampling takes into account the index of the series
