@@ -4,7 +4,6 @@ import numpy as np
 from itertools import product
 from scipy.stats import multivariate_normal
 from scipy.optimize import brentq
-from enum import Enum
 import math
 
 from microsim.person.person_factory import PersonFactory
@@ -22,7 +21,6 @@ from microsim.default_treatments.default_treatment_model_repository import Defau
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
-from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.population.standardized_population import StandardizedPopulation
@@ -31,33 +29,6 @@ from microsim.outcomes.outcome import OutcomeType
 from microsim.common.population_type import PopulationType
 from microsim.common.data_loader import get_absolute_datafile_path
 from microsim.risk_factors.modality import Modality
-
-class VariablesUsedRecorder:
-    """NOT IN USE at the moment: its only caller is apply_categorical_person_filters_on_groups, which
-       stopped being used when get_nhanes_people moved to the construction the state populations use.
-
-       Stands in for a dataframe row and remembers which variables were read from it.
-
-       A person filter is a function, so nothing declares which variables it depends on. Handing it one
-       of these instead of a row answers that question by observation: whatever the filter looks up ends
-       up in variablesUsed, and the caller can then compare that against the categorical/continuous lists
-       in PopulationFactory.variable_types.
-
-       Only the variables the filter actually reaches for are recorded, so a filter that stops early
-       records only what it read before stopping."""
-    def __init__(self, row):
-        object.__setattr__(self, "_row", row)
-        object.__setattr__(self, "variablesUsed", set())
-
-    def __getitem__(self, variable):
-        self.variablesUsed.add(variable)
-        return self._row[variable]
-
-    def __getattr__(self, variable):
-        #a filter that reaches for a variable as an attribute rather than a key is recorded the same way
-        self.variablesUsed.add(variable)
-        return getattr(self._row, variable)
-
 
 class PopulationFactory:
     #the NHANES df as get_nhanesDf builds it, cached because every population build needs it
@@ -71,15 +42,6 @@ class PopulationFactory:
     #the mean of every continuous variable for every group of NHANES people, the mean a draw is shifted
     #to. Cached for the same reason: it takes no argument and every population build needs it.
     _groupMeans = None
-
-    #NOT IN USE at the moment: only get_partitioned_nhanes_people reads it, and that is itself unused.
-    #how many weighted draws get_partitioned_nhanes_people partitions in order to fit the distributions.
-    #Measured on 1999: this yields ~1450 groups of which 644 hold at least 12 people, against 1558 groups
-    #of which only 77 do when the whole unweighted year is used instead, at 39s against 20s. It does not
-    #help with the singular covariance matrices, ~96% of groups have one at every n that was tried,
-    #because the nine categorical variables cut a few thousand people into more cells than an eleven
-    #dimensional covariance can be fit in.
-    fitSampleSize = 40000
 
     nhanes_pop_attributes = {PopulationRepositoryType.STATIC_RISK_FACTORS.value:
                                                                     [StaticRiskFactorsType.GENDER.value,
@@ -616,92 +578,9 @@ class PopulationFactory:
         return Population(people, popModelRepository)
 
     @staticmethod
-    def get_partitioned_nhanes_people(year=None, n=None):
-        """NOT IN USE at the moment: get_nhanes_people fits its distributions on
-           get_partitioned_nhanes_people_crude instead, which groups on the four categorical variables that
-           matter most rather than on all nine. All nine span about 10800 combinations for the roughly 5400
-           adults of a single year, so about 96% of the groups this returns cannot be fit a covariance
-           matrix that is not singular, whatever n is.
-
-           Partitions a NHANES df in all possible combinations of categorical variables that actually exist in NHANES.
-           Group is defined as a specific combination of the categorical variables.
-           Returns a dictionary: keys are the groups, values are dataframes with the NHANES rows for that particular group.
-
-           The people partitioned here are drawn with the NHANES weights, so the size of each group,
-           and with it the number of draws the group contributes later, follows the weighted population
-           rather than the raw NHANES sample. That is why get_nhanes_people refuses to weight the draws
-           a second time. n is the size of that weighted draw and defaults to fitSampleSize.
-
-           Note that the weighted draw is made with replacement, so an n past the number of distinct
-           NHANES rows of that year adds copies rather than new people. It settles the group sizes, but
-           it cannot make a covariance matrix any less singular: the rank of a group's covariance is
-           bounded by how many distinct people it holds, not by how many times they appear."""
-        n = PopulationFactory.fitSampleSize if n is None else n
-        pop = PopulationFactory.get_nhanes_population(n=n, year=year, personFilters=None, nhanesWeights=True)
-        pop.advance(1)
-        df = pop.get_all_person_years_as_df()
-        dfForGroups = dict()
-        #this approach is running the risk of missing some categories present in the df, eg by the use of range for antiHypertensiveCount
-        #gender, smoking, raceEthnicity, statin, education, alcoholPerWeek, anyPhysicalActivity, antiHypertensiveCount
-        #for ge, sm, ra, st, ed, al, a, an in product(NHANESGender, SmokingStatus, NHANESRaceEthnicity, [True, False], 
-        #                                               Education, AlcoholCategory, [True, False], range(7)):
-        for mo, ge, sm, ra, st, ed, al, a, an in product(set(df[StaticRiskFactorsType.MODALITY.value].tolist()),
-                                                     set(df[StaticRiskFactorsType.GENDER.value].tolist()), 
-                                                     set(df[StaticRiskFactorsType.SMOKING_STATUS.value].tolist()),
-                                                     set(df[StaticRiskFactorsType.RACE_ETHNICITY.value].tolist()),
-                                                     set(df[DefaultTreatmentsType.STATIN.value].tolist()),
-                                                     set(df[StaticRiskFactorsType.EDUCATION.value].tolist()),
-                                                     set(df[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value].tolist()),
-                                                     set(df[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value].tolist()),
-                                                     set(df[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value].tolist())):
-            dfForGroup = df.loc[(df[StaticRiskFactorsType.GENDER.value]==ge) & 
-                                (df[StaticRiskFactorsType.SMOKING_STATUS.value]==sm) &
-                                (df[StaticRiskFactorsType.RACE_ETHNICITY.value]==ra) &
-                                (df[DefaultTreatmentsType.STATIN.value]==st) &
-                                (df[StaticRiskFactorsType.EDUCATION.value]==ed) &
-                                (df[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value]==al) &
-                                (df[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value]==a) &
-                                (df[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]==an), :].copy()
-            if dfForGroup.shape[0]>0:
-                #dfForGroups[ge.value, sm.value, ra.value, st, ed.value, al.value, a, an] = dfForGroup
-                dfForGroups[mo, ge, sm, ra, st, ed, al, a, an] = dfForGroup
-        return dfForGroups
-
-    @staticmethod
     def is_singular(cov):
        """Checks if a covariance matrix is singular or not."""
        return True if not np.all(np.linalg.eig(cov)[0]>10**(-3)) else False
-
-    @staticmethod
-    def get_distributions(dfForGroups):
-        """NOT IN USE at the moment: it goes with get_partitioned_nhanes_people, and get_nhanes_people now
-           uses get_distributions_crude instead, which resolves a singular fit by pooling the group over all
-           education levels rather than by borrowing another group's distribution.
-
-           Fits a multivariate normal to the continuous variables of each specific combination of categorical variables (group).
-           Returns a dictionary: keys are 'mean', 'cov', 'min', 'max', 'singular'.
-           Values for 'singular' are boolean depending on whether the covariance matrix for that key is singular or not.
-           Values for all other keys are np arrays.
-           The min and max are useful because we need to impose bounds on the draws, Gaussians extend to infinity...."""
-        nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value]
-        meanForGroups = dict()
-        covForGroups = dict()
-        minForGroups = dict()
-        maxForGroups = dict()
-        sizeForGroups = dict()
-        singularForGroups = dict()
-        namesForGroups = dict()
-        for key in dfForGroups.keys():
-            meanForGroups[key], covForGroups[key] = multivariate_normal.fit(np.array(dfForGroups[key][nhanesContinuousVariables]))
-            singularForGroups[key] = PopulationFactory.is_singular(covForGroups[key])
-            minForGroups[key] = np.min(np.array(dfForGroups[key][nhanesContinuousVariables]), axis=0)
-            maxForGroups[key] = np.max(np.array(dfForGroups[key][nhanesContinuousVariables]), axis=0)
-            sizeForGroups[key] = dfForGroups[key].shape[0]
-            namesForGroups[key] = dfForGroups[key]["name"].tolist()
-        distributions = {"mean": meanForGroups, "cov": covForGroups, "min": minForGroups, "max": maxForGroups, "singular": singularForGroups,
-                         "size": sizeForGroups, "names": namesForGroups}
-        distributions = PopulationFactory.get_alt_groups(distributions)
-        return distributions
 
     @staticmethod
     def get_kaiser_distributions():
@@ -934,61 +813,6 @@ class PopulationFactory:
         return df
 
     @staticmethod
-    def apply_categorical_person_filters_on_groups(dfForGroups, personFilters,
-                                                   popType=PopulationType.NHANES.value):
-        """NOT IN USE at the moment: it was an optimization for the group-by-group fitting that
-           get_partitioned_nhanes_people did. get_nhanes_people no longer fits per group of all nine
-           categorical variables, and it applies the df-level filters to the redrawn dataframe instead,
-           so there are no groups to drop ahead of a fit.
-
-           Drops the groups that the df-level filters reject on their categorical variables alone.
-
-           A group is one combination of the categorical variables, so a filter that depends only on
-           those variables gives the same answer for every person in the group and can be decided once,
-           for the whole group, before any distribution is fit. Dropping such a group here saves fitting
-           a multivariate normal that nothing would ever draw from, and it keeps groups that no draw
-           could satisfy away from the draw budget in draw_from_distributions.
-
-           Which filters those are is not declared anywhere, so it is observed instead: the filter is
-           handed a VariablesUsedRecorder wrapping a row of the group, which records every variable the
-           filter reads. If everything it read is in the categorical list of variable_types then its
-           answer holds for the whole group; if it read a continuous variable as well, the group cannot
-           be decided here and is left to the person-by-person filtering that happens later.
-
-           A filter that mixes the two is still decided whenever its categorical half alone settles the
-           answer, because python stops evaluating an expression as soon as the result is known: for
-           "gender is male and sbp>126" a female group never reaches the sbp test, so only gender is
-           recorded and the group is dropped, which is right since no woman passes that filter at any
-           sbp. For a male group the sbp test does run, sbp is recorded, and the group is left for later.
-
-           Returns the subset of dfForGroups that survives. Raises if nothing does, because that leaves
-           no distribution to draw from at all."""
-        if personFilters is None:
-            return dfForGroups
-        catVariables = set(PopulationFactory.variable_types(VariableType.CATEGORICAL.value, popType=popType))
-        groupsKept = dict()
-        for key, dfForGroup in dfForGroups.items():
-            #every person in the group shares the categorical values, so any row of it will do
-            row = dfForGroup.iloc[0]
-            keep = True
-            for filterFunction in personFilters.filters["df"].values():
-                recorder = VariablesUsedRecorder(row)
-                try:
-                    decision = filterFunction(recorder)
-                except KeyError: #the filter wants a variable this df does not carry, leave it for later
-                    continue
-                #the answer holds for the whole group only if nothing outside the categorical list was read
-                if (recorder.variablesUsed <= catVariables) and (not decision):
-                    keep = False
-                    break
-            if keep:
-                groupsKept[key] = dfForGroup
-        if len(groupsKept) == 0:
-            raise RuntimeError(f"""The df-level filters rejected all {len(dfForGroups)} groups on their
-                                   categorical variables, so there is no distribution left to draw from.""")
-        return groupsKept
-
-    @staticmethod
     def apply_person_filters_on_people(personFilters, people):
         if personFilters is not None:
             for filterFunction in personFilters.filters["person"].values():
@@ -1104,7 +928,7 @@ class PopulationFactory:
     @staticmethod
     def get_crude_distributions():
         '''Returns the Gaussians the continuous variables are drawn from, fit on the partition of NHANES
-        by gender, race ethnicity, education and a 4-year age window.
+        by gender, race ethnicity, education and a 5-year age window.
 
         Built once and kept in _crudeDistributions. Neither the partition nor the fit takes an argument,
         so both give the same answer every time they are called, and together they cost about 5 seconds:
@@ -1128,15 +952,9 @@ class PopulationFactory:
                                                        set(df[StaticRiskFactorsType.RACE_ETHNICITY.value].tolist()),
                                                        set(df[StaticRiskFactorsType.EDUCATION.value].tolist()),
                                                        set(range(0,82,1))): #for age
-            if age>1:
-                ageMin = age-2
-                ageMax = age+2
-            elif age==1:
-                ageMin = age-1
-                ageMax = age+2
-            elif age==0: #there is NOBODY in NHANES with age 0
-                ageMin = age
-                ageMax = age+2
+            #symmetric window of ages age-2 to age+2, clamped at 0; range excludes ageMax
+            ageMin = max(age-2, 0)
+            ageMax = age+3
             dfForCategoricals = df.loc[(df[StaticRiskFactorsType.GENDER.value]==gender) & 
                                        (df[DynamicRiskFactorsType.AGE.value].isin(list(range(ageMin,ageMax,1)))) & 
                                        (df[StaticRiskFactorsType.EDUCATION.value]==education) &
@@ -1483,181 +1301,3 @@ class PopulationFactory:
                                                 [keyFrame[column] for column in keyFrame.columns],
                                                 observed=True).mean()
         return PopulationFactory._groupMeans
-
-    @staticmethod
-    def get_draws_from_distributions_adjusted(row, distributions, nhanesDfPartitioned, nhanesDfPartitionedByYear=None):
-        #NOT IN USE at the moment: append_dataframe_with_continuous does this for the whole dataframe at
-        #once rather than one row at a time, see get_draws_for_dataframe and get_group_means_for_dataframe.
-        #It needed a partition of NHANES into 19365 dataframes only to take a mean from a few of them, and
-        #recomputed that mean for every person of a group.
-        '''For each group of categorical variables, first obtains values for the continuous variables by using distributions only from the
-        main 3 or 4 categoricals and then shifts the draw for the continuous variables to an amount equal to the difference of the means
-        between the NHANES people that match all categorical variables and the distribution of the NHANES people using only the 3 or 4 categoricals.
-        This is the method for adjusting the fact that we used a crude distribution to do the draw, using only the most important 3 or 4 categoricals.'''
-        draws = PopulationFactory.get_draws_from_distributions_crude(row, distributions)
-
-        ageGroup = row["ageGroup"]
-        ge = row["gender"]
-        sm = row["smokingStatus"]
-        ra = row["raceEthnicity"]
-        ed = row["education"]
-        al = row["alcoholPerWeek"]
-        a = row["anyPhysicalActivity"]
-        st = row["statin"]
-        an = row["antiHypertensiveCount"]
-        age = row["age"]
-        
-        if age>80:
-            age=80
-            ageGroup=16
-
-        nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
-        nhanesContinuousVariables.remove(DynamicRiskFactorsType.AGE.value)
-
-        distKey = (ge, ra, ed, age)
-        distKey = distKey if distKey in distributions["mean"].keys() else (ge, ra, age)
-        distMean = distributions["mean"][distKey]
-
-        #the mean the draw is shifted to comes from the narrowest group that exists: the group of this
-        #survey year first, so that a 1999 person is not handed the levels of all years pooled together,
-        #then the group over all years, and if even that group is not in NHANES then no shift at all
-        groupKey = (ge, sm, ra, st, ed, al, a, an, ageGroup)
-        dfForGroup = None
-        if nhanesDfPartitionedByYear is not None:
-            yearKey = groupKey + (row["year"],)
-            dfForGroup = nhanesDfPartitionedByYear.get(yearKey)
-        if dfForGroup is None:
-            dfForGroup = nhanesDfPartitioned.get(groupKey)
-        if dfForGroup is not None:
-            meanOfGroup = np.mean(np.array(dfForGroup[nhanesContinuousVariables]), axis=0)
-            meandiff = meanOfGroup - distMean
-        else:
-            meandiff= np.zeros(len(draws[0])) #if the specific group is not found at all in the Nhanes dataframe then just use the more crude estimate
-        drawsShifted = np.array(draws[0]) + meandiff
-        return drawsShifted
-
-    def get_partitioned_nhanes_df_with_age_group(matchYear=False):
-        '''NOT IN USE at the moment: the only thing the draws ever needed from these groups was the mean
-        of each one, and get_group_means computes all of those at once instead of holding 19365
-        dataframes to take a few means from. It also groups on fewer variables, see group_key_frame.
-
-        Uses all NHANES data, from all years, and then partitions the dataframe to a dictionary where keys are the set of categorical variables and values
-        are dataframes with all NHANES rows that correspond to the specific values of the categorical variables.
-
-        matchYear appends the survey year to the key. The groups are then smaller, too small to fit a
-        covariance matrix on, but large enough to take a mean from, which is what they are used for:
-        the draws come from distributions pooled over all years and are shifted to the mean of a group,
-        so keying that mean by year is what keeps a 1999 population from being handed 2017 levels.'''
-        df = PopulationFactory.get_nhanesDf()
-        df["ageGroup"] = df["age"].apply(lambda x: PopulationFactory.get_ageGroup_from_age(x))
-        #grouping the df is what the loop below used to do one combination at a time: the product of the
-        #nine variables is about 180 thousand combinations, nearly all of them empty, and each one used to
-        #cost a pass over the whole df. Grouping visits the occupied combinations only, which is the same
-        #set of keys the loop kept, in the same order.
-        groupVariables = [StaticRiskFactorsType.GENDER.value,
-                          StaticRiskFactorsType.SMOKING_STATUS.value,
-                          StaticRiskFactorsType.RACE_ETHNICITY.value,
-                          DefaultTreatmentsType.STATIN.value,
-                          StaticRiskFactorsType.EDUCATION.value,
-                          DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value,
-                          DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value,
-                          DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value,
-                          "ageGroup"]
-        if matchYear:
-            groupVariables = groupVariables + ["year"]
-        return {key: dfForGroup for key, dfForGroup in df.groupby(groupVariables, observed=True)}
-
-    def get_draws_from_distributions_crude(row, distributions):
-        #NOT IN USE at the moment: its only caller is get_draws_from_distributions_adjusted, which is
-        #itself unused. draw_within_bounds draws a whole group at a time instead of one point at a time.
-        '''Uses categorical variable information to access the distribution of the continuous variables for that particular set of categoricals
-        and then makes a draw from that distribution.
-        If the draw ends up corresponding to a point in space where no NHANES data exist, that is no person has that extreme value(s),
-        then the draw happens again.
-        This function is only using a few basic categorical variables, hence the label "crude".
-        For most groups, gender, race ethnicity, education and age we can get a non-singular gaussian distribution but in the few cases
-        where we have a singular distribution then we use just gender, race ethnicity and age.'''
-        gender = row["gender"]
-        raceEthnicity = row["raceEthnicity"]
-        education = row["education"]
-        age = row["age"]
-
-        if age>80:
-            age=80
-    
-        nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
-        nhanesContinuousVariables.remove(DynamicRiskFactorsType.AGE.value)
-
-        distKey = (gender, raceEthnicity, education, age)
-        distKey = distKey if distKey in distributions["mean"].keys() else (gender, raceEthnicity, age)
-    
-        distMean = distributions["mean"][distKey]
-        distCov = distributions["cov"][distKey]
-        dist = multivariate_normal(distMean, distCov, allow_singular=False)
-        distMin = distributions["min"][distKey]
-        distMax = distributions["max"][distKey]
-    
-        drawsNeeded = 1 #1 draw per row, since each row represents one person
-        size=drawsNeeded
-        draws = None
-        drawsForGroups = dict()
-        while drawsNeeded>0:
-            if draws is None:
-                draws = dist.rvs(size=drawsNeeded)
-            else:
-                if len(draws.shape)==1:
-                    draws = draws.reshape((1, len(nhanesContinuousVariables)))
-                if (drawsNeeded==1):
-                    draws = np.concatenate( (draws, dist.rvs(size=drawsNeeded).reshape((1,distMean.shape[0]))), axis=0 )
-                else:
-                    draws = np.concatenate( (draws, dist.rvs(size=drawsNeeded)), axis=0 )
-            if drawsNeeded==1:
-                draws = draws.reshape((1, distMean.shape[0]))
-            #find which draws contain one or more continuous variables that is outside of the bounds
-            rowsOutOfBounds = np.array([False]*size)
-            for i, bound in enumerate(distMin):
-                rowsOutOfBounds = rowsOutOfBounds | (draws[:,i]<0.9*bound)
-            for i, bound in enumerate(distMax):
-                rowsOutOfBounds = rowsOutOfBounds | (draws[:,i]>1.1*bound)
-            #how many more draws we need in the next iteration
-            drawsNeeded = size - np.sum(~rowsOutOfBounds)
-            #keep the draws that have all continuous variables within the bounds
-            draws = draws[~rowsOutOfBounds,:] 
-        return draws
-
-
-
-
-
-
-
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                       
-
-
-
-
-
-
-
-
-
-
-
-

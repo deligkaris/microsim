@@ -117,7 +117,7 @@ Parameters:
 - `distributions`: if `True`, keep the categorical variables and the age of each NHANES row and
   replace only its continuous variables with a draw. This is the construction the state populations
   use: the draw comes from a multivariate Gaussian fit on gender, race ethnicity, education and a
-  4-year age window, pooled over all NHANES years, and is then shifted by the difference between the
+  5-year age window, pooled over all NHANES years, and is then shifted by the difference between the
   mean of the person's group and the mean of that crude group (see `group_key_frame` for what a group
   is). Grouping on four variables rather than all nine is what leaves enough people per group to fit a
   covariance that is not singular — all nine variables span ~10,800 cells for the ~5,400 adults of a
@@ -311,7 +311,7 @@ internally; callers rarely need to instantiate it directly.
    mutually-exclusive one and give the less useful of the two messages.
 
 7. **`distributions=True` costs almost nothing once the caches are warm.** It partitions every NHANES
-   year on gender, race ethnicity, education and a 4-year age window and fits a Gaussian per group.
+   year on gender, race ethnicity, education and a 5-year age window and fits a Gaussian per group.
    The first call in a process costs roughly 19s — about 14s of it reading the `.dta` and about 5s
    fitting — and every later call is dominated by building the `Person` objects, not by the draw:
 
@@ -358,9 +358,8 @@ internally; callers rarely need to instantiate it directly.
     and converting the columns — takes about 14 seconds, and every population build needs it,
     so it is built once into `PopulationFactory._nhanesDf`. Each call returns `.copy()` of the
     cache, never the cached object, because callers mutate what they get back:
-    `get_proportionForDefaultTreatments` adds an `ageGroup` column and recasts `age` to int, and
-    `get_partitioned_nhanes_df_with_age_group` adds `ageGroup` too. Never return the cached frame
-    directly.
+    `get_proportionForDefaultTreatments` adds an `ageGroup` column and recasts `age` to int. Never
+    return the cached frame directly.
 
 12. **The `name` column is the frame's own index.** `get_nhanesDf` renames the data file's
     `index` column to `name`, and that value is what `Person._name` holds. The rename previously
@@ -376,7 +375,7 @@ internally; callers rarely need to instantiate it directly.
     the `distributions` parameter above).
 
 14. **Two groupings of NHANES exist, for two different jobs, and they are not the same width.**
-    `get_partitioned_nhanes_people_crude` groups on gender, race ethnicity, education and a 4-year age
+    `get_partitioned_nhanes_people_crude` groups on gender, race ethnicity, education and a 5-year age
     window, and is what the Gaussians are fit on. `group_key_frame` defines the group whose *mean* a
     draw is shifted to: those same four (with age as a 5-year age group) plus whether the person is on
     antihypertensives and whether they are physically active, both as yes/no. The second key is
