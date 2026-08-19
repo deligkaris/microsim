@@ -1129,7 +1129,6 @@ class PopulationFactory:
         variables that matter most for the continuous ones, and is then shifted to the mean of the group
         the row belongs to (see group_key_frame).'''
         df = df.copy()
-        df["ageGroup"] = df[DynamicRiskFactorsType.AGE.value].apply(PopulationFactory.get_ageGroup_from_age)
         #age is not redrawn, it is one of the keys the distributions are stored under
         continuousToRedraw = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
         continuousToRedraw.remove(DynamicRiskFactorsType.AGE.value)
