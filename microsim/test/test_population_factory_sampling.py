@@ -1,5 +1,6 @@
 import unittest
 
+import numpy as np
 import pandas as pd
 
 from microsim.common.population_type import PopulationType
@@ -50,6 +51,19 @@ class TestNIsHonored(unittest.TestCase):
             PopulationFactory.get_nhanes_people(
                 n=None, year=1999, personFilters=_adults_filter(), customWeights=pd.Series([1.0]),
             )
+
+
+class TestDistributionsTypeIsChecked(unittest.TestCase):
+    """distributions is combined with '&' in the argument checks, so a non-bool has to be refused
+       up front rather than raising an opaque TypeError out of the operator or slipping through."""
+
+    def test_non_bool_distributions_is_refused(self):
+        for bad in ("yes", 1, None, dict()):
+            with self.assertRaises(RuntimeError):
+                PopulationFactory.check_nhanes_people_arguments(n=10, year=1999, distributions=bad)
+
+    def test_numpy_bool_distributions_is_accepted(self):
+        PopulationFactory.check_nhanes_people_arguments(n=10, year=1999, distributions=np.True_)
 
 
 class TestTopUpReachesTargetN(unittest.TestCase):

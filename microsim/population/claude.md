@@ -304,8 +304,9 @@ internally; callers rarely need to instantiate it directly.
    with `distributions=True`, `nhanesWeights` is refused with `year=None`, and `nhanesWeights`,
    `customWeights` and `maxDraws` all require an `n`. Every check runs before any other work, so
    an argument combination that cannot be honored fails in 0.000s rather than after the distributions
-   have been fit and every row redrawn. `nhanesWeights` is also type-checked, because the checks
-   combine it with `&`, where a non-bool either raises out of the operator or slips through silently.
+   have been fit and every row redrawn. `nhanesWeights` and `distributions` are also type-checked,
+   because the checks combine them with `&`, where a non-bool either raises out of the operator or
+   slips through silently.
    The `customWeights`-with-`distributions` check is deliberately made *first*, ahead of every
    `nhanesWeights` check, since otherwise that combination would be reported as the
    mutually-exclusive one and give the less useful of the two messages.

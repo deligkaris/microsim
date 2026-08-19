@@ -282,6 +282,13 @@ class PopulationFactory:
                                    Person-objects to return and must be at least 1. Pass n=None to get
                                    every NHANES person of that year instead.""")
 
+        #same rationale as the nhanesWeights check below: the check right after this one combines
+        #distributions with '&', where a non-bool either raises an opaque TypeError or slips through
+        if not isinstance(distributions, (bool, np.bool_)):
+            raise RuntimeError(f"""distributions must be True or False, not {distributions!r}
+                                   ({type(distributions).__name__}). It says whether the continuous
+                                   variables are redrawn from the Gaussians fit to NHANES.""")
+
         #this one comes before the nhanesWeights checks, which would otherwise report this combination
         #as the both-weight-kinds one and give the less useful of the two messages
         if distributions & (customWeights is not None):
