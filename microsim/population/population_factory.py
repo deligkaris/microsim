@@ -170,11 +170,11 @@ class PopulationFactory:
     @staticmethod
     def get_population_model_repo(popType, **kwargs):
         if popType == PopulationType.NHANES:
-            return PopulationFactory.get_nhanes_population_model_repo()
+            return PopulationFactory.get_nhanes_population_model_repo(**kwargs)
         elif popType == PopulationType.KAISER:
             return PopulationFactory.get_kaiser_population_model_repo(**kwargs)
         elif popType == PopulationType.STATE:
-            return PopulationFactory.get_nhanes_population_model_repo()
+            return PopulationFactory.get_nhanes_population_model_repo(**kwargs)
         else:
             raise RuntimeError("Unknown popType in PopulationFactory.get_population_model_repo function.")
 
