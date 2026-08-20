@@ -22,7 +22,6 @@ The `trials/` directory contains the experimental design framework:
   - `relative_risk_analysis.py`: Relative risk calculations
   - `incidence_rate_analysis.py`: Incidence rate analysis (events per 1000 person-years)
   - `regression_analysis.py`: Base regression analysis class
-- `trialset.py`: Management of multiple related trials. **Not functional — needs to be updated before use.**
 
 ## Trial Components
 
@@ -198,8 +197,8 @@ Choose analysis method based on outcome type:
 When adding a new `AnalysisType` to the outcome assessor, **always update all of the following**:
 
 1. `trial_outcome_assessor.py` — add the enum value and register an instance in `_analysis`
-2. `trial_outcome_assessor.py` — update validation in `add_outcome_assessment` if the new type requires a non-standard number of assessment functions (e.g., 2 functions like `cox` and `incidenceRate`, vs 1 for the rest)
+2. `trial_outcome_assessor.py` — update validation in `add_outcome_assessment` if the new type requires a non-standard set of assessment functions (`cox` uses `{"outcome", "time"}`, `incidenceRate` uses `{"eventAndTime"}` pair functions, the rest use `{"outcome"}`)
 3. `incidence_rate_analysis.py` (or new file) — implement the analysis class with an `analyze(trial, assessmentFunctionDict, assessmentAnalysis)` method
 4. `trial_outcome_assessor_factory.py` — add default assessments for the new type
-5. **`trial.py` `__string__` method** — add an `elif analysisType == AnalysisType.NEW_TYPE:` branch with an appropriate column header for the results printout
+5. **`trial.py` `__str__` method** — add an `elif analysisType == AnalysisType.NEW_TYPE:` branch with an appropriate column header for the results printout
 6. `claude.md` (this file) — update the statistical methods list and directory structure

@@ -375,10 +375,9 @@ class Population:
         or the age group (string, groups=True) and the values being the counts for that age or age group.
         Restricted to the at-risk set for first incidence (excludes people with a priorToSim outcome);
         each person's person-years are truncated at the age of their first in-sim event.'''
-        outcomeAges = self.get_first_incidence_age(outcomeType) #first in-sim incidence among at-risk people
-        ages = self.get_first_incidence_at_risk_ages(outcomeType)
-        agesCounter = Counter(ages)
-        outcomeAgesCounter = Counter(outcomeAges)
+        pairs = self.get_first_incidence_event_ages_and_at_risk_ages(outcomeType)
+        agesCounter = Counter(itertools.chain.from_iterable(atRiskAges for _, atRiskAges in pairs))
+        outcomeAgesCounter = Counter(eventAge for eventAge, _ in pairs if eventAge is not None)
         if groups: #if true, then get the counter for age groups, keys are strings now, values are counts for age group category
             outcomeAgesCounter = self.get_ages_group_counter(outcomeAgesCounter)
             agesCounter = self.get_ages_group_counter(agesCounter)
@@ -431,6 +430,16 @@ class Population:
         This includes all person objects in the population even the ones that died during the simulation.'''
         return list(map(lambda x: x.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave), self._people))
 
+    def get_followup_events_and_person_years(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
+        '''Follow-up (event, personYears) pairs for all people, delegating to the Person pair function
+        so the rate numerator and denominator cannot be mismatched.'''
+        return list(map(lambda x: x.get_followup_event_and_person_years(outcomesTypeList=outcomesTypeList, wave=wave), self._people))
+
+    def get_first_incidence_event_ages_and_at_risk_ages(self, outcomeType):
+        '''First-incidence (eventAge, atRiskAges) pairs for all people, delegating to the Person pair function
+        so the rate numerator and denominator cannot be mismatched.'''
+        return list(map(lambda x: x.get_first_incidence_event_age_and_at_risk_ages(outcomeType), self._people))
+
     def get_outcome_incidence_rates_at_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
         '''Returns outcome incidence rate per 1000 person-years at the end of the wave argument.
         Need to be careful with wave: wave=0 is the first wave, so set the wave to be number of years you want - 1.'''
@@ -438,9 +447,8 @@ class Population:
             raise RuntimeError(f"wave {wave=} cannot be a negative number")
         if self._waveCompleted < wave:
             raise RuntimeError(f"Population has not advanced enough to reach end of {wave=}")
-        anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
-        personYearsAtRisk = self.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
-        return 1000. * sum(anyOutcome) / sum(personYearsAtRisk)
+        pairs = self.get_followup_events_and_person_years(outcomesTypeList=outcomesTypeList, wave=wave)
+        return 1000. * sum(event for event, _ in pairs) / sum(personYears for _, personYears in pairs)
 
     def get_outcome_incidence_rates_by_scd_and_modality_at_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
         '''Returns outcome incidence rate per 1000 person-years as a dictionary at the end of the wave argument.
@@ -458,11 +466,10 @@ class Population:
             raise RuntimeError(f"wave {wave=} cannot be a negative number")
         if self._waveCompleted < wave:
             raise RuntimeError(f"Population has not advanced enough to reach end of {wave=}")
-        anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
-        personYearsAtRisk = self.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
+        pairs = self.get_followup_events_and_person_years(outcomesTypeList=outcomesTypeList, wave=wave)
         outcomesForGroup = Counter()
         personYearsForGroup = Counter()
-        for group, outcome, personYears in zip(self.get_scd_by_modality_group(), anyOutcome, personYearsAtRisk):
+        for group, (outcome, personYears) in zip(self.get_scd_by_modality_group(), pairs):
             outcomesForGroup[group] += outcome
             personYearsForGroup[group] += personYears
         return {group: 1000. * outcomesForGroup[group] / personYearsForGroup[group]

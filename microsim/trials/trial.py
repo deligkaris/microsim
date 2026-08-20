@@ -4,8 +4,9 @@ from microsim.population.population import Population
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
 from microsim.trials.trial_outcome_assessor import AnalysisType
 
+import copy
+import math
 import pandas as pd
-import random
 import sys
 
 class Trial:
@@ -24,6 +25,8 @@ class Trial:
             raise RuntimeError(f"popType in trialDescription must belong in the set({[pt for pt in PopulationType]})")
         else:
             self.trialDescription = trialDescription
+        #run() mutates the strategy statuses, so the trial works on its own copy and the description stays reusable
+        self.treatmentStrategies = copy.deepcopy(trialDescription.treatmentStrategies)
         self.treatedPop, self.controlPop = self.get_trial_populations()
         self.completed = False
         self.analyzed = False
@@ -86,7 +89,7 @@ class Trial:
             draws = self.trialDescription._rng.uniform(size=nDraws) 
         elif self.trialDescription.is_completely_randomized():
             draws = [0]*(nDraws//2) + [1]*(nDraws//2) if nDraws%2==0 else [0]*(nDraws//2) + [1]*((nDraws//2)+1)
-            draws = random.sample(draws, len(draws))
+            draws = self.trialDescription._rng.permutation(draws) #the trial rng, not the global one, for consistency with bernoulli
         else:
             raise RuntimeError("Unknown TrialType in Trial randomize_people function.")
         controlPeople = pd.Series([p for i,p in enumerate(people) if draws[i]<0.5])
@@ -118,14 +121,14 @@ class Trial:
                                     treatmentStrategies=None, 
                                     nWorkers=self.trialDescription.nWorkers)
             #advance treated population
-            self.treatedPop.advance(1, 
-                                    treatmentStrategies = self.trialDescription.treatmentStrategies,
+            self.treatedPop.advance(1,
+                                    treatmentStrategies = self.treatmentStrategies,
                                     nWorkers=self.trialDescription.nWorkers)
             for key in TreatmentStrategiesType:
-                if self.trialDescription.treatmentStrategies._repository[key.value] is not None:
-                    self.trialDescription.treatmentStrategies._repository[key.value].status = TreatmentStrategyStatus.MAINTAIN
-            self.treatedPop.advance(self.trialDescription.duration-1, 
-                                    treatmentStrategies = self.trialDescription.treatmentStrategies,
+                if self.treatmentStrategies._repository[key.value] is not None:
+                    self.treatmentStrategies._repository[key.value].status = TreatmentStrategyStatus.MAINTAIN
+            self.treatedPop.advance(self.trialDescription.duration-1,
+                                    treatmentStrategies = self.treatmentStrategies,
                                     nWorkers=self.trialDescription.nWorkers)
 
             self.completed = True
@@ -135,7 +138,8 @@ class Trial:
     def analyze(self, trialOutcomeAssessor):
         '''Trial outcomes need to be defined in an instance of the TrialOutcomeAssessor class and provided in this function
         in order for the Trial to be able to analyze its populations.'''
-        self.analyzed = True
+        if not self.completed:
+            raise RuntimeError("Cannot analyze a trial that has not been run.")
         for assessmentName in trialOutcomeAssessor._assessments.keys():
             assessmentAnalysis = trialOutcomeAssessor._assessments[assessmentName]["assessmentAnalysis"]
             assessmentAnalysisFunction = trialOutcomeAssessor._analysis[assessmentAnalysis]
@@ -146,6 +150,7 @@ class Trial:
                 self.results[assessmentAnalysis][assessmentName] = assessmentResults
             else:
                 self.results[assessmentAnalysis] = {assessmentName: assessmentResults}
+        self.analyzed = True #set only after all assessments completed
     
     def run_analyze(self, trialOutcomeAssessor, notify=True):
         self.run(notify=notify)
@@ -200,7 +205,7 @@ class Trial:
         wmhSpecific = self.trialDescription.wmhSpecific if hasattr(self.trialDescription, 'wmhSpecific') else True
         self.treatedPop.print_lastyear_treatment_strategy_distributions_by_risk(wmhSpecific=wmhSpecific) 
 
-    def __string__(self):
+    def __str__(self):
         rep = self.trialDescription.__str__()
         rep += f"\nTrial\n"
         rep += f"\tTrial completed: {self.completed}\n"
@@ -234,15 +239,15 @@ class Trial:
                 for key in self.results[analysisType.value].keys():
                     rep += f"{key:>25}: "
                     for result in self.results[analysisType.value][key]:
-                        if (result is not None) & (result is not float('inf')):
-                            rep += f"{result:>7.3f}"
-                        elif result== float('inf'):
-                            rep += f"{'inf':>7}"
-                        else:
+                        if result is None:
                             rep += " "*7
+                        elif math.isinf(result) or math.isnan(result):
+                            rep += f"{result:>7}" #renders inf/-inf/nan
+                        else:
+                            rep += f"{result:>7.3f}"
                     rep += "\n"
         return rep
 
     def __repr__(self):
-        return self.__string__()
+        return self.__str__()
 
