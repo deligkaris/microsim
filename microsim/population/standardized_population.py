@@ -32,14 +32,15 @@ class StandardizedPopulation:
 
     def get_population_weighted_standard(self):
         rows = []
-        for age in range(1, 151):
+        for age in range(1, 86): #NHANES top-codes age at 85, so age 85 stands in for the whole 85+ group
             for gender in range(1, 3):
                 dfRow = self.ageStandard.loc[
                     (age >= self.ageStandard.lowerAgeBound)
                     & (age <= self.ageStandard.upperAgeBound)
                     & (self.ageStandard.gender == gender)
                 ]
-                upperAge = dfRow["upperAgeBound"].values[0]
+                #the 150 bound is a membership sentinel, not a real width: count only sampleable ages
+                upperAge = min(dfRow["upperAgeBound"].values[0], 85)
                 lowerAge = dfRow["lowerAgeBound"].values[0]
                 totalPop = dfRow["standardPopulation"].values[0]
                 rows.append(

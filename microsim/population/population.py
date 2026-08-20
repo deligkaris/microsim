@@ -95,7 +95,8 @@ class Population:
         elif nWorkers>1:
             self.advance_parallel(years, treatmentStrategies=treatmentStrategies, nWorkers=nWorkers)
         else:
-            print(f"Invalid nWorkers={nWorkers} argument provided.")
+            #raise, not print: returning normally leaves the population un-advanced and its reports look like results
+            raise RuntimeError(f"Invalid nWorkers={nWorkers} argument provided.")
 
     def advance_serial(self, years, treatmentStrategies=None):
         list(map(lambda x: x.advance(years,
@@ -108,8 +109,10 @@ class Population:
         #      Population-level _waveCompleted attribute
         self._waveCompleted += years
 
-    #Q: I think I need this for starmap
-    def worker_advance(self, subPopulation, years, treatmentStrategies):
+    #staticmethod, not a bound method: starmap pickles its function argument, and a bound method
+    #pickles self with it, shipping the entire parent population to every worker on top of its sub-population
+    @staticmethod
+    def worker_advance(subPopulation, years, treatmentStrategies):
         subPopulation.advance_serial(years, treatmentStrategies)
         return subPopulation
 
@@ -147,7 +150,7 @@ class Population:
                                     self._modelRepository[PopulationRepositoryType.DYNAMIC_RISK_FACTORS.value],
                                     self._modelRepository[PopulationRepositoryType.DEFAULT_TREATMENTS.value],
                                     self._modelRepository[PopulationRepositoryType.OUTCOMES.value],
-                                    self._modelRepository[PopulationRepositoryType.DYNAMIC_RISK_FACTORS.value])
+                                    self._modelRepository[PopulationRepositoryType.STATIC_RISK_FACTORS.value])
 
     @staticmethod
     def get_people_copy(people):
@@ -183,7 +186,9 @@ class Population:
         blockBounds = np.linspace(blockFactorMin, blockFactorMax, nBlocks+1)
         blocks = dict()
         for cat in categories:
-            blocks[cat] = pd.Series(list(filter(lambda x: (getattr(x,"_"+blockFactor)[-1]>blockBounds[cat]) &
+            #block 0's lower bound is inclusive, otherwise the person(s) at the minimum fall into no block
+            lowerBound = -np.inf if cat==0 else blockBounds[cat]
+            blocks[cat] = pd.Series(list(filter(lambda x: (getattr(x,"_"+blockFactor)[-1]>lowerBound) &
                                                               (getattr(x,"_"+blockFactor)[-1]<=blockBounds[cat+1]), people)))
         return blocks
 
@@ -233,6 +238,12 @@ class Population:
     # ==========================================================================
     # 4. Age / person-year extraction (delegations to Person)
     # ==========================================================================
+
+    @staticmethod
+    def get_age_key_sort_key(key):
+        '''Sort key that orders age keys numerically whether they are ages (int) or
+           age group strings ("100-104"), which sorted() alone orders lexicographically.'''
+        return int(key.split("-")[0]) if isinstance(key, str) else key
 
     def get_ages_group_counter(self, agesCounter):
         '''agesCounter: Counter instance with keys the ages and values the counts for that age.
@@ -372,7 +383,7 @@ class Population:
             outcomeAgesCounter = self.get_ages_group_counter(outcomeAgesCounter)
             agesCounter = self.get_ages_group_counter(agesCounter)
         incidence = dict()
-        for age in sorted(agesCounter.keys()): #sorting here results in a sorted output while printing the incidence rate
+        for age in sorted(agesCounter.keys(), key=Population.get_age_key_sort_key): #sorting here results in a sorted output while printing the incidence rate
             if (age in outcomeAgesCounter.keys()) & (agesCounter[age]!=0): #second conditional avoids division by 0
                 incidence[age] = outcomeAgesCounter[age]/agesCounter[age]
             else:
@@ -393,7 +404,7 @@ class Population:
             agesCounter = self.get_ages_group_counter(agesCounter) #converts the Counter of ages to a Counter of age groups
             agesWithOutcomeCounter = self.get_ages_group_counter(agesWithOutcomeCounter) #same thing
         prevalence = dict()
-        for key in sorted(agesCounter.keys()): #sorting keys here preserves sorted insertion order for the prevalence as well
+        for key in sorted(agesCounter.keys(), key=Population.get_age_key_sort_key): #sorting keys here preserves sorted insertion order for the prevalence as well
             prevalence[key] = agesWithOutcomeCounter.get(key,0) / agesCounter.get(key,0)
         return Counter(prevalence)
 
@@ -427,15 +438,9 @@ class Population:
             raise RuntimeError(f"wave {wave=} cannot be a negative number")
         if self._waveCompleted < wave:
             raise RuntimeError(f"Population has not advanced enough to reach end of {wave=}")
-        #determine if each person in the population had any of the outcomes
-        anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[False,True,False,False,True,...]
-        anyOutcome = list(map(lambda y: int(y), anyOutcome)) #convert to integer eg [0,0,1,1,0,...1,0]
-        #get the number of years each person in the population was at risk
-        personYearsAtRisk = self.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[3,4,2,5,...]
-        popSize = len(anyOutcome) #how many people are part of the SCD and Modality group
-        outcomeCounts = sum(anyOutcome) if popSize>0 else 0 #how many people had any of the outcomes
-        rate = 1000. * outcomeCounts / sum(personYearsAtRisk)
-        return rate
+        anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
+        personYearsAtRisk = self.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
+        return 1000. * sum(anyOutcome) / sum(personYearsAtRisk)
 
     def get_outcome_incidence_rates_by_scd_and_modality_at_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
         '''Returns outcome incidence rate per 1000 person-years as a dictionary at the end of the wave argument.
@@ -453,23 +458,15 @@ class Population:
             raise RuntimeError(f"wave {wave=} cannot be a negative number")
         if self._waveCompleted < wave:
             raise RuntimeError(f"Population has not advanced enough to reach end of {wave=}")
-        #determine if each person in the population had any of the outcomes
-        anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[False,True,False,False,True,...]
-        #get the number of years each person in the population was at risk
-        waves = self.get_min_wave_of_first_outcomes_or_last_wave(outcomesTypeList) #[5,1,6,8,0,...]
-        personYearsAtRisk = list(map(lambda x: min(x, wave), waves)) #with wave=3 [3,1,3,3,0,..]
-        #get the SCD by modality group number for each person in the population
-        group = self.get_scd_by_modality_group()
-        rates = dict() #store rates in a dictionary
-        for i in set(group):
-            #keep anyOutcome for that group only and convert to integer eg [0,0,1,1,0,...1,0]
-            anyOutcomeForGroup = list(map(lambda y: int(y[1]), filter(lambda x: x[0]==i, zip(group,anyOutcome))))
-            #keep the at risk person years for that group only
-            personYearsAtRiskForGroup = list(map(lambda y: y[1]+1, filter(lambda x: x[0]==i, zip(group,personYearsAtRisk))))
-            groupSize = len(anyOutcomeForGroup) #how many people are part of the SCD and Modality group
-            groupOutcomeCounts = sum(anyOutcomeForGroup) if groupSize>0 else 0 #how many people from the group had any of the outcomes
-            rates[i] = 1000. * sum(anyOutcomeForGroup) / sum(personYearsAtRiskForGroup)
-        return rates
+        anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
+        personYearsAtRisk = self.get_followup_person_years_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave)
+        outcomesForGroup = Counter()
+        personYearsForGroup = Counter()
+        for group, outcome, personYears in zip(self.get_scd_by_modality_group(), anyOutcome, personYearsAtRisk):
+            outcomesForGroup[group] += outcome
+            personYearsForGroup[group] += personYears
+        return {group: 1000. * outcomesForGroup[group] / personYearsForGroup[group]
+                for group in sorted(outcomesForGroup)}
 
     # ==========================================================================
     # 7. Age/sex standardization
@@ -536,11 +533,15 @@ class Population:
             populationPercents = dict()
             popPercentSum = 0
             for gender in NHANESGender:
-                #keep age groups with age 18 and older
-                ageGroups[gender.value] = list(filter(lambda x: any(map(lambda age: age>=18, x)), standardizedPop.ageGroups[gender.value]))
-                #keep the corresponding population percents
-                populationPercents[gender.value] = standardizedPop.populationPercents[gender.value][-len(ageGroups[gender.value]):]
-                #rescale the population percents
+                ageGroups[gender.value] = []
+                populationPercents[gender.value] = []
+                for group, percent in zip(standardizedPop.ageGroups[gender.value],
+                                          standardizedPop.populationPercents[gender.value]):
+                    adultAges = [age for age in group if age >= 18]
+                    if adultAges:
+                        ageGroups[gender.value].append(adultAges)
+                        #the 15-19 group keeps only its adult share, population uniform within a group
+                        populationPercents[gender.value].append(percent * len(adultAges) / len(group))
                 popPercentSum += sum(populationPercents[gender.value])
             #rescale the population percents
             for gender in NHANESGender:
@@ -1110,6 +1111,9 @@ class Population:
     def get_wmh_outcome_summary(self):
         '''Returns the proportion of people in each WMH severity category (including "unknown" for
         people whose WMH severity was not determined) and the proportion of people with an SBI.'''
+        if any(len(p._outcomes.get(OutcomeType.WMH, [])) == 0 for p in self._people):
+            raise RuntimeError("""get_wmh_outcome_summary requires every person to have a WMH outcome,
+                                  which only Kaiser populations are built with.""")
         severityList = list(map(lambda x: x._outcomes[OutcomeType.WMH][0][1].wmhSeverity, self._people))
         severityList = [y.value if y is not None else "unknown" for y in severityList]
         sbiList =  list(map(lambda x: x._outcomes[OutcomeType.WMH][0][1].sbi, self._people))
@@ -1168,7 +1172,7 @@ class Population:
            other: a Population instance to compare against.
            path: directory to save the figure to; if None, the figure is shown interactively.'''
         dynamicRiskFactors = self._dynamicRiskFactors
-        nRows = round(len(dynamicRiskFactors)/2)
+        nRows = (len(dynamicRiskFactors) + 1) // 2 #ceil, round() would give 6 rows for 13 factors
         fig, ax = plt.subplots(nRows, 2, figsize=(17,15))
         row=-1
         for i,rf in enumerate(dynamicRiskFactors):
@@ -1185,6 +1189,8 @@ class Population:
                 ax[row,col].hist(rfList, bins=20, density=True)
             ax[row,col].set_xlabel(rf)
             #ax[row,col].set_ylabel("probability density")
+        if len(dynamicRiskFactors) % 2 == 1: #odd count leaves the last panel empty
+            ax[nRows-1, 1].axis("off")
         plt.suptitle("probability densities for all dynamic risk factors")
         #plt.subplots_adjust(wspace=0.5, hspace=0.7)
         plt.tight_layout()

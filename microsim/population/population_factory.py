@@ -791,8 +791,17 @@ class PopulationFactory:
         nhanesDf = PopulationFactory.get_nhanesDf()
         standardizedPop = StandardizedPopulation(year=year)
         weights = standardizedPop.populationWeightedStandard
+        #NHANES top-codes age (85 through 2005, 80 after), so the standard population at and above the
+        #top-coded age is collapsed onto it, where the people it stands for actually sit
+        maxAge = nhanesDf.loc[nhanesDf.year == year, "age"].max()
+        weights = weights.assign(age=weights["age"].clip(upper=maxAge))
+        weights = weights.groupby(["age", "gender"], as_index=False)["popWeight"].sum()
         #it is ok weights are merged with the entire nhanesDf, because pandas sampling takes into account the index of the series
         weights = pd.merge(nhanesDf, weights, how="left", on=["age", "gender"]).popWeight
+        #sampling picks rows, so each age-gender group's standard share is split over that year's rows of
+        #the group: without the division the sampled shares come out as standard share times NHANES row count
+        nRowsInYear = nhanesDf.loc[nhanesDf.year == year].groupby(["age", "gender"])["age"].transform("size")
+        weights = weights / nRowsInYear
         pop = PopulationFactory.get_nhanes_population(n=n, year=year, personFilters=None, nhanesWeights=False, distributions=False, customWeights=weights)
         return pop
 
