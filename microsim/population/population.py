@@ -864,7 +864,7 @@ class Population:
 
     def print_lastyear_treatment_strategy_distributions(self):
         '''Prints distributional information about treatment strategy variables, such as bpMedsAdded,
-           statinsAdded, but only for the people of the population that are still alive.'''
+           statinMedsAdded, but only for the people of the population that are still alive.'''
         distributions = self.get_treatment_strategy_distributions()
         print(" "*25, "self")
         self._print_rule()

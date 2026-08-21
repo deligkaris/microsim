@@ -42,9 +42,9 @@ class CVModelBase(ASCVDOutcomeModel):
             cvRisk = cvRisk * self._secondary_prevention_multiplier
 
         tst = TreatmentStrategiesType.STATIN.value
-        if "statinsAdded" in person._treatmentStrategies[tst]:
-            statinsAdded = person._treatmentStrategies[tst]['statinsAdded']
-            cvRisk = cvRisk * self._statinAdded_relative_risk if statinsAdded>0 else cvRisk
+        if "statinMedsAdded" in person._treatmentStrategies[tst]:
+            statinMedsAdded = person._treatmentStrategies[tst]['statinMedsAdded']
+            cvRisk = cvRisk * self._statinAdded_relative_risk if statinMedsAdded>0 else cvRisk
 
         tst = TreatmentStrategiesType.WMD15.value
         if "wmd15MedsAdded" in person._treatmentStrategies[tst]:
