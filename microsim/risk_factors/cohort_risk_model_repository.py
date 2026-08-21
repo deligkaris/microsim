@@ -43,10 +43,4 @@ class AlcoholCategoryModel(RoundedLinearRiskFactorModel):
         drinks = super(RoundedLinearRiskFactorModel, self).estimate_next_risk(person)
         return AlcoholCategory.get_category_for_consumption(drinks if drinks > 0 else 0)
 
-    def estimate_next_risk_vectorized(self, x, rng=None):
-        drinks = super(RoundedLinearRiskFactorModel, self).estimate_next_risk_vectorized(
-            x
-        )
-        return AlcoholCategory.get_category_for_consumption(drinks if drinks > 0 else 0)
-
 

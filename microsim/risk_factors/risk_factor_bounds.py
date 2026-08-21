@@ -3,7 +3,7 @@ from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 class RiskFactorBounds:
     """Static prespecified bounds for dynamic risk factors."""
 
-    #bounds based on NHANES data from 1999 to 20017 (all data), 0.9*nhanesMin, 1.1*nhanesMax
+    #bounds based on NHANES data from 1999 to 2017 (all data), 0.9*nhanesMin, 1.1*nhanesMax
     #age is an exception, bounds set manually
     _lowerBoundsAdult = {
                      DynamicRiskFactorsType.SBP.value: 58.20,
@@ -74,3 +74,12 @@ class RiskFactorBounds:
             lowerBound = cls._lowerBounds[person][varName]
             varValue = varValue if varValue > lowerBound else lowerBound
         return varValue
+
+    @classmethod
+    def apply_to_person(cls, varName, varValue, person):
+        """Applies bounds choosing the adult/child tables from the person's age.
+
+        Age itself is judged by the proposed next value, so a 17-year-old
+        advancing to 18 is not clamped back by the child upper bound."""
+        age = varValue if varName == DynamicRiskFactorsType.AGE.value else person._age[-1]
+        return cls.apply(varName, varValue, adult=age >= 18)

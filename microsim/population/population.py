@@ -31,7 +31,6 @@ from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.treatment_strategies.treatment_strategies import ContinuousTreatmentStrategiesType, CategoricalTreatmentStrategiesType, TreatmentStrategiesType
 from microsim.population.population_model_repository import PopulationRepositoryType, PopulationModelRepository
 from microsim.population.standardized_population import StandardizedPopulation
-from microsim.risk_factors.risk_model_repository import RiskModelRepository
 from microsim.outcomes.wmh_severity import WMHSeverity
 
 class Population:

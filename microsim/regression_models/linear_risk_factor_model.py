@@ -1,6 +1,8 @@
 from functools import reduce
 import numpy as np
 from microsim.regression_models.model_argument_transform import get_all_argument_transforms
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
 
 # conceptually, what this class does is bridge the regression model and the person
 
@@ -51,12 +53,19 @@ class LinearRiskFactorModel:
     def get_intercept(self):
         return self.parameters["Intercept"]
 
+    def _get_person_attribute(self, prop_name, person):
+        prop_value = getattr(person, f"_{prop_name}")
+        #the model specs were trained on NHANES which has no Asian category; Asian maps to white by convention
+        if prop_name == StaticRiskFactorsType.RACE_ETHNICITY.value and prop_value == RaceEthnicity.ASIAN:
+            prop_value = RaceEthnicity.NON_HISPANIC_WHITE
+        return prop_value
+
     def get_model_argument_for_coeff_name(self, coeff_name, person):
         if coeff_name not in self.argument_transforms:
-            model_argument = getattr(person, f"_{coeff_name}")
+            model_argument = self._get_person_attribute(coeff_name, person)
         else:
             prop_name, transforms = self.argument_transforms[coeff_name]
-            prop_value = getattr(person, f"_{prop_name}")
+            prop_value = self._get_person_attribute(prop_name, person)
             if isinstance(prop_value, list) or isinstance(prop_value, np.ndarray):
                 prop_value = prop_value[-1]
             model_argument = reduce(lambda v, t: t.apply(v), transforms, prop_value)

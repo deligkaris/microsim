@@ -31,6 +31,7 @@ from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.modality import Modality, modalityGroupMap
 from microsim.risk_factors.a1c import convert_a1c_to_fasting_glucose
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
 
@@ -118,15 +119,20 @@ class _ConstantModel:
         return self._value(person) if callable(self._value) else self._value
 
 
-class _ModelRepository:
-    """Returns the current last value for every model unless overridden."""
+class _ModelRepository(RiskModelRepository):
+    """Returns the current last value for every model unless overridden.
+       Subclasses RiskModelRepository so the base get_model applies bounds like production."""
     def __init__(self, overrides=None):
+        super().__init__()
         self._overrides = overrides if overrides is not None else {}
 
     def get_model(self, name):
-        if name in self._overrides:
-            return _ConstantModel(self._overrides[name])
-        return _ConstantModel(lambda person, name=name: getattr(person, "_"+name)[-1])
+        if name not in self._repository:
+            if name in self._overrides:
+                self._repository[name] = _ConstantModel(self._overrides[name])
+            else:
+                self._repository[name] = _ConstantModel(lambda person, name=name: getattr(person, "_"+name)[-1])
+        return super().get_model(name)
 
 
 class _PerTypeOutcomeRepository:
@@ -239,6 +245,18 @@ class TestAdvanceRiskFactorsAndTreatments(unittest.TestCase):
     def test_advance_risk_factors_applies_bounds(self):
         person = _build_person()
         person.advance_risk_factors(_ModelRepository({"sbp": 500}))
+        self.assertEqual(297., person._sbp[-1])
+
+    def test_advance_risk_factors_applies_child_bounds(self):
+        person = _build_person(age=10)
+        person.advance_risk_factors(_ModelRepository({"age": lambda p: p._age[-1]+1, "sbp": 500}))
+        self.assertEqual(11, person._age[-1])
+        self.assertEqual(190.3, person._sbp[-1])
+
+    def test_advance_risk_factors_crosses_into_adulthood(self):
+        person = _build_person(age=17)
+        person.advance_risk_factors(_ModelRepository({"age": lambda p: p._age[-1]+1, "sbp": 500}))
+        self.assertEqual(18, person._age[-1])
         self.assertEqual(297., person._sbp[-1])
 
     def test_get_next_risk_factor(self):

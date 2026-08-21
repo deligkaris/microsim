@@ -84,7 +84,7 @@ class PersonFactory:
         #attribute this silently returned the row's position in the frame rather than its NHANES identifier
         name = x["name"]
 
-        adult = x.age>=18. #need to know for making the right bounds with the risk model repository below  
+        adult = x.age>=18. #need to know for applying the right RiskFactorBounds below
   
         personStaticRiskFactors = {
                             StaticRiskFactorsType.RACE_ETHNICITY.value: RaceEthnicity(x.raceEthnicity),
@@ -193,7 +193,8 @@ class PersonFactory:
                 personDynamicRiskFactors[rfd.value] = None
             else:
                 if (rfd!=DynamicRiskFactorsType.WAIST):
-                    personDynamicRiskFactors[rfd.value] = RiskFactorBounds.apply(rfd.value, x[rfd.value])
+                    personDynamicRiskFactors[rfd.value] = RiskFactorBounds.apply(
+                        rfd.value, x[rfd.value], adult=x[DynamicRiskFactorsType.AGE.value]>=18)
         personDynamicRiskFactors[DynamicRiskFactorsType.WAIST.value] = None
     
         personDefaultTreatments = {

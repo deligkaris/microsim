@@ -24,7 +24,7 @@ class StaticRiskFactorsType(Enum):
     EDUCATION = "education"          # Education
     GENDER = "gender"                # NHANESGender
     SMOKING_STATUS = "smokingStatus" # SmokingStatus
-    MODALITY = "modality"  # Modality, originated from the Kaiser WMH work 
+    MODALITY = "modality"  # Modality value string, originated from the Kaiser WMH work
 
 class CategoricalRiskFactorsType(Enum):
     RACE_ETHNICITY = "raceEthnicity" 

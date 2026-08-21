@@ -122,7 +122,7 @@ class Person:
     def advance_risk_factors(self, rfdRepository):
         """Makes predictions for the risk factors 1 year to the future."""
         for rf in self._dynamicRiskFactors:
-            nextRiskFactor = RiskFactorBounds.apply(rf, self.get_next_risk_factor(rf, rfdRepository))
+            nextRiskFactor = self.get_next_risk_factor(rf, rfdRepository) #bounds applied by the repository's BoundedRiskFactorModel
             setattr(self, "_"+rf, getattr(self,"_"+rf)+[nextRiskFactor])
 
     def get_next_risk_factor(self, riskFactor, risk_model_repository):
@@ -168,7 +168,7 @@ class Person:
         updatedRiskFactors = treatmentStrategy.get_updated_risk_factors(self)
         for rf in self._dynamicRiskFactors:
             if rf in updatedRiskFactors.keys():
-                getattr(self, "_"+rf)[-1] = RiskFactorBounds.apply(rf, updatedRiskFactors[rf])
+                getattr(self, "_"+rf)[-1] = RiskFactorBounds.apply_to_person(rf, updatedRiskFactors[rf], self)
 
     def update_treatment_strategy_status(self, treatmentStrategy, treatmentStrategyType):
         """The treatment strategy status holds information about whether the strategy is just now being applied on the person
