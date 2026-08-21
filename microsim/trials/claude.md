@@ -149,7 +149,7 @@ Trial-related tests are located in `test/test_*.py` and include:
 - Regression analysis verification
 - Population comparison tests
 
-Tests use the standard unittest framework with fixtures from `test/fixture/`.
+Tests use the standard unittest framework.
 
 ## Integration with Core Framework
 

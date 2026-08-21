@@ -22,9 +22,6 @@ class LinearRiskFactorModel:
         self.parameters = {**(regression_model._coefficients)}
         self.non_intercept_params = {k: v for k, v in self.parameters.items() if k != "Intercept"}
         self.argument_transforms = get_all_argument_transforms(self.get_keys_for_transforms())
-        self.argument_transforms_vectorized = get_all_argument_transforms(
-            self.get_keys_for_transforms(), True
-        )
 
     # method to be overriden by models that want to, in addition to the risks estimated by
     # the regression coefficients loaded from a model, also be able to apply some manual parameters.

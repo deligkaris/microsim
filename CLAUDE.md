@@ -192,7 +192,6 @@ See `microsim/treatment_strategies/claude.md` for detailed guidance on creating 
 Tests follow unittest framework conventions:
 - All tests in `test/test_*.py`
 - Use `TestCase` base class
-- Common fixtures in `test/fixture/` (e.g., `VectorizedTestFixture`)
 - Helper utilities in `test/helper/` (e.g., `init_vectorized_population_dataframe.py`)
 - Test coverage includes: outcome models, risk factors, population reporting, and trial operations (see `microsim/trials/claude.md` for trial testing details)
 
