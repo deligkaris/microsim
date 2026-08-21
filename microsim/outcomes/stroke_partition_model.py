@@ -89,7 +89,8 @@ class StrokePrevalenceModel(OutcomePrevalenceBase):
     """Logistic prevalence model that seeds priorToSim stroke at Person construction.
        Conditioned on the presence of a priorToSim CV outcome — relies on CV being seeded first
        (CARDIOVASCULAR precedes STROKE in OutcomeType._order_).
-       Coefficients below are placeholder zeros — replace with fitted odds ratios."""
+       The anyPhysicalActivity/sbp/dbp/totChol arguments are unused until coefficients
+       for them are fitted."""
 
     _outcomeType = OutcomeType.STROKE
 

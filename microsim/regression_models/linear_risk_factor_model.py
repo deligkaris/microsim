@@ -38,7 +38,7 @@ class LinearRiskFactorModel:
         return keysForTransforms
 
     def draw_from_residual_distribution(self, rng=None):
-        if not hasattr(self, "residual_mean") and hasattr(self, "residual_standard_deviation"):
+        if not (hasattr(self, "residual_mean") and hasattr(self, "residual_standard_deviation")):
             raise RuntimeError(
                 "Cannot draw from residual distribution: model does not have"
                 " residual information"

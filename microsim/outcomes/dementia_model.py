@@ -15,7 +15,7 @@ from microsim.treatment_strategies.treatment_strategies import TreatmentStrategi
 class DementiaModel(CoxRiskFactorModel):
 
     # initial parameters in notebook lookAtSurvivalFunctionForDementiaModel (linearTerm=1.33371239e-05, quadraticTerm=5.64485841e-05)
-    # recalibrated fit to population incidence equation in notebook: identifyOptimalBaselineSurvivalParametersForDementia, linear multiplier = 0.5, quad = 0.05
+    # recalibrated fit to population incidence equation in notebook: identifyOptimalBaselineSurvivalParametersForDementia, linear multiplier = 0.5, quad = 0.175
 
     def __init__(
         self, linearTerm=1.33371239e-05, quadraticTerm=5.64485841e-05, wmhSpecific=True, populationRecalibration=True, riskScaling=1.0
@@ -35,7 +35,7 @@ class DementiaModel(CoxRiskFactorModel):
         return self.generate_next_outcome(person) if person._rng.uniform(size=1)<self.get_risk_for_person(person, years=1) else None
 
     def get_risk_for_person(self, person, years=1):
-        risk = super().get_risk_for_person(person, years=1)
+        risk = super().get_risk_for_person(person, years=years)
 
         risk = risk * self._riskScaling
 

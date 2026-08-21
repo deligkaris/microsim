@@ -152,7 +152,8 @@ class CVModelFemale(CVModelBase):
 
 class CVPrevalenceModel(OutcomePrevalenceBase):
     """Logistic prevalence model that seeds priorToSim CV at Person construction.
-       Coefficients below are placeholder zeros — replace with fitted odds ratios."""
+       The anyPhysicalActivity/sbp/dbp/totChol arguments are unused until coefficients
+       for them are fitted."""
 
     _outcomeType = OutcomeType.CARDIOVASCULAR
 
