@@ -4,6 +4,7 @@ from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 from microsim.outcomes.outcome import OutcomeType
+from microsim.outcomes.wmh_severity import WMHSeverity
 from microsim.risk_factors.modality import Modality
 
 # https://annals.org/aim/fullarticle/2683613/[XSLTImagePath]
@@ -97,7 +98,7 @@ class ASCVDOutcomeModel(LinearRiskFactorModel):
                 scalingCtSbi = 3.8
                 scalingCtWmh = 1.8
                 window = len(person._age) #how many years since the brain scan
-                severityUnknown=person.get_outcome_item_first(OutcomeType.WMH, "wmhSeverityUnknown", inSim=True),
+                severityUnknown=person.get_outcome_item_first(OutcomeType.WMH, "wmhSeverityUnknown", inSim=True)
                 severity=person.get_outcome_item_first(OutcomeType.WMH, "wmhSeverity", inSim=True)
                 if person._outcomes[OutcomeType.WMH][0][1].sbi:
                     if person._modality == Modality.MR.value:

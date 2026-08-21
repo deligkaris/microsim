@@ -127,12 +127,16 @@ class DementiaModel(CoxRiskFactorModel):
 
 class DementiaPrevalenceModel(OutcomePrevalenceBase):
     """Logistic prevalence model that seeds priorToSim dementia at Person construction.
-       Coefficients below are placeholder zeros — replace with fitted odds ratios."""
+       Coefficients below are placeholder zeros — replace with fitted odds ratios.
+       The placeholder intercept is -12, not 0: an intercept of 0 with all-zero coefficients
+       seeds dementia at expit(0)=50% in every default population. At -12 the default seeding
+       is ~0 (expit(-12)~6e-6) while riskScaling still shifts the odds, so calibrate_prevalence
+       can drive prevalence to a target within its logS bracket of [-15, 15]."""
 
     _outcomeType = OutcomeType.DEMENTIA
 
     def __init__(self, riskScaling=1.0):
-        self._intercept = 0.
+        self._intercept = -12.
         self._riskScaling = riskScaling
 
     def get_linear_predictor_for_person(self, person):
