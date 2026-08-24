@@ -170,7 +170,7 @@ def get_state_population(
 
 Builds a representative sample of a state's projected population and advances it with the
 NHANES model repository. The projection CSV (`data/state/pop_projection_{state}_{year}.csv`,
-currently only OH 2030 exists — `year` selects the filename only) supplies the categorical
+currently OH 2030 and OH 2035 exist — `year` selects the filename only) supplies the categorical
 variables and a head count per demographic cell; everything the projection does not carry is
 filled in from NHANES:
 
