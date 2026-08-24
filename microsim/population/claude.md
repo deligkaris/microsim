@@ -156,6 +156,52 @@ Parameters:
 - `riskScaling`: optional `dict[OutcomeType, float]` applied inside
   `OutcomeModelRepository`.
 
+### State population
+
+```python
+@staticmethod
+def get_state_population(
+    year=2030,
+    personFilters=None,
+    state="OH",
+    samplingRate=0.025,
+) -> Population:
+```
+
+Builds a representative sample of a state's projected population and advances it with the
+NHANES model repository. The projection CSV (`data/state/pop_projection_{state}_{year}.csv`,
+currently only OH 2030 exists — `year` selects the filename only) supplies the categorical
+variables and a head count per demographic cell; everything the projection does not carry is
+filled in from NHANES:
+
+- **Ages** are split out of the 5-year age groups uniformly; group 17 (80+) is split over
+  80-89 by a decreasing taper (`10/55` down to `1/55`), so nobody is 90+ at baseline —
+  their share of the group's count is spread over 80-89. Ages past 89 raise.
+- **Default treatments** (statin × `antiHypertensiveCount`) are assigned per the NHANES
+  survey-weighted proportions within each (ageGroup, gender, raceEthnicity). The counts
+  enumerated are the class constant `PopulationFactory.antiHypertensiveCounts` (0-7, all
+  values NHANES holds), used by both the cross product and the proportions so the two
+  cannot drift and no observed count is left out of the denominators.
+- **Continuous variables** are drawn from the same NHANES Gaussians the
+  `distributions=True` path uses (crude fit + group-mean shift, see gotchas 14-16).
+
+Parameters:
+- `samplingRate`: the fraction of the state population simulated. Each cell contributes
+  `floor(n*samplingRate + 0.5)` people; cells that round to 0 contribute nobody (pandas
+  `explode` turns an empty range into a NaN row, which is dropped — without that, every
+  small cell yielded one spurious person, inflating OH 2030 by 8.7% and biased toward rare
+  cells).
+- `personFilters`: honored at both levels. The df-level filters run after the continuous
+  draw, since the drawn values are what they must hold for; person-level filters run after
+  construction. There is no redraw of rejected rows: each row is a fixed slice of the state
+  population, so a filter shrinks the population to the filtered subpopulation at the same
+  sampling rate. Unlike NHANES, `None` means no filter — the whole state population,
+  children included, is the point of this builder; pass `["adult"]` for adults.
+- The projection's `raceEthnicity` codes must be ones NHANES holds people of (1-5): the
+  whole pipeline (treatment proportions and risk-factor distributions) is NHANES-based, so
+  an unsupported code (e.g. ASIAN, 6) is refused up front with a message naming the codes,
+  rather than failing as a `KeyError` deep in an apply.
+
 ### Generic dispatcher
 
 ```python
