@@ -106,6 +106,11 @@ class PopulationFactory:
                                                   DynamicRiskFactorsType.CREATININE.value, 
                                                   DynamicRiskFactorsType.SBP.value, 
                                                   DynamicRiskFactorsType.DBP.value]}
+    #all antiHypertensiveCount values NHANES holds; the state pipeline enumerates these, both for the
+    #cross product in get_stateDf and for the proportions in get_proportionForDefaultTreatments, so the
+    #two cannot drift apart and no observed count is left out of the denominators
+    antiHypertensiveCounts = [0., 1., 2., 3., 4., 5., 6., 7.]
+
     #the order of the items in the two lists is critical because functions later on, eg draw from the distributions, depend on the order
     kaiser_variable_types = {VariableType.CATEGORICAL.value: [StaticRiskFactorsType.MODALITY.value,
                                                       StaticRiskFactorsType.GENDER.value, 
@@ -579,8 +584,8 @@ class PopulationFactory:
         return scaling
 
     @staticmethod
-    def get_state_population(proportion=0.01, year=2030, personFilters=None):
-        people = PopulationFactory.get_state_people(proportion=proportion, year=year, personFilters=personFilters)
+    def get_state_population(year=2030, personFilters=None, state="OH", samplingRate=0.025):
+        people = PopulationFactory.get_state_people(year=year, personFilters=personFilters, state=state, samplingRate=samplingRate)
         popModelRepository = PopulationFactory.get_nhanes_population_model_repo()
         return Population(people, popModelRepository)
 
@@ -941,9 +946,22 @@ class PopulationFactory:
         distributions = PopulationFactory.get_crude_distributions()
         #each row of dfWithCategoricals gets values for continuous variables based on the distributions
         df = PopulationFactory.append_dataframe_with_continuous(dfWithCategoricals, distributions)
+        #df-level filters run after the draw because the values they have to hold for are the drawn ones.
+        #No redraw of rejected rows: each row is a fixed slice of the state population, so a filter
+        #shrinks the population to the filtered subpopulation at the same sampling rate
+        df = PopulationFactory.apply_person_filters_on_df(personFilters, df)
+        if df.shape[0] == 0:
+            raise RuntimeError("""The df-level filters of personFilters rejected every row of the state
+                                  population, so there is nobody left to build Person-objects from.""")
         imr = InitializationModelRepository()
         opmr = OutcomePrevalenceModelRepository()
         people = pd.DataFrame.apply(df, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=opmr, axis="columns")
+        people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
+        if people.shape[0] == 0:
+            raise RuntimeError("""The person-level filters of personFilters rejected all the Person-objects
+                                  built from the state population, so the population would be empty.""")
+        #the two explodes leave duplicate index labels, what identifies a person is _index
+        people = people.reset_index(drop=True)
         PopulationFactory.set_index_in_people(people)
         return people
 
@@ -1053,6 +1071,8 @@ class PopulationFactory:
         df["name"] = np.arange(len(df)) #people with the same categorical variables will have the same name
         df["nForSampling"] = df["nForAgeAndDefaultTreatments"].apply(lambda x: range(math.floor(x*samplingRate + 0.5))) #this is how samplingRate influences the number of people created
         df = df.explode("nForSampling")
+        #explode turns an empty range into a NaN row, which would create a person from every group whose sampled count rounded to 0
+        df = df.dropna(subset=["nForSampling"])
         df["modality"] = Modality.NO.value #all NHANES people will have the same modality
         return df 
 
@@ -1062,6 +1082,16 @@ class PopulationFactory:
         Returns a dataframe that includes a portion of the microsim categorical variables and the number of people in that state by age.'''
         dataDir = get_absolute_datafile_path("state")
         data = pd.read_csv(dataDir+f"/pop_projection_{state.lower()}_{year}.csv")
+        #the whole state pipeline is built on NHANES, so a race NHANES holds nobody of (eg ASIAN) has
+        #neither treatment proportions nor risk-factor distributions; fail here with the codes rather
+        #than with a KeyError deep in an apply
+        nhanesRaces = set(int(r) for r in PopulationFactory.get_nhanesDf()[StaticRiskFactorsType.RACE_ETHNICITY.value].unique())
+        unsupportedRaces = set(int(r) for r in data[StaticRiskFactorsType.RACE_ETHNICITY.value].unique()) - nhanesRaces
+        if unsupportedRaces:
+            raise RuntimeError(f"""The {state} {year} projection contains raceEthnicity codes {sorted(unsupportedRaces)}
+                                   that NHANES holds no people of, so no treatment proportions or risk-factor
+                                   distributions exist for them. Map those rows to one of {sorted(nhanesRaces)}
+                                   in the projection file.""")
         data[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value] = data[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value].astype(bool)
         ageList5Years = [x for x in range(0,5)]
         ageList10Years = [x for x in range(0,10)] #this is for the last age group, the oldest
@@ -1069,7 +1099,7 @@ class PopulationFactory:
                                                        [x+(i-1)*len(ageList5Years) for x in ageList10Years]  ) #not a typo
         data = data.explode('age')
         data["nForAge"] = data.apply(lambda x: PopulationFactory.get_nForAge_from_nForAgeGroup(x["age"],x["n"]), axis=1)
-        data["statinAntihypertensiveCount"] = [[[st, an] for st in [True, False] for an in [0., 1., 2.]]] * len(data)
+        data["statinAntihypertensiveCount"] = [[[st, an] for st in [True, False] for an in PopulationFactory.antiHypertensiveCounts]] * len(data)
         data = data.explode("statinAntihypertensiveCount")
         data[["statin", "antiHypertensiveCount"]] = pd.DataFrame(data["statinAntihypertensiveCount"].tolist(), index=data.index)
         return data
@@ -1081,10 +1111,14 @@ class PopulationFactory:
         if age<80:
             return round(nForAgeGroup/5) #divides the number of people to equal parts for all ages in ageGroup
         elif age < 90:
-            #the coefficients were obtained with arr = np.linspace(9, 0, 10) and normalized_arr = arr / arr.sum()
-            proportionsForAgeDict = {80: 0.2, 81:0.17777778, 82: 0.15555556, 83: 0.13333333, 84: 0.11111111,
-                                     85: 0.08888889, 86: 0.06666667, 87: 0.04444444, 88: 0.02222222, 89: 0.}
+            #the coefficients are np.linspace(10, 1, 10) normalized: the taper ends above zero so that
+            #age 89 exists at baseline (linspace(9, 0, 10) gave it exactly 0 people). Ages 90+ are not
+            #represented at baseline, their share of the 80+ group is spread over 80-89.
+            proportionsForAgeDict = {80: 10/55, 81: 9/55, 82: 8/55, 83: 7/55, 84: 6/55,
+                                     85: 5/55, 86: 4/55, 87: 3/55, 88: 2/55, 89: 1/55}
             return round(nForAgeGroup * proportionsForAgeDict[age]) #divides the number of people to decreasing parts as age increases
+        else:
+            raise RuntimeError(f"Age {age} is not covered: the state pipeline generates baseline ages up to 89.")
  
     @staticmethod
     def get_ageGroup_from_age(age):
@@ -1120,7 +1154,7 @@ class PopulationFactory:
             weightForTreatments = dict()
             sumForKey = 0
             for statin in [True, False]:
-                for antiHypertensiveCount in [0., 1., 2.]:
+                for antiHypertensiveCount in PopulationFactory.antiHypertensiveCounts:
                     dfForGroup = df.loc[
                                     (df["ageGroup"]==ageGroup) &
                                     (df[StaticRiskFactorsType.GENDER.value]==gender) & 
@@ -1135,7 +1169,7 @@ class PopulationFactory:
             if sumForKey==0.:
                 raise RuntimeError(f"Did not find NHANES people-data with gender {gender}, raceEthnicity {raceEthnicity}, age group {ageGroup}") 
             for statin in [True, False]:
-                for antiHypertensiveCount in [0., 1., 2.]:
+                for antiHypertensiveCount in PopulationFactory.antiHypertensiveCounts:
                     proportion =  weightForTreatments[statin, antiHypertensiveCount]/sumForKey if sumForKey>0. else 0.
                     proportionForTreatments[ageGroup, gender, raceEthnicity][statin, antiHypertensiveCount] = proportion
         return proportionForTreatments
