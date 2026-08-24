@@ -80,6 +80,7 @@ class LinearRiskFactorModel:
         linear_predictor = self.estimate_next_risk(person)
         return linear_predictor
 
+    #withResidual=False makes continuous risk factor advancement deterministic, shrinking population variance over time
     def estimate_next_risk(self, person, rng=None, withResidual=False):
         # TODO: think about what to do with teh hard-coded strings for parameters and prefixes
         linearPredictor = self.get_intercept()
