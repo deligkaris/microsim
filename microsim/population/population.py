@@ -11,7 +11,6 @@ from microsim.outcomes.cv_model_repository import CVModelRepository
 from microsim.common.data_loader import (get_absolute_datafile_path,
                                   load_regression_model)
 from microsim.risk_factors.education import Education
-from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
@@ -1215,11 +1214,6 @@ class Population:
     def get_categorical_variables_key():
         '''Returns a string that maps the integer categories to their string, and easily understandable by humans, representations'''
 
-        alcKey = " "*9 +"alcoholPerWeek  "
-        for alc in AlcoholCategory:
-            alcKey += f"{alc.value}: {alc.name}, "
-        alcKey = alcKey[:-2]
-
         raceKey = "\n" + " "*10 + "raceEthnicity  "
         for race in RaceEthnicity:
             raceKey += f"{race.value}: {race.name}, "
@@ -1241,5 +1235,5 @@ class Population:
         ssKey = ssKey[:-2]
 
         booleanKey = "\n" + " "*6 + "boolean variables  0: False, 1: True"
-        categoricalKey =  " "*25 + "Categorical Variables Key\n" + " "*25 + "-"*53 + "\n" + alcKey + raceKey + edKey + genderKey + ssKey + booleanKey
+        categoricalKey =  " "*25 + "Categorical Variables Key\n" + " "*25 + "-"*53 + raceKey + edKey + genderKey + ssKey + booleanKey
         return categoricalKey

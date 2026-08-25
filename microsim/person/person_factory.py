@@ -1,4 +1,3 @@
-from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.risk_factors.risk_factor_bounds import RiskFactorBounds
 from microsim.outcomes.outcome import OutcomeType
@@ -100,7 +99,7 @@ class PersonFactory:
         personDynamicRiskFactors = dict()
         for rfd in DynamicRiskFactorsType:
             if rfd==DynamicRiskFactorsType.ALCOHOL_PER_WEEK:
-                personDynamicRiskFactors[rfd.value] = AlcoholCategory(x[rfd.value])
+                personDynamicRiskFactors[rfd.value] = float(x[rfd.value]) #drinks/week, no bounds defined
             else:
                 if (rfd!=DynamicRiskFactorsType.PVD) & (rfd!=DynamicRiskFactorsType.AFIB):
                     personDynamicRiskFactors[rfd.value] = RiskFactorBounds.apply(rfd.value, x[rfd.value], adult=adult)

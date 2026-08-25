@@ -39,7 +39,7 @@ def build_nhanes_row(**overrides):
         DynamicRiskFactorsType.BMI.value: 25,
         DynamicRiskFactorsType.WAIST.value: 90,
         DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: False,
-        DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholCategory.NONE.value,
+        DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: 0.,  #drinks/week
         DynamicRiskFactorsType.CREATININE.value: 0.9,
         DefaultTreatmentsType.STATIN.value: 0,
         DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: 0,
@@ -109,7 +109,7 @@ class TestGetNhanesPersonInitInformation(unittest.TestCase):
         self.assertIsInstance(static[StaticRiskFactorsType.GENDER.value], NHANESGender)
         self.assertIsInstance(static[StaticRiskFactorsType.SMOKING_STATUS.value], SmokingStatus)
         self.assertIsNone(static[StaticRiskFactorsType.MODALITY.value])
-        self.assertIsInstance(dynamic[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value], AlcoholCategory)
+        self.assertEqual(dynamic[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value], 0.)  #drinks/week
         self.assertIsNone(dynamic[DynamicRiskFactorsType.AFIB.value])
         self.assertIsNone(dynamic[DynamicRiskFactorsType.PVD.value])
         self.assertEqual(dynamic[DynamicRiskFactorsType.SBP.value], 120)

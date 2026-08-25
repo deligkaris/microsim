@@ -3,8 +3,16 @@ from microsim.regression_models.linear_risk_factor_model import LinearRiskFactor
 from microsim.regression_models.relative_risk_factor_model import RelativeRiskFactorModel
 from microsim.outcomes.stroke_outcome import StrokeOutcome, StrokeSubtype, StrokeType, Localization
 from microsim.regression_models.regression_model import RegressionModel
+from microsim.risk_factors.alcohol_category import AlcoholCategory
 
-class StrokeNihssModel(LinearRiskFactorModel):
+class AlcoholCategoryInputMixin:
+    #the source fits coded alcohol as a category (alcperwk_sim); persons store drinks/week
+    def get_model_argument_for_coeff_name(self, coeff_name, person):
+        if coeff_name == "alcoholPerWeek":
+            return int(AlcoholCategory.get_category_for_consumption(person._alcoholPerWeek[-1]))
+        return super().get_model_argument_for_coeff_name(coeff_name, person)
+
+class StrokeNihssModel(AlcoholCategoryInputMixin, LinearRiskFactorModel):
 
     def __init__(self):
         self._model = {"coefficients": {
@@ -58,7 +66,7 @@ class StrokeTypeModel():
 
 #the stroke subtype model produces a lot more than expected cardioembolic strokes
 #this model will need to be adjusted when it is needed
-class StrokeSubtypeCEModel(RelativeRiskFactorModel):
+class StrokeSubtypeCEModel(AlcoholCategoryInputMixin, RelativeRiskFactorModel):
     def __init__(self):
         
         #cardioembolic
@@ -96,7 +104,7 @@ class StrokeSubtypeCEModel(RelativeRiskFactorModel):
         self._regressionModel = RegressionModel(**self._model)
         super().__init__(self._regressionModel)
 
-class StrokeSubtypeLVModel(RelativeRiskFactorModel):
+class StrokeSubtypeLVModel(AlcoholCategoryInputMixin, RelativeRiskFactorModel):
     def __init__(self):
         
         #LA_atherosclerosis
@@ -134,7 +142,7 @@ class StrokeSubtypeLVModel(RelativeRiskFactorModel):
         self._regressionModel = RegressionModel(**self._model)
         super().__init__(self._regressionModel)
 
-class StrokeSubtypeSVModel(RelativeRiskFactorModel):
+class StrokeSubtypeSVModel(AlcoholCategoryInputMixin, RelativeRiskFactorModel):
     def __init__(self):
         
         #SV_occlusion

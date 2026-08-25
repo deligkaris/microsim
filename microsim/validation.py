@@ -137,7 +137,7 @@ class Validation:
         return {"2007": metrics2007, "2013Hypertension": Validation._baseline_metrics(pop)}
 
     @staticmethod
-    def nhanes_over_time(nWorkers=5, path=None):
+    def nhanes_over_time(nWorkers=5, path=None, distributions=False):
         '''Performs the over time validation of a population against the NHANES sample.
            The filters are used only for the NHANES comparison population from 2017.
            People that died prior to 2017 are not removed from the simulation population, if the simulation population is large enough
@@ -145,12 +145,13 @@ class Validation:
            NHANES comparison population.
            nWorkers determines the number of cores used
            path=None will result in displaying the figures whereas an actual path will export them to that path
+           distributions applies to both the simulated 1999 population and the NHANES 2017 comparison population
            Returns {"simSummary", "nhanesSummary", "cvRates", "dementiaIncidence"}: the last-wave
            distribution summary of the advanced population and of the NHANES comparison population,
            the standardized CV rates and the dementia incidence, for print_over_time_with_burke2024.'''
         nYears = 18
         popSize = 100000
-        pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=None, nhanesWeights=True, distributions=False)
+        pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=None, nhanesWeights=True, distributions=distributions)
         pop.advance_parallel(nYears, None, nWorkers)
         pf = PersonFilterFactory.get_person_filter([])
         pf.add_filter(filterType="df",
@@ -159,7 +160,7 @@ class Validation:
         pf.add_filter(filterType="df",
                       filterName="noImmigration",
                       filterFunction = lambda x: x["timeInUS"]>=4)
-        nhanesPop = PopulationFactory.get_nhanes_population(n=popSize, year=2017, personFilters=pf, nhanesWeights=True, distributions=False)
+        nhanesPop = PopulationFactory.get_nhanes_population(n=popSize, year=2017, personFilters=pf, nhanesWeights=True, distributions=distributions)
 
         print("\nVALIDATION OF VASCULAR RISK FACTORS OVER TIME")
         pop.plot_vascular_rfs_last_wave(nhanesPop, path=path)
@@ -302,7 +303,7 @@ class Validation:
 
     @staticmethod
     def nhanes_burke2024_report(baselineResults=None, overTimeResults=None,
-                                treatmentEffectsResults=None, path=None, nWorkers=5):
+                                treatmentEffectsResults=None, path=None, nWorkers=5, distributions=False):
         '''Prints the results of the NHANES validation next to the values published in Burke2024.
 
            Each argument is what the corresponding nhanes_* function returns, and any that is None
@@ -316,7 +317,7 @@ class Validation:
         if baselineResults is None:
             baselineResults = Validation.nhanes_baseline_pop()
         if overTimeResults is None:
-            overTimeResults = Validation.nhanes_over_time(nWorkers=nWorkers, path=path)
+            overTimeResults = Validation.nhanes_over_time(nWorkers=nWorkers, path=path, distributions=distributions)
         if treatmentEffectsResults is None:
             treatmentEffectsResults = Validation.nhanes_treatment_effects()
 
@@ -337,13 +338,14 @@ class Validation:
         Validation.print_treatment_effects_with_burke2024(treatmentEffectsResults)
 
     @staticmethod
-    def nhanes(path=None, compare=True, nWorkers=5):
+    def nhanes(path=None, compare=True, nWorkers=5, distributions=False):
         '''Runs the entire NHANES validation.
            compare=True also prints the results next to the published values of Burke2024, see
            nhanes_burke2024_report.
+           distributions applies to the over-time populations, see nhanes_over_time.
            Returns the results of the three validation runs.'''
         baselineResults = Validation.nhanes_baseline_pop()
-        overTimeResults = Validation.nhanes_over_time(nWorkers=nWorkers, path=path)
+        overTimeResults = Validation.nhanes_over_time(nWorkers=nWorkers, path=path, distributions=distributions)
         treatmentEffectsResults = Validation.nhanes_treatment_effects()
         if compare:
             Validation.nhanes_burke2024_report(baselineResults, overTimeResults,

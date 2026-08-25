@@ -22,7 +22,6 @@ from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
-from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.population.standardized_population import StandardizedPopulation
 from microsim.common.variable_type import VariableType
 from microsim.outcomes.outcome import OutcomeType
@@ -92,10 +91,10 @@ class PopulationFactory:
                                                   StaticRiskFactorsType.RACE_ETHNICITY.value, 
                                                   DefaultTreatmentsType.STATIN.value,
                                                   StaticRiskFactorsType.EDUCATION.value,
-                                                  DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value,
                                                   DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value,
                                                   DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value],
-                             VariableType.CONTINUOUS.value:   [DynamicRiskFactorsType.AGE.value, 
+                             VariableType.CONTINUOUS.value:   [DynamicRiskFactorsType.AGE.value,
+                                                  DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value,
                                                   DynamicRiskFactorsType.HDL.value, 
                                                   DynamicRiskFactorsType.BMI.value, 
                                                   DynamicRiskFactorsType.TOT_CHOL.value, 
@@ -209,9 +208,6 @@ class PopulationFactory:
             #convert the integers to booleans because in the simulation we always use bool for these
             for col in [DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value, DefaultTreatmentsType.STATIN.value]:
                 nhanesDf[col] = nhanesDf[col].astype(bool)
-            #convert drinks per week to category
-            nhanesDf[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value] = nhanesDf.apply(lambda x:
-                                                                                     AlcoholCategory.get_category_for_consumption(x[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value]), axis=1)
             #convert these columns to int type
             for col in [StaticRiskFactorsType.RACE_ETHNICITY.value,
                         StaticRiskFactorsType.EDUCATION.value,
@@ -1015,16 +1011,13 @@ class PopulationFactory:
         But if a singular Gaussian is created then the education level is removed from the key and the Gaussian is created by
         combining the values with all education levels
         If removing the education from the key does not provide a non-singular Gaussian we will need to fix it...'''
-        nhanesContinuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
-        #during the simulation, age is treated as a continuous variable, but when we are given a population projection that includes ageGroup
-        #ageGroup and age are treated as a categorical variable that we know
-        nhanesContinuousVariables.remove(DynamicRiskFactorsType.AGE.value)
         meanForCategoricals = dict()
         covForCategoricals = dict()
         singularForCategoricals = dict()
         minForCategoricals = dict()
         maxForCategoricals = dict()
         for key in dfForCategoricals.keys():
+            nhanesContinuousVariables = PopulationFactory.continuous_variables_for_key_age(key[3])
             meanForCategoricals[key], covForCategoricals[key] = multivariate_normal.fit(np.array(dfForCategoricals[key][nhanesContinuousVariables]))
             singularForCategoricals[key] = PopulationFactory.is_singular(covForCategoricals[key]) #some distributions might be singular
             minForCategoricals[key] = np.min(np.array(dfForCategoricals[key][nhanesContinuousVariables]), axis=0)
@@ -1037,6 +1030,7 @@ class PopulationFactory:
                 allEducationKeys = [list(key[0:2]) + [ed.value, key[3]] for ed in Education]
                 allEducationKeys = list(filter(lambda x: tuple(x) in list(dfForCategoricals.keys()), allEducationKeys))
                 dfForAllEducationKeys = pd.concat([dfForCategoricals[tuple(edKey)] for edKey in allEducationKeys], ignore_index=True)
+                nhanesContinuousVariables = PopulationFactory.continuous_variables_for_key_age(key[3])
                 meanForCategoricals[keyMinusEducation], covForCategoricals[keyMinusEducation] = multivariate_normal.fit(
                     np.array(dfForAllEducationKeys[nhanesContinuousVariables]))
                 singularForCategoricals[keyMinusEducation] = PopulationFactory.is_singular(covForCategoricals[keyMinusEducation])
@@ -1093,6 +1087,9 @@ class PopulationFactory:
                                    distributions exist for them. Map those rows to one of {sorted(nhanesRaces)}
                                    in the projection file.""")
         data[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value] = data[DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value].astype(bool)
+        #the projection carries alcohol as a 0-3 category; persons store drinks/week and the distributions
+        #draw it as a continuous variable, so the projection's alcohol composition is no longer used
+        data = data.drop(columns=[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value])
         ageList5Years = [x for x in range(0,5)]
         ageList10Years = [x for x in range(0,10)] #this is for the last age group, the oldest
         data['age'] = data['ageGroup'].apply(lambda i: [x+(i-1)*len(ageList5Years) for x in ageList5Years] if i!=17 else 
@@ -1201,9 +1198,13 @@ class PopulationFactory:
         #belongs to, so the draw is kept as its distance from the mean of the distribution it came from and
         #that distance is measured out from the mean of the group instead
         distKeysForRows = PopulationFactory.get_dist_keys_for_dataframe(dfWithCategoricals, distributions)
+        alcIdx = nhanesContinuousVariables.index(DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value)
         drawMeans = np.empty((dfWithCategoricals.shape[0], len(nhanesContinuousVariables)))
         for distKey, rowsOfKey in distKeysForRows:
-            drawMeans[rowsOfKey] = distributions["mean"][distKey]
+            if distKey[-1] < PopulationFactory.ALCOHOL_MIN_KEY_AGE: #the key's distribution has no alcohol dimension
+                drawMeans[rowsOfKey] = np.insert(distributions["mean"][distKey], alcIdx, 0.)
+            else:
+                drawMeans[rowsOfKey] = distributions["mean"][distKey]
         groupMeans = PopulationFactory.get_group_means_for_dataframe(dfWithCategoricals, drawMeans)
         #the shift is handed to the draw rather than added to the draw afterwards because the value that is
         #kept is the shifted one, so the shifted one is what the bounds have to hold for: a draw inside the
@@ -1222,6 +1223,20 @@ class PopulationFactory:
         of the keys the distributions are stored under.'''
         continuousVariables = PopulationFactory.nhanes_variable_types[VariableType.CONTINUOUS.value].copy()
         continuousVariables.remove(DynamicRiskFactorsType.AGE.value)
+        return continuousVariables
+
+    #all NHANES rows under 18 have alcoholPerWeek 0, so the child/teen age windows have no alcohol
+    #variance to fit; fits at key ages >=18 were verified non-singular after education pooling
+    ALCOHOL_MIN_KEY_AGE = 18
+
+    @staticmethod
+    def continuous_variables_for_key_age(age):
+        '''The continuous variables the distribution of a key holds: alcohol is left out of keys below
+        ALCOHOL_MIN_KEY_AGE, and everyone drawn from such a key gets exactly 0 drinks. Both the fit and
+        the draw read the column set from here so the two sides cannot drift apart.'''
+        continuousVariables = PopulationFactory.continuous_variables_drawn()
+        if age < PopulationFactory.ALCOHOL_MIN_KEY_AGE:
+            continuousVariables.remove(DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value)
         return continuousVariables
 
     @staticmethod
@@ -1257,14 +1272,20 @@ class PopulationFactory:
 
         Returns the drawn, shifted values.'''
         draws = np.empty_like(shift)
+        alcIdx = PopulationFactory.continuous_variables_drawn().index(DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value)
         clipped = 0
         for distKey, rowsOfKey in distKeysForRows:
             dist = multivariate_normal(distributions["mean"][distKey], distributions["cov"][distKey],
                                        allow_singular=False)
-            draws[rowsOfKey], clippedForKey = PopulationFactory.draw_within_bounds(dist,
+            hasAlcohol = distKey[-1] >= PopulationFactory.ALCOHOL_MIN_KEY_AGE
+            shiftForKey = shift[rowsOfKey] if hasAlcohol else np.delete(shift[rowsOfKey], alcIdx, axis=1)
+            drawsForKey, clippedForKey = PopulationFactory.draw_within_bounds(dist,
                                                                     distributions["min"][distKey],
                                                                     distributions["max"][distKey],
-                                                                    len(rowsOfKey), shift=shift[rowsOfKey])
+                                                                    len(rowsOfKey), shift=shiftForKey)
+            if not hasAlcohol: #alcohol is exactly 0 below the cutoff, never drawn and shifted
+                drawsForKey = np.insert(drawsForKey, alcIdx, 0., axis=1)
+            draws[rowsOfKey] = drawsForKey
             clipped += clippedForKey
         if clipped > 0:
             print(f"""Warning: {clipped} of {draws.shape[0]} people had a group mean too far from the distribution

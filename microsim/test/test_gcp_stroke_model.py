@@ -83,7 +83,7 @@ class TestCaseOne(Person):
                                DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: anyPhysicalActivityList[0],  #physact
                                StaticRiskFactorsType.EDUCATION.value: Education.SOMEHIGHSCHOOL.value,   #educ2,educ3,educ4
                                StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus.NEVER.value,   #currsmoker
-                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholCategory.NONE.value,  #alcperwk
+                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: 0.,  #alcperwk, drinks/week -> NONE
                                DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: antiHypertensiveCountList[0],  #htntx
                                DefaultTreatmentsType.STATIN.value: statinList[0],  #choltx
                                DynamicRiskFactorsType.CREATININE.value: creatinineList[0], #same as TestGCPModel
@@ -198,7 +198,7 @@ class TestCaseTwo(Person):
                                DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: anyPhysicalActivityList[0],  #physact
                                StaticRiskFactorsType.EDUCATION.value: Education.COLLEGEGRADUATE.value,   #educ2,educ3,educ4
                                StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus.NEVER.value,   #currsmoker
-                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholCategory.ONETOSIX.value,  #alcperwk
+                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: 3.,  #alcperwk, drinks/week -> ONETOSIX
                                DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: antiHypertensiveCountList[0],  #htntx
                                DefaultTreatmentsType.STATIN.value: statinList[0],  #choltx
                                DynamicRiskFactorsType.CREATININE.value: creatinineList[0], #same as TestGCPModel
@@ -314,7 +314,7 @@ class TestCaseThree(Person):
                                DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: anyPhysicalActivityList[0],  #physact
                                StaticRiskFactorsType.EDUCATION.value: Education.SOMECOLLEGE.value,   #educ2,educ3,educ4
                                StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus.CURRENT.value,   #currsmoker
-                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholCategory.FOURTEENORMORE.value,  #alcperwk
+                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: 21.,  #alcperwk, drinks/week -> FOURTEENORMORE
                                DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: antiHypertensiveCountList[0],  #htntx
                                DefaultTreatmentsType.STATIN.value: statinList[0],  #choltx
                                DynamicRiskFactorsType.CREATININE.value: creatinineList[0], #same as TestGCPModel
@@ -431,7 +431,7 @@ class TestCaseFour(Person):
                                DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: anyPhysicalActivityList[0],  #physact
                                StaticRiskFactorsType.EDUCATION.value: Education.HIGHSCHOOLGRADUATE.value,   #educ2,educ3,educ4
                                StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus.NEVER.value,   #currsmoker
-                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholCategory.NONE.value,  #alcperwk
+                               DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: 0.,  #alcperwk, drinks/week -> NONE
                                DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: antiHypertensiveCountList[0],  #htntx
                                DefaultTreatmentsType.STATIN.value: statinList[0],  #choltx
                                DynamicRiskFactorsType.CREATININE.value: creatinineList[0], #same as TestGCPModel

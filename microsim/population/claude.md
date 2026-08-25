@@ -372,6 +372,14 @@ internally; callers rarely need to instantiate it directly.
    prefer `distributions=False` for speed no longer holds; choose between them on what you want the
    population to be, not on cost.
 
+   `alcoholPerWeek` (drinks/week, continuous) is age-gated: every NHANES row under 18 has 0 drinks,
+   so keys below `ALCOHOL_MIN_KEY_AGE` (18) fit their Gaussian without the alcohol dimension and
+   everyone drawn from them gets exactly 0; keys at 18 and above include it (fits verified
+   non-singular after education pooling). `continuous_variables_for_key_age` is the single source
+   of the per-key column set for both the fit and the draw. The state projection CSVs still carry a
+   0-3 alcohol category column, but `get_stateDf` drops it: state persons draw alcohol from the
+   NHANES Gaussians like everyone else.
+
 8. **Kaiser population attribute set differs from NHANES.** Kaiser includes `afib` and
    `pvd` as categorical variables that NHANES does not; Kaiser omits `education` and
    `alcoholPerWeek`. Code that iterates over the variables of a population must use the set
