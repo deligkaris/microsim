@@ -64,6 +64,7 @@ class DementiaModel(CoxRiskFactorModel):
             education=person._education,
             raceEthnicity=person._raceEthnicity,
             modality=person._modality,
+            hasBrainScan=person.has_brain_scan(),
             sbi=person.get_outcome_item_first(OutcomeType.WMH, "sbi", inSim=True),
             wmh=person.get_outcome_item_first(OutcomeType.WMH, "wmh", inSim=True),
             severityUnknown=person.get_outcome_item_first(OutcomeType.WMH, "wmhSeverityUnknown", inSim=True),
@@ -71,7 +72,7 @@ class DementiaModel(CoxRiskFactorModel):
         )
 
     def linear_predictor_for_patient_characteristics(
-        self, currentAge, baselineGcp, gcpSlope, gender, education, raceEthnicity, modality, sbi, wmh, severityUnknown, severity
+        self, currentAge, baselineGcp, gcpSlope, gender, education, raceEthnicity, modality, hasBrainScan, sbi, wmh, severityUnknown, severity
     ):
         xb = 0
         xb += currentAge * 0.1023685
@@ -95,7 +96,7 @@ class DementiaModel(CoxRiskFactorModel):
         if raceEthnicity == RaceEthnicity.NON_HISPANIC_BLACK:
             xb += 0.1937563
 
-        if self.wmhSpecific: #if we just want a mean increased risk for the kaiser population then the modified linear and quadratic term adjustment did it    
+        if self.wmhSpecific and hasBrainScan: #if we just want a mean increased risk for the kaiser population then the modified linear and quadratic term adjustment did it
             if sbi:
                 if currentAge < 70:
                     xb += np.log(2.02)

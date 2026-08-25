@@ -91,7 +91,7 @@ class ASCVDOutcomeModel(LinearRiskFactorModel):
         The SBI hazard ratios were taken from the Kent2021 paper.
         Scaling factors were found by optimizing the 4 year microsim stroke rates against the published stroke rates (which have 
         a follow up of around 4 years.''' 
-        if not person._modality == Modality.NO.value: #if there was a brain scan 
+        if person.has_brain_scan():
             if self.wmhSpecific:
                 scdTerm = 0.645 #intercept change
                 scalingMriSbi = 2.6 #scaling factors to the published hazard ratios so that I can use them in the ascvd logistic model

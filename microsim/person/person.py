@@ -16,7 +16,7 @@ from microsim.outcomes.cognition_outcome import (
     GCP_POPULATION_SD, CI_GCP_CHANGE_SD_FACTOR,
     GCP_MEAN_INTERCEPT, GCP_MEAN_AGE_COEFFICIENT, GCP_MEAN_YEARS_IN_SIM_COEFFICIENT, GCP_MEAN_SD, MCI_GCP_SD_FACTOR,
 )
-from microsim.risk_factors.modality import modalityGroupMap
+from microsim.risk_factors.modality import Modality, modalityGroupMap
 from microsim.outcomes.wmh_severity import wmhSeverityGroupMap
 from microsim.outcomes.wmh_outcome import scdGroupMap
 
@@ -713,6 +713,10 @@ class Person:
     # ==========================================================================
     # 11. WMH / SCD classification
     # ==========================================================================
+
+    def has_brain_scan(self):
+        '''SCD hazard terms in outcome models must apply only when WMH/SBI findings were observable via a scan'''
+        return self._modality != Modality.NO.value
 
     def has_wmh(self):
         '''a person is defined as having wmh if wmh is set to True in the outcome or if sbi is set to True in the outcome
