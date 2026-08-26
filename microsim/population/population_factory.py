@@ -42,6 +42,16 @@ class PopulationFactory:
     #to. Cached for the same reason: it takes no argument and every population build needs it.
     _groupMeans = None
 
+    #a survey-weight bootstrap of the NHANES df, what the crude fits and the group means are computed on
+    #so that they reflect the WTINT2YR weights the person-row sampling uses. Fixed seed: the cached
+    #distributions and means must be the same in every process.
+    _nhanesDfResampled = None
+    RESAMPLE_SEED = 0
+
+    #per-(year, gender, ageGroup) mean minus the same cell's pooled mean, for every drawn continuous
+    #variable: the Gaussians are fit on all years pooled, this moves each row to its year's level
+    _yearCorrections = None
+
     nhanes_pop_attributes = {PopulationRepositoryType.STATIC_RISK_FACTORS.value:
                                                                     [StaticRiskFactorsType.GENDER.value,
                                                                      StaticRiskFactorsType.SMOKING_STATUS.value, 
@@ -216,6 +226,22 @@ class PopulationFactory:
                 nhanesDf[col] = nhanesDf[col].astype(int)
             PopulationFactory._nhanesDf = nhanesDf
         return PopulationFactory._nhanesDf.copy()
+
+    @staticmethod
+    def get_nhanesDf_resampled():
+        """A survey-weight bootstrap of the NHANES df: rows drawn with replacement, probability
+           proportional to WTINT2YR, same total size. The crude Gaussian fits and the group means are
+           computed on this df so they reflect the same weights the person-row sampling uses.
+           The seed is fixed because the fits and means built from this df are cached and must be
+           identical in every process. Trade-offs of a bootstrap: duplicated rows add Monte Carlo
+           noise, and an extreme low-weight row can drop out and tighten a group's observed min/max,
+           which draw_within_bounds mitigates by widening the bounds to 0.9*min-1.1*max."""
+        if PopulationFactory._nhanesDfResampled is None:
+            df = PopulationFactory.get_nhanesDf()
+            PopulationFactory._nhanesDfResampled = df.sample(n=df.shape[0], replace=True,
+                                                             weights=df.WTINT2YR,
+                                                             random_state=PopulationFactory.RESAMPLE_SEED)
+        return PopulationFactory._nhanesDfResampled.copy()
 
     @staticmethod
     def get_kaiserDf(csvFile):
@@ -981,7 +1007,7 @@ class PopulationFactory:
         '''Partitions the NHANES data, all rows, according to 4 categorical variables, the ones that are the most important overall for the prediction
         of continuous variables by using Gaussian distributions.
         Because the continuous variable distributions do not differ much for ages that are off by 1 or 2 years, use a range of ages and not just an exact age match.'''
-        df = PopulationFactory.get_nhanesDf() 
+        df = PopulationFactory.get_nhanesDf_resampled() #weighted bootstrap so the fits reflect the survey weights
         dictForCategoricals = dict()
         for gender, raceEthnicity, education, age in product(
                                                        set(df[StaticRiskFactorsType.GENDER.value].tolist()),
@@ -1211,7 +1237,13 @@ class PopulationFactory:
         #bounds of its distribution can be shifted outside of them, and outside of them meant a negative
         #trig, ldl, hdl or creatinine for 151 of the 5448 people of NHANES 1999 when the shift was applied
         #after the bounds had been checked
-        draws = PopulationFactory.get_draws_for_dataframe(distKeysForRows, distributions, groupMeans - drawMeans)
+        shift = groupMeans - drawMeans
+        if "year" in dfWithCategoricals.columns: #state projections carry no NHANES year and keep pooled levels
+            yearKeyFrame = PopulationFactory.year_correction_key_frame(dfWithCategoricals)
+            yearCorrection = PopulationFactory.get_year_corrections().reindex(
+                pd.MultiIndex.from_frame(yearKeyFrame)).to_numpy()
+            shift = shift + np.nan_to_num(yearCorrection) #a cell NHANES does not hold stays uncorrected
+        draws = PopulationFactory.get_draws_for_dataframe(distKeysForRows, distributions, shift)
         dfWithContinuous = pd.DataFrame(draws,
                                         columns=nhanesContinuousVariables,
                                         index=dfWithCategoricals.index)
@@ -1377,9 +1409,40 @@ class PopulationFactory:
         the person it is for. A group is far too small to fit a covariance matrix on, which is why the
         distributions themselves are fit on a much coarser partition, but it is big enough for a mean.'''
         if PopulationFactory._groupMeans is None:
-            df = PopulationFactory.get_nhanesDf()
+            df = PopulationFactory.get_nhanesDf_resampled() #same bootstrap as the fits, so shift and draw agree on the weights
             keyFrame = PopulationFactory.group_key_frame(df)
             PopulationFactory._groupMeans = df[PopulationFactory.continuous_variables_drawn()].groupby(
                                                 [keyFrame[column] for column in keyFrame.columns],
                                                 observed=True).mean()
         return PopulationFactory._groupMeans
+
+    @staticmethod
+    def year_correction_key_frame(df):
+        '''The cells the per-year correction is defined by. Coarse on purpose: these cells hold a median
+        of ~226 people per year, while the fine group_key_frame cells hold ~2 per year, far too few for
+        year-specific means. Both the correction table and its look-up are built from this one function.'''
+        return pd.DataFrame({
+            "year": df["year"].astype(int),
+            StaticRiskFactorsType.GENDER.value: df[StaticRiskFactorsType.GENDER.value].astype(int),
+            "ageGroup": df[DynamicRiskFactorsType.AGE.value].apply(PopulationFactory.get_ageGroup_from_age).astype(int)})
+
+    @staticmethod
+    def get_year_corrections():
+        '''yearCellMean - pooledCellMean of every drawn continuous variable, per (year, gender, ageGroup).
+
+        The Gaussians and the group means are fit on all NHANES years pooled, so a drawn population
+        inherits the pooled levels (eg the later years' bmi in a 1999 population). Adding this difference
+        to the shift moves each row to its own year's level while keeping the pooled covariance.
+        Computed on the same weighted bootstrap as the fits and the group means.'''
+        if PopulationFactory._yearCorrections is None:
+            df = PopulationFactory.get_nhanesDf_resampled()
+            keyFrame = PopulationFactory.year_correction_key_frame(df)
+            contVars = PopulationFactory.continuous_variables_drawn()
+            yearMeans = df[contVars].groupby([keyFrame[column] for column in keyFrame.columns],
+                                             observed=True).mean()
+            pooledMeans = df[contVars].groupby([keyFrame[column] for column in keyFrame.columns[1:]],
+                                               observed=True).mean()
+            pooledAligned = pooledMeans.reindex(yearMeans.index.droplevel("year"))
+            PopulationFactory._yearCorrections = pd.DataFrame(
+                yearMeans.to_numpy() - pooledAligned.to_numpy(), index=yearMeans.index, columns=contVars)
+        return PopulationFactory._yearCorrections

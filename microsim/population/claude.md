@@ -372,6 +372,15 @@ internally; callers rarely need to instantiate it directly.
    prefer `distributions=False` for speed no longer holds; choose between them on what you want the
    population to be, not on cost.
 
+   The Gaussians and the fine group means are computed on a survey-weight bootstrap of the
+   NHANES rows (`get_nhanesDf_resampled`, fixed seed, cached), so the fitted statistics
+   reflect the same `WTINT2YR` weights the person-row sampling uses.
+
+   The fits pool all NHANES years, so each draw's shift also adds a per-(year, gender,
+   ageGroup) correction (`get_year_corrections`, cells coarse on purpose — the fine groups
+   hold ~2 people per year) that moves the row to its own year's level; rows without a
+   `year` column (the state projections) keep the pooled levels.
+
    `alcoholPerWeek` (drinks/week, continuous) is age-gated: every NHANES row under 18 has 0 drinks,
    so keys below `ALCOHOL_MIN_KEY_AGE` (18) fit their Gaussian without the alcohol dimension and
    everyone drawn from them gets exactly 0; keys at 18 and above include it (fits verified
