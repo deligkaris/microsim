@@ -133,8 +133,12 @@ class jnc8ForHighRiskLowBpTarget(jnc8ForHighRisk):
         self.targetBP = targetBP
     
     def get_goal(self, person):
-        return self.targetBP 
-    
+        return self.targetBP
+
+    def get_meds_needed_for_goal(self, person, goal):
+        '''Treat to goal only if the CV risk is above the threshold.'''
+        return super().get_meds_needed_for_goal(person, goal) if self.low_target(person) else 0
+
 # simplified class to represent SPRINT.
 class SprintTreatment(jnc8ForHighRiskLowBpTarget):
     def __init__(self, wmhSpecific=True):
@@ -156,6 +160,8 @@ class SprintForSbpOnlyTreatment(jnc8ForHighRiskLowBpTarget):
         essentially I cannot just initialize the super class with an extremely high DBP goal because then the DBP meds needed
         would always be 0 and that is the minimum no matter how many SBP meds are needed to reach the goal.
         So, I actually need to implement this function here based on SBP only.'''
+        if not self.low_target(person):
+            return 0
         sbpMedCount = int((getattr(person, "_"+DynamicRiskFactorsType.SBP.value)[-1] - goal["sbp"])
                           / AddBPTreatmentMedsToGoal120.sbpLowering)
         currentMeds = person._antiHypertensiveCountPlusBPMedsAdded()
@@ -164,12 +170,6 @@ class SprintForSbpOnlyTreatment(jnc8ForHighRiskLowBpTarget):
         return int(medsToReturn) if medsToReturn > 0 else 0
 
 class SprintForSbpRiskThreshold(SprintForSbpOnlyTreatment):
-    '''This strategy will be use an SBP goal only and it will implement the goal only if the CV risk is above 
-    a threshold.'''
-    def __init__(self, cvRiskCutoff=0.075, wmhSpecific=True):
-        super().__init__(cvRiskCutoff, wmhSpecific)
-
-    def get_meds_needed_for_goal(self, person, goal):
-        '''The low_target function determines if the CV risk is above the threshold.'''
-        return super().get_meds_needed_for_goal(person, goal) if self.low_target(person) else 0
+    '''Kept as an alias: the CV risk threshold is now enforced by all Sprint classes.'''
+    pass
 
