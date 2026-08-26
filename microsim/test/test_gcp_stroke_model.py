@@ -62,7 +62,6 @@ class TestCaseOne(Person):
         waistList = [waistMeanPrestroke] * (indexStroke+1) + [waistMeanPrestroke+x for x in range(10,50,10)]
         antiHypertensiveCountList = [0]*7
         statinList = [1]*7
-        otherLipidLoweringMedicationCountList = [0]*7
         creatinineList = [1]*7
         anyPhysicalActivityList=[1]*7
         meanGcpPrestroke = 6.104780222+50.
@@ -177,7 +176,6 @@ class TestCaseTwo(Person):
         waistList = [waistMeanPrestroke] * (indexStroke+1) + [waistMeanPrestroke+x for x in range(10,70,10)]
         antiHypertensiveCountList = [0]*9
         statinList = [1]*9
-        otherLipidLoweringMedicationCountList = [0]*9
         creatinineList = [1]*9
         anyPhysicalActivityList=[1]*9
         meanGcpPrestroke = 50. + 5.40984283
@@ -292,7 +290,6 @@ class TestCaseThree(Person):
         waistList = [waistMeanPrestroke] * (indexStroke+1) + [waistMeanPrestroke+x for x in range(10,50,10)]
         antiHypertensiveCountList = [1]*7
         statinList = [0]*7
-        otherLipidLoweringMedicationCountList = [0]*7
         creatinineList = [1]*7
         anyPhysicalActivityList=[1]*7
         meanGcpPrestroke = 50. + 13.656746
@@ -409,7 +406,6 @@ class TestCaseFour(Person):
         waistList = [waistMeanPrestroke] * (indexStroke+1) + [waistMeanPrestroke+x for x in range(10,100,10)]
         antiHypertensiveCountList = [1]*12
         statinList = [1]*12
-        otherLipidLoweringMedicationCountList = [0]*12
         creatinineList = [1]*12
         anyPhysicalActivityList=[1]*12
         meanGcpPrestroke = 50. + 2.946463

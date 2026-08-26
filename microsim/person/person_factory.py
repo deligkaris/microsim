@@ -111,7 +111,6 @@ class PersonFactory:
         #bool: NHANES includes statin=2 but models expect a 0/1 indicator; matches the Kaiser path
         personDefaultTreatments = {
                             DefaultTreatmentsType.STATIN.value: bool(x.statin),
-                            #DefaultTreatmentsType.OTHER_LIPID_LOWERING_MEDICATION_COUNT.value: x.otherLipidLowering,
                             DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: x.antiHypertensiveCount}
 
         personTreatmentStrategies = dict(zip([strategy.value for strategy in TreatmentStrategiesType],

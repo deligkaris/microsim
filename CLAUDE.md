@@ -177,7 +177,7 @@ See `microsim/treatment_strategies/claude.md` for detailed guidance on creating 
 - **See `microsim/risk_factors/claude.md` for detailed risk factor documentation**
 
 **Treatments** (`default_treatments/default_treatments.py`, `treatment_strategies/treatment_strategies.py`):
-- Default: `antiHypertensiveCount`, `statin`, `otherLipidLoweringMedicationCount`
+- Default: `antiHypertensiveCount`, `statin`
 - **See `microsim/default_treatments/claude.md` for detailed default treatment documentation**
 - Strategies: Defined in `treatment_strategies/` directory per protocol
 - **See `microsim/treatment_strategies/claude.md` for detailed treatment strategy documentation**
