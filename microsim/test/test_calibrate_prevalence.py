@@ -71,7 +71,8 @@ def _measure_realized_prev(scaleOutcomeType, targetOutcomeType, scaling, scope, 
        rebuilds shrinks that by sqrt(rebuilds)."""
     rs = dict(baselineRiskScaling or {})
     rs[scaleOutcomeType] = scaling
-    opmr = OutcomePrevalenceModelRepository(riskScaling=rs)
+    #useDefaults=False to mirror calibrate_prevalence, which measures against a pristine baseline
+    opmr = OutcomePrevalenceModelRepository(riskScaling=rs, useDefaults=False)
     prevalences = []
     for _ in range(rebuilds):
         people = PopulationFactory.get_nhanes_people(
