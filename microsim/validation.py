@@ -13,6 +13,7 @@ from microsim.trials.trial_outcome_assessor_factory import TrialOutcomeAssessorF
 from microsim.trials.trial_outcome_assessor import AnalysisType
 from microsim.trials.trial_type import TrialType
 from microsim.outcomes.outcome import OutcomeType
+from microsim.outcomes.reference import Reference
 
 class Burke2024:
     '''The published values that Burke et al., "Development and validation of the Michigan Chronic
@@ -358,15 +359,31 @@ class Validation:
     def nhanes_prevalence_by_age(outcomeType=OutcomeType.STROKE, popSize=100000, year=2017):
         '''Creates a nationally representative US population (NHANES survey-weighted, adults) and
            prints the baseline prevalence of an outcome by 5-year age group. The population is not
-           advanced, so this is the seeded priorToSim prevalence.
-           Returns the prevalence dictionary keyed by age group.'''
+           advanced, so this is the seeded priorToSim prevalence. When Reference.prevalence holds
+           rates for the outcome, they are printed next to the simulation: split by gender when the
+           reference is gender-stratified, pooled otherwise.
+           Returns the prevalence dictionary keyed by age group (by gender then age group when the
+           reference is gender-stratified).'''
         print(f"\n{outcomeType.value.upper()} PREVALENCE BY AGE GROUP AT BASELINE (NHANES {year}, survey-weighted)")
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=year, personFilters=None,
                                                       nhanesWeights=True, distributions=False)
-        prevalence = pop.get_prevalence_by_age(outcomeType, groups=True)
-        print(f"{'age group':>12}{'prevalence':>14}")
-        for ageGroup, value in prevalence.items():
-            print(f"{ageGroup:>12}{value:>14.4f}")
+        reference = Reference.prevalence.get(outcomeType.value)
+        if reference is not None and "male" in reference:
+            prevalence = pop.get_prevalence_by_age(outcomeType, groups=True, byGender=True)
+            for gender in prevalence.keys():
+                print(f"{gender}")
+                print(f"{'age group':>12}{'simulation':>14}{'reference':>14}")
+                for ageGroup, value in prevalence[gender].items():
+                    ref = reference[gender].get(ageGroup)
+                    refString = f"{ref:>14.4f}" if ref is not None else f"{'':>14}"
+                    print(f"{ageGroup:>12}{value:>14.4f}{refString}")
+        else:
+            prevalence = pop.get_prevalence_by_age(outcomeType, groups=True)
+            print(f"{'age group':>12}{'simulation':>14}{'reference':>14}")
+            for ageGroup, value in prevalence.items():
+                ref = reference.get(ageGroup) if reference is not None else None
+                refString = f"{ref:>14.4f}" if ref is not None else f"{'':>14}"
+                print(f"{ageGroup:>12}{value:>14.4f}{refString}")
         return prevalence
 
     @staticmethod

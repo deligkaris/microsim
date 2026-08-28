@@ -56,6 +56,22 @@ class Reference:
                  "60-64": 0.0397,
                  "65-69": 0.0529,
                  "70-74": 0.0681}},
+        #https://vizhub.healthdata.org/gbd-compare/
+        #myocardial infarction as the cause, prevalence as the measure, USA, 1999
+        #reference only: the MI prevalence partition model is deliberately not fit to these
+        OutcomeType.MI.value:
+            {"male":
+                {"50-54": 0.0678,
+                 "55-59": 0.106,
+                 "60-64": 0.151,
+                 "65-69": 0.203,
+                 "70-74": 0.255},
+             "female":
+                {"50-54": 0.0302,
+                 "55-59": 0.0460,
+                 "60-64": 0.0662,
+                 "65-69": 0.0928,
+                 "70-74": 0.124}},
         #same source as the incidence for epilepsy
         OutcomeType.EPILEPSY.value:
             {"15-19": 357.92/100000,
