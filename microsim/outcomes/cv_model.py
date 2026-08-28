@@ -152,76 +152,27 @@ class CVModelFemale(CVModelBase):
 
 class CVPrevalenceModel(OutcomePrevalenceBase):
     """Logistic prevalence model that seeds priorToSim CV at Person construction.
-       The anyPhysicalActivity/sbp/dbp/totChol arguments are unused until coefficients
-       for them are fitted."""
+       Age and gender are the only inputs, so the realized prevalence per age group and
+       gender matches the GBD rates the coefficients were fit to, with no risk scaling."""
 
     _outcomeType = OutcomeType.CARDIOVASCULAR
 
+    # Per-gender OLS fit of logit(prevalence) on age-group midpoints to the GBD rates in
+    # Reference.prevalence[cv] (ages 50-74, USA, 1999); max residual 0.008, 2026-08-28.
+    _coefficients = {
+        NHANESGender.MALE: {"Intercept": -6.7306, "age": 0.09978},
+        NHANESGender.FEMALE: {"Intercept": -6.7626, "age": 0.09176},
+    }
+
     def __init__(self, riskScaling=1.0):
-        self._intercept = -7.16
         self._riskScaling = riskScaling
 
     def get_linear_predictor_for_person(self, person):
         return self.calc_linear_predictor_for_patient_characteristics(
             person._age[-1],
             person._gender,
-            person._raceEthnicity,
-            person._education,
-            person._smokingStatus,
-            person._anyPhysicalActivity[-1],
-            person._sbp[-1],
-            person._dbp[-1],
-            person._totChol[-1],
         )
 
-    def calc_linear_predictor_for_patient_characteristics(
-        self,
-        age,
-        gender,
-        raceEthnicity,
-        education,
-        smokingStatus,
-        anyPhysicalActivity,
-        sbp,
-        dbp,
-        totChol,
-    ):
-        xb = self._intercept + ( - 1.57 / 18.97 ) * 55.02
-
-        xb += ( 1.57 / 18.97 ) * age
-
-        if gender == NHANESGender.FEMALE:
-            xb += -1.
-        elif gender == NHANESGender.MALE:
-            xb += 0.  # reference
-
-        if raceEthnicity == RaceEthnicity.NON_HISPANIC_WHITE:
-            xb += -0.473
-        elif raceEthnicity == RaceEthnicity.ASIAN:
-            xb += 0.
-        elif raceEthnicity == RaceEthnicity.NON_HISPANIC_BLACK:
-            xb += 0.110
-        elif raceEthnicity == RaceEthnicity.OTHER_HISPANIC:
-            xb += 0.0359
-        elif raceEthnicity == RaceEthnicity.OTHER:
-            xb += -0.134
-
-        if education == Education.LESSTHANHIGHSCHOOL: 
-            xb += 0.  # reference
-        elif education == Education.SOMEHIGHSCHOOL:
-            xb += 0.535
-        elif education == Education.HIGHSCHOOLGRADUATE:
-            xb += 0.352
-        elif education == Education.SOMECOLLEGE:
-            xb += 0.316
-        elif education == Education.COLLEGEGRADUATE:
-            xb += 0.203
-
-        if smokingStatus == SmokingStatus.NEVER:
-            xb += 0.  # reference
-        elif smokingStatus == SmokingStatus.FORMER:
-            xb += -0.105
-        elif smokingStatus == SmokingStatus.CURRENT:
-            xb += 0.803
-
-        return xb
+    def calc_linear_predictor_for_patient_characteristics(self, age, gender):
+        coefficients = self._coefficients[gender]
+        return coefficients["Intercept"] + coefficients["age"] * age

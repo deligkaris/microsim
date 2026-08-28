@@ -26,6 +26,21 @@ class Reference:
     }
     
     prevalence = {
+        #https://vizhub.healthdata.org/gbd-compare/
+        #cardiovascular diseases as the cause, prevalence as the measure, USA, 1999
+        OutcomeType.CARDIOVASCULAR.value:
+            {"male":
+                {"50-54": 0.173,
+                 "55-59": 0.262,
+                 "60-64": 0.372,
+                 "65-69": 0.495,
+                 "70-74": 0.604},
+             "female":
+                {"50-54": 0.121,
+                 "55-59": 0.176,
+                 "60-64": 0.253,
+                 "65-69": 0.356,
+                 "70-74": 0.459}},
         #same source as the incidence for epilepsy
         OutcomeType.EPILEPSY.value:
             {"15-19": 357.92/100000, 
