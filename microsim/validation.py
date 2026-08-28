@@ -355,6 +355,21 @@ class Validation:
                 "treatmentEffects": treatmentEffectsResults}
 
     @staticmethod
+    def nhanes_prevalence_by_age(outcomeType=OutcomeType.STROKE, popSize=100000, year=2017):
+        '''Creates a nationally representative US population (NHANES survey-weighted, adults) and
+           prints the baseline prevalence of an outcome by 5-year age group. The population is not
+           advanced, so this is the seeded priorToSim prevalence.
+           Returns the prevalence dictionary keyed by age group.'''
+        print(f"\n{outcomeType.value.upper()} PREVALENCE BY AGE GROUP AT BASELINE (NHANES {year}, survey-weighted)")
+        pop = PopulationFactory.get_nhanes_population(n=popSize, year=year, personFilters=None,
+                                                      nhanesWeights=True, distributions=False)
+        prevalence = pop.get_prevalence_by_age(outcomeType, groups=True)
+        print(f"{'age group':>12}{'prevalence':>14}")
+        for ageGroup, value in prevalence.items():
+            print(f"{ageGroup:>12}{value:>14.4f}")
+        return prevalence
+
+    @staticmethod
     def kaiser_baseline_pop(wmhSpecific=True):
         print(f"\nVALIDATION OF BASELINE SIMULATED POPULATION\n")
         popSize = 500000

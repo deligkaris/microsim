@@ -25,8 +25,9 @@ from microsim.outcomes.cognition_model_repository import CognitionPrevalenceMode
 #   OutcomeType.CARDIOVASCULAR: 1.23,  # scale=CV, target_outcome=CV, target=0.18,
 #                                      # AgeScope(65, None), NHANES 1999, 2026-05-15
 DEFAULT_PREVALENCE_RISK_SCALING: dict[OutcomeType, float] = {
-      # calibrate_prevalence: scale=cv target_outcome=stroke scope=age_group_80-84 target=0.0780 (GBD data)
-      OutcomeType.CARDIOVASCULAR: 71.9,
+      # calibrate_prevalence: scale=cv target_outcome=stroke scope=age_group_70-74 target=0.0730 (GBD),
+      # NHANES 1999, n=200000, nhanesWeights=True, 2026-08-28
+      OutcomeType.CARDIOVASCULAR: 203.52,
       # calibrate_prevalence: scale=epilepsy target_outcome=epilepsy scope=pooled_65_plus target=0.0110 scaling=1.8845, CMS-based data for >=65
       # and keep CV risk to default above
       OutcomeType.EPILEPSY: 1.88

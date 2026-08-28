@@ -387,16 +387,12 @@ class Population:
                 incidence[age] = 0
         return incidence
 
-    def get_prevalence_by_age(self, outcomeType, groups=False):
-        '''Cross-sectional prevalence at the current simulation snapshot.
-           Each alive person contributes once at their current age: to the
-           denominator always, and to the numerator if they currently have
-           the condition (priorToSim outcome, or in-sim outcome at age
-           <= current age). Returns a Counter keyed by age (or age group).'''
-        alivePeople = list(filter(lambda p: p.is_alive, self._people))
-        agesCounter = Counter(map(lambda p: p._current_age, alivePeople))
+    def _get_prevalence_by_age_of_people(self, outcomeType, people, groups):
+        '''The prevalence-by-age calculation of get_prevalence_by_age over an explicit list of
+           (alive) people, so that the same definition can be applied to any subset of the population.'''
+        agesCounter = Counter(map(lambda p: p._current_age, people))
         agesWithOutcomeCounter = Counter(map(lambda p: p._current_age,
-            filter(lambda p: p.has_outcome_by_age(outcomeType, p._current_age, inSim=False), alivePeople)))
+            filter(lambda p: p.has_outcome_by_age(outcomeType, p._current_age, inSim=False), people)))
         if groups:
             agesCounter = self.get_ages_group_counter(agesCounter) #converts the Counter of ages to a Counter of age groups
             agesWithOutcomeCounter = self.get_ages_group_counter(agesWithOutcomeCounter) #same thing
@@ -404,6 +400,36 @@ class Population:
         for key in sorted(agesCounter.keys(), key=Population.get_age_key_sort_key): #sorting keys here preserves sorted insertion order for the prevalence as well
             prevalence[key] = agesWithOutcomeCounter.get(key,0) / agesCounter.get(key,0)
         return Counter(prevalence)
+
+    def get_prevalence_by_age(self, outcomeType, groups=False, byGender=False):
+        '''Cross-sectional prevalence at the current simulation snapshot.
+           Each alive person contributes once at their current age: to the
+           denominator always, and to the numerator if they currently have
+           the condition (priorToSim outcome, or in-sim outcome at age
+           <= current age). Returns a Counter keyed by age (or age group).
+           byGender=True returns {"male": Counter, "female": Counter} instead, each computed
+           over that gender's alive people only.'''
+        alivePeople = list(filter(lambda p: p.is_alive, self._people))
+        if byGender:
+            return {gender.name.lower():
+                        self._get_prevalence_by_age_of_people(outcomeType,
+                            [p for p in alivePeople if p._gender == gender], groups)
+                    for gender in NHANESGender}
+        return self._get_prevalence_by_age_of_people(outcomeType, alivePeople, groups)
+
+    def get_prevalence_by_gender(self, outcomeType):
+        '''Cross-sectional prevalence pooled over all ages, one rate per gender: alive people of
+           that gender who currently have the condition over all alive people of that gender.
+           Returns {"male": rate, "female": rate}.'''
+        alivePeople = list(filter(lambda p: p.is_alive, self._people))
+        prevalence = dict()
+        for gender in NHANESGender:
+            genderPeople = [p for p in alivePeople if p._gender == gender]
+            withOutcome = [p for p in genderPeople
+                           if p.has_outcome_by_age(outcomeType, p._current_age, inSim=False)]
+            prevalence[gender.name.lower()] = (len(withOutcome) / len(genderPeople)
+                                               if len(genderPeople) > 0 else 0)
+        return prevalence
 
     def get_event_rate_in_simulation(self, eventType, duration):
         events = [
