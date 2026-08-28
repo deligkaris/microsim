@@ -98,6 +98,7 @@ class StrokePrevalenceModel(OutcomePrevalenceBase):
     # Per-gender OLS fit of logit(q) on age-group midpoints, where q is the GBD stroke rate in
     # Reference.prevalence[stroke] (ages 50-74, USA, 1999) divided by the CVPrevalenceModel
     # probability; realized prevalence within 0.0015 of GBD in every cell, 2026-08-28.
+    # Regenerate with calibration.fit_stroke_prevalence; test_calibration enforces agreement.
     _coefficients = {
         NHANESGender.MALE: {"Intercept": -2.1429, "age": 0.00303},
         NHANESGender.FEMALE: {"Intercept": -1.0932, "age": -0.00938},

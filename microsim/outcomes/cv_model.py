@@ -159,6 +159,7 @@ class CVPrevalenceModel(OutcomePrevalenceBase):
 
     # Per-gender OLS fit of logit(prevalence) on age-group midpoints to the GBD rates in
     # Reference.prevalence[cv] (ages 50-74, USA, 1999); max residual 0.008, 2026-08-28.
+    # Regenerate with calibration.fit_cv_prevalence; test_calibration enforces agreement.
     _coefficients = {
         NHANESGender.MALE: {"Intercept": -6.7306, "age": 0.09978},
         NHANESGender.FEMALE: {"Intercept": -6.7626, "age": 0.09176},
