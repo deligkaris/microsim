@@ -508,7 +508,15 @@ class PopulationFactory:
            clears _outcomes, and re-runs Person.seed_prevalent_outcomes with the trial
            scaling. The inner loop is deterministic in s irrespective of nhanesWeights.
 
-           Returns: float scaling to feed into prevalenceRiskScaling={scaleOutcomeType: s}.'''
+           Returns: float scaling to feed into prevalenceRiskScaling={scaleOutcomeType: s}.
+
+           Note the search runs against a pristine baseline (useDefaults=False), while a
+           population built with prevalenceRiskScaling={scaleOutcomeType: s} merges in
+           DEFAULT_PREVALENCE_RISK_SCALING, whose entries for other outcomes then stack on top
+           of s and move the realized prevalence off the target. Either neutralize those
+           defaults when building (e.g. add STROKE: 1.0) and pass the same dict here as
+           baselineRiskScaling, or pass the defaults you intend to keep as baselineRiskScaling
+           so the returned s already accounts for them.'''
 
         if popType is not PopulationType.NHANES:
             raise NotImplementedError(
