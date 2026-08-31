@@ -1,3 +1,5 @@
+import pandas as pd
+
 from microsim.person.person_filter import PersonFilter
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
@@ -44,6 +46,7 @@ class PersonFilterFactory:
         "highCVLimit"                person one-year CV risk < 0.00477
         "noMCI"                      person no MCI at baseline
         "hasEpilepsy"                person has epilepsy at baseline
+        "usBornOrInUs15PlusYears"    df     US-born, or foreign-born in the US 15+ years
 
     Pass any subset of these keys to get_person_filter to obtain a PersonFilter holding
     exactly those filters (each is added under its own key as its filter name):
@@ -95,6 +98,11 @@ class PersonFilterFactory:
             lambda x: not x.has_mci(inSim=False)),
         "hasEpilepsy": ("person",
             lambda x: x.has_epilepsy()),
+        #timeInUS is NHANES DMDYRSUS: duration bands asked only of the foreign-born (5 = 15-<20
+        #years, the band holding an 18-year lookback; 77/99 = refused/don't know), NaN for the
+        #US-born - who must be kept, NaN >= threshold silently drops them all
+        "usBornOrInUs15PlusYears": ("df",
+            lambda x: pd.isna(x["timeInUS"]) or (5 <= x["timeInUS"] <= 9)),
     }
 
     @staticmethod

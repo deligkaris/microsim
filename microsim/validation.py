@@ -154,13 +154,12 @@ class Validation:
         popSize = 100000
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=None, nhanesWeights=True, distributions=distributions)
         pop.advance_parallel(nYears, None, nWorkers)
-        pf = PersonFilterFactory.get_person_filter([])
+        #the comparison population is restricted to people who were plausibly in the US in 1999
+        #(the advanced cohort cannot gain post-1999 immigrants) and to ages the cohort can reach
+        pf = PersonFilterFactory.get_person_filter(["usBornOrInUs15PlusYears"])
         pf.add_filter(filterType="df",
                       filterName="lowAge",
                       filterFunction = lambda x: x[DynamicRiskFactorsType.AGE.value]>=36)
-        pf.add_filter(filterType="df",
-                      filterName="noImmigration",
-                      filterFunction = lambda x: x["timeInUS"]>=4)
         nhanesPop = PopulationFactory.get_nhanes_population(n=popSize, year=2017, personFilters=pf, nhanesWeights=True, distributions=distributions)
 
         print("\nVALIDATION OF VASCULAR RISK FACTORS OVER TIME")
