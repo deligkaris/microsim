@@ -140,7 +140,9 @@ class Validation:
     @staticmethod
     def nhanes_over_time(nWorkers=5, path=None, distributions=False):
         '''Performs the over time validation of a population against the NHANES sample.
-           The filters are used only for the NHANES comparison population from 2017.
+           The advanced 1999 population excludes people with a history of stroke or MI, like the
+           Burke2024 cohort; the immigration/age filters apply only to the NHANES 2017 comparison
+           population.
            People that died prior to 2017 are not removed from the simulation population, if the simulation population is large enough
            and the death models work well, the resulting simulated population from an advancement of 18 years should be close to the
            NHANES comparison population.
@@ -152,7 +154,15 @@ class Validation:
            the standardized CV rates and the dementia incidence, for print_over_time_with_burke2024.'''
         nYears = 18
         popSize = 100000
-        pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=None, nhanesWeights=True, distributions=distributions)
+        #like the Burke2024 cohort, the advanced population excludes people with a history of
+        #stroke or MI; a person-level filter, since the seeded priorToSim outcomes only exist on
+        #a constructed Person. No prior CV is equivalent: the MI prevalence partition gives every
+        #seeded-CV person either a stroke or an MI
+        pfSim = PersonFilterFactory.get_person_filter(["adult"])
+        pfSim.add_filter(filterType="person",
+                         filterName="noPriorCV",
+                         filterFunction = lambda x: not x.has_outcome_prior_to_simulation(OutcomeType.CARDIOVASCULAR))
+        pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=pfSim, nhanesWeights=True, distributions=distributions)
         pop.advance_parallel(nYears, None, nWorkers)
         #the comparison population is restricted to people who were plausibly in the US in 1999
         #(the advanced cohort cannot gain post-1999 immigrants) and to ages the cohort can reach
@@ -330,8 +340,8 @@ class Validation:
         print("US population mortality, and a meta-analysis of BP-lowering trials.")
         print("\nThe runs printed here differ from the ones the paper describes: 100,000 people")
         print("rather than 500,000 at baseline and 250,000 over time, 4 simulations rather than")
-        print("15 for the treatment effects, and a population advanced over time that, unlike")
-        print("the paper's, is not restricted to people without prior stroke, MI or dementia.")
+        print("15 for the treatment effects, and a population advanced over time that excludes")
+        print("prior stroke and MI like the paper's but, unlike the paper's, not prior dementia.")
 
         Validation.print_baseline_pop_with_burke2024(baselineResults)
         Validation.print_over_time_with_burke2024(overTimeResults)
