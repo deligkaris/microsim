@@ -177,7 +177,7 @@ class Trial:
 
     def export_results(self, path):
         '''CSV mirroring the printout: trial description once at the top, then one block per analysis type
-        with a header row and one row per assessment. None/nan become empty cells, inf is kept.'''
+        with a header row and one row per assessment. Numbers are formatted as in the printout.'''
         dfs = self.get_results_dfs()
         desc = self.trialDescription
         strategies = "+".join(k for k, v in desc.treatmentStrategies._repository.items() if v is not None)
@@ -187,7 +187,7 @@ class Trial:
                               ("duration", desc.duration), ("treatmentStrategies", strategies)])
             for analysisType, df in dfs.items():
                 writer.writerows([(), ("analysis", analysisType)])
-                df.to_csv(f, index_label="assessment", lineterminator="\n")
+                df.map(Trial.format_result).to_csv(f, index_label="assessment", lineterminator="\n")
         print(f"exported trial results to {path}")
 
     def print_covariate_distributions(self):
@@ -239,6 +239,16 @@ class Trial:
         wmhSpecific = self.trialDescription.wmhSpecific if hasattr(self.trialDescription, 'wmhSpecific') else True
         self.treatedPop.print_lastyear_treatment_strategy_distributions_by_risk(wmhSpecific=wmhSpecific) 
 
+    @staticmethod
+    def format_result(result):
+        '''None -> empty, inf/nan -> literal, otherwise 3 decimals; shared by the printout and the CSV export.'''
+        if result is None:
+            return ""
+        elif math.isinf(result) or math.isnan(result):
+            return f"{result}"
+        else:
+            return f"{result:.3f}"
+
     def __str__(self):
         rep = self.trialDescription.__str__()
         rep += f"\nTrial\n"
@@ -273,12 +283,7 @@ class Trial:
                 for key in self.results[analysisType.value].keys():
                     rep += f"{key:>25}: "
                     for result in self.results[analysisType.value][key]:
-                        if result is None:
-                            rep += " "*7
-                        elif math.isinf(result) or math.isnan(result):
-                            rep += f"{result:>7}" #renders inf/-inf/nan
-                        else:
-                            rep += f"{result:>7.3f}"
+                        rep += f"{Trial.format_result(result):>7}"
                     rep += "\n"
         return rep
 

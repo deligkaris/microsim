@@ -341,10 +341,10 @@ class TestTrialGuardsAndFormatting(unittest.TestCase):
             lines = open(path).read().splitlines()
         #description once at the top, then one block per analysis type in enum order (not dict order)
         self.assertEqual(["popType,nhanes", "sampleSize,10", "duration,2", "treatmentStrategies,",
-                          "", "analysis,linear", "assessment,coef,se,pValue,intercept", "demo,1.23456,,inf,-inf",
-                          "", "analysis,cox", "assessment,coef,se,pValue,intercept", "deathCox,0.1,0.2,0.3,",
+                          "", "analysis,linear", "assessment,coef,se,pValue,intercept", "demo,1.235,nan,inf,-inf",
+                          "", "analysis,cox", "assessment,coef,se,pValue,intercept", "deathCox,0.100,0.200,0.300,",
                           "", "analysis,incidenceRate", "assessment,treatedRatePer1000PY,controlRatePer1000PY",
-                          "strokeIR,5.0,7.0"], lines)
+                          "strokeIR,5.000,7.000"], lines)
 
     def test_results_dfs_rejects_wrong_tuple_length(self):
         trial = self.make_bare_trial()
