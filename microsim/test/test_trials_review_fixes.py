@@ -339,20 +339,23 @@ class TestTrialGuardsAndFormatting(unittest.TestCase):
             path = os.path.join(d, "r.csv")
             trial.export_results(path)
             df = pd.read_csv(path)
-        self.assertEqual(["linear", "cox", "incidenceRate"], list(df["analysisType"])) #enum order, not dict order
-        self.assertEqual(["popType", "sampleSize", "duration", "treatmentStrategies", "analysisType", "assessment",
-                          "coef", "se", "pValue", "intercept", "relativeRisk"], list(df.columns)[:11])
-        self.assertEqual("controlRatePer1000PY", df.columns[-1])
-        self.assertEqual(["nhanes"] * 3, list(df["popType"]))
-        self.assertEqual([10] * 3, list(df["sampleSize"]))
-        self.assertEqual([2] * 3, list(df["duration"]))
-        demo, cox, ir = df.iloc[0], df.iloc[1], df.iloc[2]
+        self.assertEqual(["analysisType", "assessment", "quantity", "value"], list(df.columns))
+        #description block first, then results in enum order (not dict order); 4 + 4 + 4 + 2 rows
+        self.assertEqual(["trialDescription"] * 4 + ["linear"] * 4 + ["cox"] * 4 + ["incidenceRate"] * 2,
+                         list(df["analysisType"]))
+        meta = df.iloc[:4].set_index("quantity")["value"]
+        self.assertEqual("nhanes", meta["popType"])
+        self.assertEqual("10", meta["sampleSize"]) #value column is read back as str, it mixes str and float
+        self.assertEqual("2", meta["duration"])
+        demo = df[df.assessment == "demo"].set_index("quantity")["value"].astype(float)
+        self.assertEqual(["coef", "se", "pValue", "intercept"], list(demo.index))
         self.assertAlmostEqual(1.23456, demo["coef"])
         self.assertTrue(pd.isna(demo["se"]))
         self.assertEqual(float('inf'), demo["pValue"])
         self.assertEqual(float('-inf'), demo["intercept"])
+        cox = df[df.assessment == "deathCox"].set_index("quantity")["value"]
         self.assertTrue(pd.isna(cox["intercept"]))
-        self.assertTrue(pd.isna(ir["coef"]))
+        ir = df[df.assessment == "strokeIR"].set_index("quantity")["value"].astype(float)
         self.assertEqual(5.0, ir["treatedRatePer1000PY"])
 
     def test_results_df_rejects_wrong_tuple_length(self):

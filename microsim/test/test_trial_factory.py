@@ -42,12 +42,12 @@ class TestTrialFactoryNhanes(unittest.TestCase):
         self.assertEqual(len(self.trial.treatedPop._people) +
                          len(self.trial.controlPop._people), 100)
 
-    def test_export_results_one_row_per_assessment(self):
-        nAssessments = sum(len(v) for v in self.trial.results.values())
+    def test_export_results_one_row_per_value(self):
+        nValues = 4 + sum(len(t) for byName in self.trial.results.values() for t in byName.values())
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "r.csv")
             self.trial.export_results(path)
-            self.assertEqual(nAssessments, len(pd.read_csv(path)))
+            self.assertEqual(nValues, len(pd.read_csv(path)))
 
 
 class TestTrialFactoryKaiser(unittest.TestCase):

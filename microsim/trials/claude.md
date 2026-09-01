@@ -67,8 +67,9 @@ trial = TrialFactory.run_nhanes(sampleSize=1000, duration=5,
 print(trial)  # formatted results table
 ```
 
-Pass `exportPath="trial-results.csv"` to also write the results to a CSV file (one row per
-assessment, wide layout). The default `exportPath=None` writes nothing.
+Pass `exportPath="trial-results.csv"` to also write the results to a CSV file in long format
+(`analysisType, assessment, quantity, value`; the trial description is a block of leading rows).
+The default `exportPath=None` writes nothing.
 
 `treatmentStrategies` accepts the same forms as `TrialDescription` (None, a shorthand
 string, or a `TreatmentStrategyRepository`). Pass `assessor=` to override the default

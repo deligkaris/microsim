@@ -160,25 +160,24 @@ class Trial:
             self.export_results(exportPath)
 
     def get_results_df(self):
-        '''One row per assessment; columns are the union of all analysis columns, blank where not applicable.'''
+        '''Long format, one row per (analysisType, assessment, quantity, value).
+        The trial description (popType, sampleSize, duration, treatmentStrategies) is a block of leading rows.'''
         if not self.analyzed:
             raise RuntimeError("Cannot export results of a trial that has not been analyzed.")
         desc = self.trialDescription
-        meta = {"popType": desc.popType.value,
-                "sampleSize": desc.sampleSize,
-                "duration": desc.duration,
-                "treatmentStrategies": "+".join(k for k, v in desc.treatmentStrategies._repository.items() if v is not None)}
-        rows = []
+        strategies = "+".join(k for k, v in desc.treatmentStrategies._repository.items() if v is not None)
+        rows = [("trialDescription", "trial", "popType", desc.popType.value),
+                ("trialDescription", "trial", "sampleSize", desc.sampleSize),
+                ("trialDescription", "trial", "duration", desc.duration),
+                ("trialDescription", "trial", "treatmentStrategies", strategies)]
         for analysisType in AnalysisType:
             if analysisType.value not in self.results:
                 continue
             columns = ANALYSIS_CLASSES[analysisType.value].columns
             for name, values in self.results[analysisType.value].items():
                 #strict zip so a tuple/columns mismatch raises instead of silently misaligning
-                rows.append({**meta, "analysisType": analysisType.value, "assessment": name,
-                             **dict(zip(columns, values, strict=True))})
-        valueColumns = dict.fromkeys(c for cls in ANALYSIS_CLASSES.values() for c in cls.columns)
-        return pd.DataFrame(rows, columns=list(meta) + ["analysisType", "assessment"] + list(valueColumns))
+                rows += [(analysisType.value, name, q, v) for q, v in zip(columns, values, strict=True)]
+        return pd.DataFrame(rows, columns=["analysisType", "assessment", "quantity", "value"])
 
     def export_results(self, path):
         '''Writes get_results_df to a CSV file; None/nan become empty cells, inf is kept.'''
