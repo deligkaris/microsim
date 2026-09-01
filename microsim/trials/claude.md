@@ -67,9 +67,9 @@ trial = TrialFactory.run_nhanes(sampleSize=1000, duration=5,
 print(trial)  # formatted results table
 ```
 
-Pass `exportPath="trial-results.csv"` to also write the results to a CSV file in long format
-(`analysisType, assessment, quantity, value`; the trial description is a block of leading rows).
-The default `exportPath=None` writes nothing.
+Pass `exportPath="trial-results.csv"` to also write the results to a CSV file laid out like the
+printout: the trial description once at the top, then one block per analysis type with a header row
+and one row per assessment. The default `exportPath=None` writes nothing.
 
 `treatmentStrategies` accepts the same forms as `TrialDescription` (None, a shorthand
 string, or a `TreatmentStrategyRepository`). Pass `assessor=` to override the default
@@ -146,7 +146,7 @@ TrialDescription — you do not create populations and pass them in.
    ```
    `trial.run_analyze(assessor, exportPath=...)` runs, analyzes, and exports in one call;
    `trial.export_results(path)` writes the CSV for an already-analyzed trial and
-   `trial.get_results_df()` returns the same table as a DataFrame.
+   `trial.get_results_dfs()` returns the same blocks as a dict of DataFrames keyed by analysis type.
 
 ## Testing Trial Components
 
@@ -205,7 +205,7 @@ When adding a new `AnalysisType` to the outcome assessor, **always update all of
 
 1. `trial_outcome_assessor.py` — add the enum value and register the class in `ANALYSIS_CLASSES` (`_analysis` is built from it)
 2. `trial_outcome_assessor.py` — update validation in `add_outcome_assessment` if the new type requires a non-standard set of assessment functions (`cox` uses `{"outcome", "time"}`, `incidenceRate` uses `{"eventAndTime"}` pair functions, the rest use `{"outcome"}`)
-3. `incidence_rate_analysis.py` (or new file) — implement the analysis class with an `analyze(trial, assessmentFunctionDict, assessmentAnalysis)` method and a `columns` class attribute naming each element of the returned tuple, in order (`get_results_df` zips them strictly, so a mismatch raises)
+3. `incidence_rate_analysis.py` (or new file) — implement the analysis class with an `analyze(trial, assessmentFunctionDict, assessmentAnalysis)` method and a `columns` class attribute naming each element of the returned tuple, in order (`get_results_dfs` zips them strictly, so a mismatch raises)
 4. `trial_outcome_assessor_factory.py` — add default assessments for the new type
 5. **`trial.py` `__str__` method** — add an `elif analysisType == AnalysisType.NEW_TYPE:` branch with an appropriate column header for the results printout
 6. `claude.md` (this file) — update the statistical methods list and directory structure

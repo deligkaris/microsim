@@ -5,6 +5,7 @@ from microsim.treatment_strategies.treatment_strategies import TreatmentStrategi
 from microsim.trials.trial_outcome_assessor import AnalysisType, ANALYSIS_CLASSES
 
 import copy
+import csv
 import math
 import pandas as pd
 import sys
@@ -159,31 +160,36 @@ class Trial:
         if exportPath is not None:
             self.export_results(exportPath)
 
-    def get_results_df(self):
-        '''Long format, one row per (analysisType, assessment, quantity, value).
-        The trial description (popType, sampleSize, duration, treatmentStrategies) is a block of leading rows.'''
+    def get_results_dfs(self):
+        '''One DataFrame per analysis type, one row per assessment, columns named by the analysis class.'''
         if not self.analyzed:
             raise RuntimeError("Cannot export results of a trial that has not been analyzed.")
-        desc = self.trialDescription
-        strategies = "+".join(k for k, v in desc.treatmentStrategies._repository.items() if v is not None)
-        rows = [("trialDescription", "trial", "popType", desc.popType.value),
-                ("trialDescription", "trial", "sampleSize", desc.sampleSize),
-                ("trialDescription", "trial", "duration", desc.duration),
-                ("trialDescription", "trial", "treatmentStrategies", strategies)]
+        dfs = dict()
         for analysisType in AnalysisType:
             if analysisType.value not in self.results:
                 continue
             columns = ANALYSIS_CLASSES[analysisType.value].columns
-            for name, values in self.results[analysisType.value].items():
-                #strict zip so a tuple/columns mismatch raises instead of silently misaligning
-                rows += [(analysisType.value, name, q, v) for q, v in zip(columns, values, strict=True)]
-        return pd.DataFrame(rows, columns=["analysisType", "assessment", "quantity", "value"])
+            #strict zip so a tuple/columns mismatch raises instead of silently misaligning
+            rows = {name: dict(zip(columns, values, strict=True))
+                    for name, values in self.results[analysisType.value].items()}
+            dfs[analysisType.value] = pd.DataFrame.from_dict(rows, orient="index", columns=list(columns))
+        return dfs
 
     def export_results(self, path):
-        '''Writes get_results_df to a CSV file; None/nan become empty cells, inf is kept.'''
-        self.get_results_df().to_csv(path, index=False)
+        '''CSV mirroring the printout: trial description once at the top, then one block per analysis type
+        with a header row and one row per assessment. None/nan become empty cells, inf is kept.'''
+        dfs = self.get_results_dfs()
+        desc = self.trialDescription
+        strategies = "+".join(k for k, v in desc.treatmentStrategies._repository.items() if v is not None)
+        with open(path, "w", newline="") as f:
+            writer = csv.writer(f, lineterminator="\n")
+            writer.writerows([("popType", desc.popType.value), ("sampleSize", desc.sampleSize),
+                              ("duration", desc.duration), ("treatmentStrategies", strategies)])
+            for analysisType, df in dfs.items():
+                writer.writerows([(), ("analysis", analysisType)])
+                df.to_csv(f, index_label="assessment", lineterminator="\n")
         print(f"exported trial results to {path}")
-           
+
     def print_covariate_distributions(self):
         '''This function is provided to help examine the balance of the Trial populations.'''
         if not self.trialDescription.is_block_randomized():

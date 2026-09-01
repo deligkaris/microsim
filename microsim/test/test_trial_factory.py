@@ -2,8 +2,6 @@ import os
 import tempfile
 import unittest
 
-import pandas as pd
-
 from microsim.trials.trial import Trial
 from microsim.trials.trial_factory import TrialFactory
 from microsim.trials.trial_outcome_assessor import AnalysisType
@@ -42,12 +40,14 @@ class TestTrialFactoryNhanes(unittest.TestCase):
         self.assertEqual(len(self.trial.treatedPop._people) +
                          len(self.trial.controlPop._people), 100)
 
-    def test_export_results_one_row_per_value(self):
-        nValues = 4 + sum(len(t) for byName in self.trial.results.values() for t in byName.values())
+    def test_export_results_one_row_per_assessment(self):
+        nAssessments = sum(len(byName) for byName in self.trial.results.values())
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "r.csv")
             self.trial.export_results(path)
-            self.assertEqual(nValues, len(pd.read_csv(path)))
+            lines = open(path).read().splitlines()
+        #4 description lines, then per analysis type: blank, analysis, header, one line per assessment
+        self.assertEqual(4 + 3 * len(self.trial.results) + nAssessments, len(lines))
 
 
 class TestTrialFactoryKaiser(unittest.TestCase):

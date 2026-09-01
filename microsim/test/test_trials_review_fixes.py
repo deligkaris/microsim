@@ -338,32 +338,20 @@ class TestTrialGuardsAndFormatting(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "r.csv")
             trial.export_results(path)
-            df = pd.read_csv(path)
-        self.assertEqual(["analysisType", "assessment", "quantity", "value"], list(df.columns))
-        #description block first, then results in enum order (not dict order); 4 + 4 + 4 + 2 rows
-        self.assertEqual(["trialDescription"] * 4 + ["linear"] * 4 + ["cox"] * 4 + ["incidenceRate"] * 2,
-                         list(df["analysisType"]))
-        meta = df.iloc[:4].set_index("quantity")["value"]
-        self.assertEqual("nhanes", meta["popType"])
-        self.assertEqual("10", meta["sampleSize"]) #value column is read back as str, it mixes str and float
-        self.assertEqual("2", meta["duration"])
-        demo = df[df.assessment == "demo"].set_index("quantity")["value"].astype(float)
-        self.assertEqual(["coef", "se", "pValue", "intercept"], list(demo.index))
-        self.assertAlmostEqual(1.23456, demo["coef"])
-        self.assertTrue(pd.isna(demo["se"]))
-        self.assertEqual(float('inf'), demo["pValue"])
-        self.assertEqual(float('-inf'), demo["intercept"])
-        cox = df[df.assessment == "deathCox"].set_index("quantity")["value"]
-        self.assertTrue(pd.isna(cox["intercept"]))
-        ir = df[df.assessment == "strokeIR"].set_index("quantity")["value"].astype(float)
-        self.assertEqual(5.0, ir["treatedRatePer1000PY"])
+            lines = open(path).read().splitlines()
+        #description once at the top, then one block per analysis type in enum order (not dict order)
+        self.assertEqual(["popType,nhanes", "sampleSize,10", "duration,2", "treatmentStrategies,",
+                          "", "analysis,linear", "assessment,coef,se,pValue,intercept", "demo,1.23456,,inf,-inf",
+                          "", "analysis,cox", "assessment,coef,se,pValue,intercept", "deathCox,0.1,0.2,0.3,",
+                          "", "analysis,incidenceRate", "assessment,treatedRatePer1000PY,controlRatePer1000PY",
+                          "strokeIR,5.0,7.0"], lines)
 
-    def test_results_df_rejects_wrong_tuple_length(self):
+    def test_results_dfs_rejects_wrong_tuple_length(self):
         trial = self.make_bare_trial()
         trial.analyzed = True
         trial.results = {AnalysisType.LINEAR.value: {"demo": (1.0, 2.0)}}
         with self.assertRaises(ValueError):
-            trial.get_results_df()
+            trial.get_results_dfs()
 
     def test_run_analyze_export_default_off(self):
         trial = self.make_bare_trial()
