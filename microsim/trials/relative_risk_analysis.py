@@ -2,6 +2,12 @@ from statsmodels.stats.proportion import proportion_confint, confint_proportions
 import numpy as np
 
 class RelativeRiskAnalysis:
+    #one name per element of the tuple returned by analyze, in order
+    columns = ("relativeRisk", "rrCiLow", "rrCiUpp",
+               "tRisk", "tRiskCiLow", "tRiskCiUpp", "tRiskCiLowWilson", "tRiskCiUppWilson",
+               "cRisk", "cRiskCiLow", "cRiskCiUpp", "cRiskCiLowWilson", "cRiskCiUppWilson",
+               "riskDiffx100", "rdCiLowx100", "rdCiUppx100", "tEfficiencyx100")
+
     def __init__(self):
         pass
     

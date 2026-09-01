@@ -7,6 +7,8 @@ from numpy.linalg import LinAlgError
 from microsim.trials.regression_analysis import RegressionAnalysis
 
 class LogisticRegressionAnalysis(RegressionAnalysis):
+    columns = ("coef", "se", "pValue", "intercept")
+
     def __init__(self):
         pass
 

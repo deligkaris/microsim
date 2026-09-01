@@ -4,6 +4,8 @@ from numpy.linalg import LinAlgError
 from microsim.trials.regression_analysis import RegressionAnalysis
 
 class LinearRegressionAnalysis(RegressionAnalysis):
+    columns = ("coef", "se", "pValue", "intercept")
+
     def __init__(self):
         pass
     

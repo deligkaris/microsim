@@ -6,6 +6,8 @@ import pandas as pd
 from microsim.trials.regression_analysis import RegressionAnalysis
 
 class CoxRegressionAnalysis(RegressionAnalysis):
+    columns = ("coef", "se", "pValue", "intercept") #intercept is always None
+
     def __init__(self):
         self.cph = CoxPHFitter()
     

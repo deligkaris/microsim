@@ -13,6 +13,12 @@ class AnalysisType(Enum):
     RELATIVE_RISK = "relativeRisk"
     INCIDENCE_RATE = "incidenceRate"
 
+ANALYSIS_CLASSES = {AnalysisType.LINEAR.value: LinearRegressionAnalysis,
+                    AnalysisType.LOGISTIC.value: LogisticRegressionAnalysis,
+                    AnalysisType.COX.value: CoxRegressionAnalysis,
+                    AnalysisType.RELATIVE_RISK.value: RelativeRiskAnalysis,
+                    AnalysisType.INCIDENCE_RATE.value: IncidenceRateAnalysis}
+
 class TrialOutcomeAssessor:
     '''This class will store the specific analyses that will be obtained from a Trial instance.
     This class provides a link between Population-level functions and methodologies used to analyze 
@@ -28,11 +34,7 @@ class TrialOutcomeAssessor:
                          know how to analyze the results.'''
     def __init__(self):
         self._assessments = dict()
-        self._analysis = {AnalysisType.LINEAR.value : LinearRegressionAnalysis(),
-                          AnalysisType.LOGISTIC.value : LogisticRegressionAnalysis(),
-                          AnalysisType.COX.value : CoxRegressionAnalysis(),
-                          AnalysisType.RELATIVE_RISK.value : RelativeRiskAnalysis(),
-                          AnalysisType.INCIDENCE_RATE.value : IncidenceRateAnalysis()} 
+        self._analysis = {k: cls() for k, cls in ANALYSIS_CLASSES.items()}
 
     def add_outcome_assessment(self, assessmentName, assessmentFunctionDict, assessmentAnalysis):
         if assessmentAnalysis not in self._analysis.keys():

@@ -4,6 +4,7 @@ class IncidenceRateAnalysis:
     This analysis computes incidence rates for both treated and control trial arms,
     enabling comparison of event rates adjusted for time at risk.
     """
+    columns = ("treatedRatePer1000PY", "controlRatePer1000PY")
 
     def __init__(self):
         pass

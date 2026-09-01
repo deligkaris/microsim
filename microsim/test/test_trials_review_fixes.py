@@ -1,4 +1,6 @@
 import math
+import os
+import tempfile
 import unittest
 
 import numpy as np
@@ -105,6 +107,7 @@ class TestLinearRegressionAnalysis(unittest.TestCase):
         trial = FakeTrial(None, None)
         result = analysis.analyze(trial, {}, "linear")
         self.assertTrue(all(math.isnan(r) for r in result))
+        self.assertEqual(len(LinearRegressionAnalysis.columns), len(result))
 
 
 class TestLogisticRegressionAnalysis(unittest.TestCase):
@@ -118,6 +121,7 @@ class TestLogisticRegressionAnalysis(unittest.TestCase):
         trial = FakeTrial(None, None)
         result = analysis.analyze(trial, {}, "logistic")
         self.assertTrue(all(math.isnan(r) for r in result))
+        self.assertEqual(len(LogisticRegressionAnalysis.columns), len(result))
 
     def test_categorical_block_factor_matches_manual_dummy_fit(self):
         rng = np.random.default_rng(7)
@@ -139,7 +143,9 @@ class TestCoxRegressionAnalysis(unittest.TestCase):
         analysis = CoxRegressionAnalysis()
         analysis.get_trial_outcome_df = lambda *args: df
         trial = FakeTrial(None, None, blockFactors=["raceEthnicity"])
-        coef, se, pValue, fourth = analysis.analyze(trial, {}, "cox")
+        result = analysis.analyze(trial, {}, "cox")
+        self.assertEqual(len(CoxRegressionAnalysis.columns), len(result))
+        coef, se, pValue, fourth = result
         self.assertTrue(math.isfinite(coef))
         self.assertIsNone(fourth)
         dummyCovariates = [c for c in analysis.cph.params_.index if c.startswith("raceEthnicity_")]
@@ -173,6 +179,7 @@ class TestRelativeRiskAnalysis(unittest.TestCase):
         control = self.Pop(80, 20, [])
         trial = FakeTrial(treated, control)
         result = RelativeRiskAnalysis().analyze(trial, {"outcome": lambda p: p._count}, "relativeRisk")
+        self.assertEqual(len(RelativeRiskAnalysis.columns), len(result))
         relativeRisk, tRisk, cRisk = result[0], result[3], result[8]
         self.assertAlmostEqual(30 / 120, tRisk)
         self.assertAlmostEqual(20 / 80, cRisk)
@@ -205,8 +212,10 @@ class TestIncidenceRateZeroPersonYears(unittest.TestCase):
                 return self._pairs
 
         trial = FakeTrial(Pop([(True, 3), (False, 5)]), Pop([(False, 0), (False, 0)]))
-        treatedRate, controlRate = IncidenceRateAnalysis().analyze(
+        result = IncidenceRateAnalysis().analyze(
             trial, {"eventAndTime": lambda p: p.get_followup_events_and_person_years([], 0)}, "incidenceRate")
+        self.assertEqual(len(IncidenceRateAnalysis.columns), len(result))
+        treatedRate, controlRate = result
         self.assertAlmostEqual(125.0, treatedRate)
         self.assertTrue(math.isnan(controlRate))
 
@@ -313,6 +322,57 @@ class TestTrialGuardsAndFormatting(unittest.TestCase):
         self.assertIn("inf", line)
         self.assertIn("-inf", line)
         self.assertIn("nan", line)
+
+    def test_export_before_analyze_raises(self):
+        trial = self.make_bare_trial()
+        with self.assertRaises(RuntimeError):
+            trial.export_results("x.csv")
+
+    def test_export_results_csv(self):
+        trial = self.make_bare_trial()
+        trial.completed = True
+        trial.analyzed = True
+        trial.results = {AnalysisType.INCIDENCE_RATE.value: {"strokeIR": (5.0, 7.0)},
+                         AnalysisType.COX.value: {"deathCox": (0.1, 0.2, 0.3, None)},
+                         AnalysisType.LINEAR.value: {"demo": (1.23456, float('nan'), float('inf'), float('-inf'))}}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "r.csv")
+            trial.export_results(path)
+            df = pd.read_csv(path)
+        self.assertEqual(["linear", "cox", "incidenceRate"], list(df["analysisType"])) #enum order, not dict order
+        self.assertEqual(["popType", "sampleSize", "duration", "treatmentStrategies", "analysisType", "assessment",
+                          "coef", "se", "pValue", "intercept", "relativeRisk"], list(df.columns)[:11])
+        self.assertEqual("controlRatePer1000PY", df.columns[-1])
+        self.assertEqual(["nhanes"] * 3, list(df["popType"]))
+        self.assertEqual([10] * 3, list(df["sampleSize"]))
+        self.assertEqual([2] * 3, list(df["duration"]))
+        demo, cox, ir = df.iloc[0], df.iloc[1], df.iloc[2]
+        self.assertAlmostEqual(1.23456, demo["coef"])
+        self.assertTrue(pd.isna(demo["se"]))
+        self.assertEqual(float('inf'), demo["pValue"])
+        self.assertEqual(float('-inf'), demo["intercept"])
+        self.assertTrue(pd.isna(cox["intercept"]))
+        self.assertTrue(pd.isna(ir["coef"]))
+        self.assertEqual(5.0, ir["treatedRatePer1000PY"])
+
+    def test_results_df_rejects_wrong_tuple_length(self):
+        trial = self.make_bare_trial()
+        trial.analyzed = True
+        trial.results = {AnalysisType.LINEAR.value: {"demo": (1.0, 2.0)}}
+        with self.assertRaises(ValueError):
+            trial.get_results_df()
+
+    def test_run_analyze_export_default_off(self):
+        trial = self.make_bare_trial()
+        trial.run = lambda notify=True: setattr(trial, "completed", True)
+        trial.treatedPop = FakePopulation(2)
+        trial.controlPop = FakePopulation(2)
+        toa = TrialOutcomeAssessor()
+        with tempfile.TemporaryDirectory() as d:
+            trial.run_analyze(toa)
+            self.assertEqual([], os.listdir(d))
+            trial.run_analyze(toa, exportPath=os.path.join(d, "r.csv"))
+            self.assertEqual(["r.csv"], os.listdir(d))
 
 
 class TestTrialRunIsolationAndRandomization(unittest.TestCase):
