@@ -1646,8 +1646,9 @@ class PopulationFactory:
             set(range(0, 82, 1)),
         ):  # for age
             # symmetric window of ages age-2 to age+2, clamped at 0; range excludes ageMax.
-            # The top key's window runs to 85 instead: the file holds ages up to 85 (NHANES
-            # top-codes age there), and the 988 people aged 84-85 are too few for keys of their own
+            # The top key's window runs to 85 instead: NHANES top-codes age at 85 through 2005 and
+            # at 80 after, so only 1999-2005 hold ages past 80, and the 988 people aged 84-85 are
+            # too few for keys of their own
             # — extending the keys past 81 leaves groups singular even after pooling education,
             # while widening the top window to 79-85 keeps every fit non-singular and lets their
             # data feed the fit that serves them (see get_dist_keys_for_dataframe, which clips the

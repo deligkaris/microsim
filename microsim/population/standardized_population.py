@@ -41,7 +41,7 @@ class StandardizedPopulation:
         rows = []
         for age in range(
             1, 86
-        ):  # NHANES top-codes age at 85, so age 85 stands in for the whole 85+ group
+        ):  # NHANES top-codes age at 85 through 2005 (80 after, collapsed by the caller)
             for gender in range(1, 3):
                 dfRow = self.ageStandard.loc[
                     (age >= self.ageStandard.lowerAgeBound)
