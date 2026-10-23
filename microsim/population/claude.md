@@ -195,6 +195,9 @@ not carry is filled in from NHANES:
   with less than high school aged 25-29 — draws from the education-pooled fit of its gender,
   race and age, which every (gender, race, age) has. Until 2026-10-19 only singular groups had
   one, so such rows raised a `KeyError` and IA, NY and KY could not be built at 0.01.
+  The projections mark 5-15% of children inactive while NHANES codes everyone under 20 active,
+  so children's groups ignore activity (`ACTIVITY_MIN_GROUP_AGE`) and inactive children are
+  shifted like active ones instead of not at all (they were ~2.5% of state people).
 
 Parameters:
 - `samplingRate`: the fraction of the state population simulated. Each (cell, age, statin,
@@ -483,7 +486,9 @@ internally; callers rarely need to instantiate it directly.
     with it, so a single-year population is centred on levels pooled over 1999-2017 rather than on
     that year's — for 1999 that moves the mean of a variable by up to 0.24 sd and narrows the sbp gap
     between people on and off antihypertensives from 18.1 to 15.1 mmHg. `append_dataframe_with_continuous`
-    lost its `matchYear` argument along with it.
+    lost its `matchYear` argument along with it. Under `ACTIVITY_MIN_GROUP_AGE` (20) everyone counts
+    as active in the key, since NHANES codes all of them active and an inactive state child would
+    otherwise match no group.
 
 15. **With `distributions=True` the redraw happens after the sampling, one draw per person.** It used
     to redraw each NHANES row once and then bootstrap `n` people out of that fixed set, so a row drawn

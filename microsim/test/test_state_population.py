@@ -68,6 +68,22 @@ class TestStatePopulationCounts(unittest.TestCase):
                 for age in range(82):
                     self.assertIn((gender, raceEthnicity, age), keys)
 
+    def test_nhanes_children_are_all_active(self):
+        df = PopulationFactory.get_nhanesDf()
+        minAge = PopulationFactory.ACTIVITY_MIN_GROUP_AGE
+        self.assertTrue(df.loc[df["age"] < minAge, "anyPhysicalActivity"].astype(bool).all())
+        self.assertFalse(df.loc[df["age"] == minAge, "anyPhysicalActivity"].astype(bool).all())
+
+    def test_inactive_children_are_shifted(self):
+        df = PopulationFactory.get_dataframe_with_categoricals(
+            year=2025, state="WY", samplingRate=0.01
+        )
+        children = df[df["age"].astype(int) < PopulationFactory.ACTIVITY_MIN_GROUP_AGE]
+        active = PopulationFactory.look_up_group_means(children.assign(anyPhysicalActivity=1))
+        inactive = PopulationFactory.look_up_group_means(children.assign(anyPhysicalActivity=0))
+        self.assertFalse(np.isnan(inactive).any())
+        np.testing.assert_array_equal(inactive, active)
+
     def test_state_with_groups_nhanes_lacks_draws(self):
         # IA holds men of race other with less than high school aged 25-29, whom NHANES lacks
         df = PopulationFactory.get_dataframe_with_categoricals(

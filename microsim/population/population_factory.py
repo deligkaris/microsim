@@ -2060,6 +2060,9 @@ class PopulationFactory:
     # variance to fit; fits at key ages >=18 were verified non-singular after education pooling
     ALCOHOL_MIN_KEY_AGE = 18
 
+    # NHANES codes everyone under 20 active, so groups below it carry no activity
+    ACTIVITY_MIN_GROUP_AGE = 20
+
     @staticmethod
     def continuous_variables_for_key_age(age):
         """The continuous variables the distribution of a key holds: alcohol is left out of keys
@@ -2225,7 +2228,9 @@ class PopulationFactory:
         the count and any finer grouping, which keeps the median group at 54 people. Grouping on
         all nine categorical variables, as this used to, left the median group holding ONE person,
         so the "mean" was that person and the shift carried their noise into everyone drawn for
-        that group."""
+        that group. Below ACTIVITY_MIN_GROUP_AGE everyone counts as active, so an inactive state
+        child is shifted to the active children NHANES holds instead of not at all."""
+        age = df[DynamicRiskFactorsType.AGE.value].astype(int)
         return pd.DataFrame(
             {
                 StaticRiskFactorsType.GENDER.value: df[StaticRiskFactorsType.GENDER.value].astype(
@@ -2237,15 +2242,14 @@ class PopulationFactory:
                 StaticRiskFactorsType.EDUCATION.value: df[
                     StaticRiskFactorsType.EDUCATION.value
                 ].astype(int),
-                "ageGroup": df[DynamicRiskFactorsType.AGE.value]
-                .apply(PopulationFactory.get_ageGroup_from_age)
-                .astype(int),
+                "ageGroup": age.apply(PopulationFactory.get_ageGroup_from_age).astype(int),
                 "anyAntiHypertensive": (
                     df[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value] > 0
                 ).astype(bool),
                 DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value: df[
                     DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value
-                ].astype(bool),
+                ].astype(bool)
+                | (age < PopulationFactory.ACTIVITY_MIN_GROUP_AGE),
             }
         )
 
