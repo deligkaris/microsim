@@ -12,7 +12,11 @@ from microsim.treatment_strategies.treatment_strategies import (
     TreatmentStrategiesType,
     TreatmentStrategyStatus,
 )
-from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.default_treatments.default_treatments import (
+    DEFAULT_TREATMENT_MIN_AGE,
+    UNTREATED,
+    DefaultTreatmentsType,
+)
 from microsim.risk_factors.a1c import convert_a1c_to_fasting_glucose
 from microsim.outcomes.cognition_outcome import (
     MMSE_CEILING,
@@ -185,14 +189,15 @@ class Person:
     # also, notice that dynamic risk factors and treatments are lists that get their next
     # quantity in the same way
     def advance_treatments(self, defaultTreatmentRepository):
-        """Makes predictions for the default treatments 1 year to the future."""
+        """Makes predictions for the default treatments 1 year to the future. Nobody under
+        DEFAULT_TREATMENT_MIN_AGE is treated, the cohort models would otherwise treat them."""
         for treatment in self._defaultTreatments:
-            setattr(
-                self,
-                "_" + treatment,
-                getattr(self, "_" + treatment)
-                + [self.get_next_treatment(treatment, defaultTreatmentRepository)],
+            nextTreatment = (
+                UNTREATED[treatment]
+                if self._current_age < DEFAULT_TREATMENT_MIN_AGE
+                else self.get_next_treatment(treatment, defaultTreatmentRepository)
             )
+            setattr(self, "_" + treatment, getattr(self, "_" + treatment) + [nextTreatment])
 
     def get_next_treatment(self, treatment, treatmentRepository):
         model = treatmentRepository.get_model(treatment)

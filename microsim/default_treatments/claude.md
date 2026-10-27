@@ -41,7 +41,14 @@ Default treatments are categorized similarly to risk factors:
 ## Key Files in This Module
 
 ### Core Files
-- `default_treatments.py`: Default treatment enumerations (DefaultTreatmentsType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType)
+- `default_treatments.py`: Default treatment enumerations (DefaultTreatmentsType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType), plus `DEFAULT_TREATMENT_MIN_AGE` (20) and `UNTREATED` (the value of each treatment when off it)
+
+### Nobody under 20 is on a default treatment
+NHANES rows under 20 carry imputed statin/antihypertensive use (2.8% even at age 0; 18-19 at 1.9%
+statin / 4.3% antihypertensive, above MEPS and NCHS averages for all of 18-39). `get_nhanesDf` sets
+them to `UNTREATED` before caching, and `advance_treatments` appends `UNTREATED` without a model call
+for anyone under `DEFAULT_TREATMENT_MIN_AGE`. 20 is a state age-group boundary, so state groups 1-4
+come out untreated. Treatment strategies are not gated.
 
 ### Repository Implementation
 - `default_treatment_model_repository.py`: Contains `DefaultTreatmentModelRepository`
@@ -114,14 +121,13 @@ From person/person.py:147-154:
 
 ```python
 def advance_treatments(self, defaultTreatmentRepository):
-    """Makes predictions for the default treatments 1 year to the future."""
     for treatment in self._defaultTreatments:
-        setattr(
-            self,
-            "_" + treatment,
-            getattr(self, "_" + treatment)
-            + [self.get_next_treatment(treatment, defaultTreatmentRepository)],
+        nextTreatment = (
+            UNTREATED[treatment]
+            if self._current_age < DEFAULT_TREATMENT_MIN_AGE
+            else self.get_next_treatment(treatment, defaultTreatmentRepository)
         )
+        setattr(self, "_" + treatment, getattr(self, "_" + treatment) + [nextTreatment])
 
 
 def get_next_treatment(self, treatment, treatmentRepository):

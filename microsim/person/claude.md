@@ -78,7 +78,7 @@ person.advance(
 
 Each call loops `years` times. Within each iteration (while the person is alive):
 
-1. If `_waveCompleted > -1`: advance dynamic risk factors, then default treatments.
+1. If `_waveCompleted > -1`: advance dynamic risk factors, then default treatments (under 20 stay untreated, see `default_treatments/claude.md`).
 2. Advance treatment strategies and update risk factors in place.
 3. Advance outcomes.
 4. Increment `_waveCompleted`.

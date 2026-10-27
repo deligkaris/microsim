@@ -37,7 +37,10 @@ from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.modality import Modality, modalityGroupMap
 from microsim.risk_factors.a1c import convert_a1c_to_fasting_glucose
 from microsim.risk_factors.risk_model_repository import RiskModelRepository
-from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.default_treatments.default_treatments import (
+    DEFAULT_TREATMENT_MIN_AGE,
+    DefaultTreatmentsType,
+)
 from microsim.treatment_strategies.treatment_strategies import (
     TreatmentStrategiesType,
     TreatmentStrategyStatus,
@@ -307,6 +310,18 @@ class TestAdvanceRiskFactorsAndTreatments(unittest.TestCase):
         person = _build_person()
         person.advance_treatments(_ModelRepository({"statin": 1}))
         self.assertEqual([0, 1], person._statin)
+
+    def test_advance_treatments_keeps_the_young_untreated(self):
+        person = _build_person(age=DEFAULT_TREATMENT_MIN_AGE - 1, antiHypertensiveCount=2)
+        person.advance_treatments(_ModelRepository({"statin": True, "antiHypertensiveCount": 3}))
+        self.assertEqual([0, False], person._statin)
+        self.assertEqual([2, 0], person._antiHypertensiveCount)
+
+    def test_advance_treatments_treats_from_min_age(self):
+        person = _build_person(age=DEFAULT_TREATMENT_MIN_AGE)
+        person.advance_treatments(_ModelRepository({"statin": True, "antiHypertensiveCount": 3}))
+        self.assertEqual([0, True], person._statin)
+        self.assertEqual([0, 3], person._antiHypertensiveCount)
 
     def test_get_next_treatment(self):
         person = _build_person()

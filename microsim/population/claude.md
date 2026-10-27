@@ -188,7 +188,9 @@ not carry is filled in from NHANES:
   survey-weighted proportions within each (ageGroup, gender, raceEthnicity). The counts
   enumerated are the class constant `PopulationFactory.antiHypertensiveCounts` (0-7, all
   values NHANES holds), used by both the cross product and the proportions so the two
-  cannot drift and no observed count is left out of the denominators.
+  cannot drift and no observed count is left out of the denominators. NHANES under-20s are
+  untreated (`get_nhanesDf`, `DEFAULT_TREATMENT_MIN_AGE`), so age groups 1-4 (0-19) come out
+  untreated.
 - **Continuous variables** are drawn from the same NHANES Gaussians the
   `distributions=True` path uses (crude fit + group-mean shift, see gotchas 14-16). A row
   whose (gender, race, education, age window) NHANES holds nobody of — e.g. men of race other

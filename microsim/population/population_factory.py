@@ -34,7 +34,11 @@ from microsim.default_treatments.default_treatment_model_repository import (
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
-from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.default_treatments.default_treatments import (
+    DEFAULT_TREATMENT_MIN_AGE,
+    UNTREATED,
+    DefaultTreatmentsType,
+)
 from microsim.population.standardized_population import StandardizedPopulation
 from microsim.common.variable_type import VariableType
 from microsim.outcomes.outcome import OutcomeType
@@ -310,6 +314,10 @@ class PopulationFactory:
                 StaticRiskFactorsType.SMOKING_STATUS.value,
             ]:
                 nhanesDf[col] = nhanesDf[col].astype(int)
+            # the imputation put the young on statins and antihypertensives (2.8% even at age 0)
+            young = nhanesDf[DynamicRiskFactorsType.AGE.value] < DEFAULT_TREATMENT_MIN_AGE
+            for treatment, untreated in UNTREATED.items():
+                nhanesDf.loc[young, treatment] = untreated
             PopulationFactory._nhanesDf = nhanesDf
         df = PopulationFactory._nhanesDf.copy()
         return PopulationFactory.pool_hispanics(df) if poolHispanics else df

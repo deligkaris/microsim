@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from microsim.common.data_loader import get_absolute_datafile_path
+from microsim.default_treatments.default_treatments import DEFAULT_TREATMENT_MIN_AGE
 from microsim.population.population_factory import PopulationFactory
 from microsim.validation import Validation
 
@@ -73,6 +74,13 @@ class TestStatePopulationCounts(unittest.TestCase):
         minAge = PopulationFactory.ACTIVITY_MIN_GROUP_AGE
         self.assertTrue(df.loc[df["age"] < minAge, "anyPhysicalActivity"].astype(bool).all())
         self.assertFalse(df.loc[df["age"] == minAge, "anyPhysicalActivity"].astype(bool).all())
+
+    def test_nhanes_young_are_untreated(self):
+        df = PopulationFactory.get_nhanesDf()
+        young = df[df["age"] < DEFAULT_TREATMENT_MIN_AGE]
+        self.assertFalse(young["statin"].any())
+        self.assertTrue((young["antiHypertensiveCount"] == 0).all())
+        self.assertTrue(df.loc[df["age"] >= DEFAULT_TREATMENT_MIN_AGE, "statin"].any())
 
     def test_inactive_children_are_shifted(self):
         df = PopulationFactory.get_dataframe_with_categoricals(

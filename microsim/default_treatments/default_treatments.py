@@ -18,3 +18,13 @@ class CategoricalDefaultTreatmentsType(Enum):
 
 class ContinuousDefaultTreatmentsType(Enum):
     ANTI_HYPERTENSIVE_COUNT = "antiHypertensiveCount"
+
+
+# nobody younger is on a default treatment: NHANES under-20s carry imputed ones (18-19 rates match
+# the children's); 20 is also a boundary of the state 5-year age groups
+DEFAULT_TREATMENT_MIN_AGE = 20
+
+UNTREATED = {
+    DefaultTreatmentsType.STATIN.value: False,
+    DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: 0,
+}
