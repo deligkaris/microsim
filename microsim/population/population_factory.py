@@ -47,15 +47,15 @@ class PopulationFactory:
     # the NHANES df as get_nhanesDf builds it, cached because every population build needs it
     _nhanesDf = None
 
-    # the distributions the continuous variables are drawn from when distributions=True, cached
-    # because neither the partition nor the fit depends on any argument: they are the same for the
-    # life of the process and cost about 5 seconds to build
-    _crudeDistributions = None
+    # the distributions the continuous variables are drawn from when distributions=True, keyed by
+    # poolHispanics (True for the state populations, see pool_hispanics). Cached because they are
+    # the same for the life of the process and cost about 5 seconds to build
+    _crudeDistributions = {}
 
     # the mean of every continuous variable for every group of NHANES people, the mean a draw is
-    # shifted to. Cached for the same reason: it takes no argument and every population build needs
+    # shifted to, keyed by poolHispanics. Cached for the same reason: every population build needs
     # it.
-    _groupMeans = None
+    _groupMeans = {}
 
     # a survey-weight bootstrap of the NHANES df, what the crude fits and the group means are
     # computed on so that they reflect the WTINT2YR weights the person-row sampling uses.
@@ -263,14 +263,25 @@ class PopulationFactory:
         )
 
     @staticmethod
-    def get_nhanesDf():
+    def pool_hispanics(df):
+        """Recodes Mexican Americans as Other Hispanic in df, in place, and returns it. The state
+        projections code every Hispanic as Other Hispanic, so the state pipeline draws them from
+        both NHANES groups; NHANES populations keep the two apart."""
+        race = StaticRiskFactorsType.RACE_ETHNICITY.value
+        df.loc[df[race] == RaceEthnicity.MEXICAN_AMERICAN.value, race] = (
+            RaceEthnicity.OTHER_HISPANIC.value
+        )
+        return df
+
+    @staticmethod
+    def get_nhanesDf(poolHispanics=False):
         """Reads and modifies the NHANES dataframe so that it is ready to be used in the
         simulation. Returns a Pandas df with the NHANES information as exists in Microsim.
         The df is built once and kept in _nhanesDf: reading the file and converting the columns
         costs about 14 seconds, and every population build needs the df. Callers get a copy of
         the cached df, some of them add columns to what they get back (see get_treatment_weights
         and get_partitioned_nhanes_people_crude), which would corrupt the cache for everyone
-        else."""
+        else. poolHispanics: recode the copy with pool_hispanics, for the state pipeline."""
         if PopulationFactory._nhanesDf is None:
             nhanesDf = pd.read_stata(get_absolute_datafile_path("fullyImputedDataset.dta"))
             # in Person-objects, the attribute name is used
@@ -300,10 +311,11 @@ class PopulationFactory:
             ]:
                 nhanesDf[col] = nhanesDf[col].astype(int)
             PopulationFactory._nhanesDf = nhanesDf
-        return PopulationFactory._nhanesDf.copy()
+        df = PopulationFactory._nhanesDf.copy()
+        return PopulationFactory.pool_hispanics(df) if poolHispanics else df
 
     @staticmethod
-    def get_nhanesDf_resampled():
+    def get_nhanesDf_resampled(poolHispanics=False):
         """A survey-weight bootstrap of the NHANES df: rows drawn with replacement, probability
         proportional to WTINT2YR, 5 times the size of the df. The crude Gaussian fits and the
         group means are computed on this df so they reflect the same weights the person-row
@@ -315,14 +327,16 @@ class PopulationFactory:
         can drop out and tighten a group's observed min/max, which draw_within_bounds mitigates
         by widening the bounds to 0.9*min-1.1*max.
         Future: replace the bootstrap with weighted statistics computed directly (weighted means,
-        np.cov with aweights), which is exact, uses every row and has no randomness."""
+        np.cov with aweights), which is exact, uses every row and has no randomness.
+        poolHispanics recodes the copy, not a new bootstrap, so the other races fit the same."""
         if PopulationFactory._nhanesDfResampled is None:
             df = PopulationFactory.get_nhanesDf()
             # 5x the rows: less bootstrap noise in the fits, and fewer people left out entirely
             PopulationFactory._nhanesDfResampled = df.sample(
                 n=5 * df.shape[0], replace=True, weights=df.WTINT2YR
             )
-        return PopulationFactory._nhanesDfResampled.copy()
+        df = PopulationFactory._nhanesDfResampled.copy()
+        return PopulationFactory.pool_hispanics(df) if poolHispanics else df
 
     @staticmethod
     def get_kaiserDf(csvFile):
@@ -1477,7 +1491,7 @@ class PopulationFactory:
         np.random.seed(seed.generate_state(4))
         p = cloudpickle.loads(payload)
         if p["groupMeans"] is not None:
-            PopulationFactory._groupMeans = p["groupMeans"]
+            PopulationFactory._groupMeans = {False: p["groupMeans"]}
             PopulationFactory._yearCorrections = p["yearCorrections"]
         return PopulationFactory.draw_people(
             n,
@@ -1575,10 +1589,12 @@ class PopulationFactory:
             year=year, state=state, samplingRate=samplingRate
         )
         # get Gaussian distributions of continuous variables stratified...
-        distributions = PopulationFactory.get_crude_distributions()
+        distributions = PopulationFactory.get_crude_distributions(poolHispanics=True)
         # each row of dfWithCategoricals gets values for continuous variables based on the
         # distributions
-        df = PopulationFactory.append_dataframe_with_continuous(dfWithCategoricals, distributions)
+        df = PopulationFactory.append_dataframe_with_continuous(
+            dfWithCategoricals, distributions, poolHispanics=True
+        )
         # df-level filters run after the draw because the values they have to hold for are the
         # drawn ones. No redraw of rejected rows: each row is a fixed slice of the state
         # population, so a filter shrinks the population to the filtered subpopulation at the same
@@ -1612,31 +1628,34 @@ class PopulationFactory:
         return people
 
     @staticmethod
-    def get_crude_distributions():
+    def get_crude_distributions(poolHispanics=False):
         """Returns the Gaussians the continuous variables are drawn from, fit on the partition of
-        NHANES by gender, race ethnicity, education and a 5-year age window.
+        NHANES by gender, race ethnicity, education and a 5-year age window. poolHispanics: fit
+        on the df recoded by pool_hispanics, for the state pipeline.
 
-        Built once and kept in _crudeDistributions. Neither the partition nor the fit takes an
-        argument, so both give the same answer every time they are called, and together they cost
-        about 5 seconds: partitioning scans the whole NHANES df once per combination of the four
-        variables. Unlike get_nhanesDf this hands back the cached object itself rather than a copy,
-        because everything downstream only reads from it."""
-        if PopulationFactory._crudeDistributions is None:
-            partitionedNhanesDf = PopulationFactory.get_partitioned_nhanes_people_crude()
-            PopulationFactory._crudeDistributions = PopulationFactory.get_distributions_crude(
-                partitionedNhanesDf
+        Built once per poolHispanics and kept in _crudeDistributions. The partition and the fit
+        give the same answer every time they are called, and together they cost about 5 seconds:
+        partitioning scans the whole NHANES df once per combination of the four variables. Unlike
+        get_nhanesDf this hands back the cached object itself rather than a copy, because
+        everything downstream only reads from it."""
+        if poolHispanics not in PopulationFactory._crudeDistributions:
+            partitionedNhanesDf = PopulationFactory.get_partitioned_nhanes_people_crude(
+                poolHispanics
             )
-        return PopulationFactory._crudeDistributions
+            PopulationFactory._crudeDistributions[poolHispanics] = (
+                PopulationFactory.get_distributions_crude(partitionedNhanesDf)
+            )
+        return PopulationFactory._crudeDistributions[poolHispanics]
 
     @staticmethod
-    def get_partitioned_nhanes_people_crude():
+    def get_partitioned_nhanes_people_crude(poolHispanics=False):
         """Partitions the NHANES data, all rows, according to 4 categorical variables, the ones
         that are the most important overall for the prediction of continuous variables by using
         Gaussian distributions. Because the continuous variable distributions do not differ much
         for ages that are off by 1 or 2 years, use a range of ages and not just an exact age
         match."""
-        df = (
-            PopulationFactory.get_nhanesDf_resampled()
+        df = PopulationFactory.get_nhanesDf_resampled(
+            poolHispanics
         )  # weighted bootstrap so the fits reflect the survey weights
         dictForCategoricals = dict()
         for gender, raceEthnicity, education, age in product(
@@ -1813,10 +1832,11 @@ class PopulationFactory:
         data = pd.read_csv(PopulationFactory.get_state_projection_path(year, state))
         # the whole state pipeline is built on NHANES, so a race NHANES holds nobody of (eg ASIAN)
         # has neither treatment proportions nor risk-factor distributions; fail here with the codes
-        # rather than with a KeyError deep in an apply
+        # rather than with a KeyError deep in an apply. Mexican Americans are pooled into Other
+        # Hispanic, so the state pipeline holds nobody of code 1 either
         nhanesRaces = set(
             int(r)
-            for r in PopulationFactory.get_nhanesDf()[
+            for r in PopulationFactory.get_nhanesDf(poolHispanics=True)[
                 StaticRiskFactorsType.RACE_ETHNICITY.value
             ].unique()
         )
@@ -1828,7 +1848,8 @@ class PopulationFactory:
             raise RuntimeError(
                 f"The {state} {year} projection contains raceEthnicity codes "
                 f"{sorted(unsupportedRaces)} "
-                "that NHANES holds no people of, so no "
+                "that the state pipeline holds no NHANES people of (Mexican Americans are "
+                "pooled into Other Hispanic), so no "
                 "treatment proportions or risk-factor "
                 "distributions exist for them. Map those rows "
                 f"to one of {sorted(nhanesRaces)} "
@@ -1928,19 +1949,18 @@ class PopulationFactory:
     def get_proportionForDefaultTreatments():
         """For a given age group, gender, race ethnicity, statin, anti hypertensive count returns
         the proportion of NHANES people that have given statin and anti hypertensive count from all
-        NHANES people with given age group, gender, race ethnicity."""
+        NHANES people with given age group, gender, race ethnicity. Used by the state pipeline
+        only, so Mexican Americans are pooled into Other Hispanic."""
         weightForTreatments = dict()
         proportionForTreatments = dict()
-        df = PopulationFactory.get_nhanesDf()
+        df = PopulationFactory.get_nhanesDf(poolHispanics=True)
         df["ageGroup"] = df["age"].apply(lambda x: PopulationFactory.get_ageGroup_from_age(x))
         df["age"] = df["age"].astype(int)
         for ageGroup, gender, raceEthnicity in product(
             list(range(1, PopulationFactory.topAgeGroup + 1)),
-            # set(data[StaticRiskFactorsType.GENDER.value].tolist()),
             [ge.value for ge in NHANESGender],
-            # set(data[StaticRiskFactorsType.RACE_ETHNICITY.value].tolist())):
-            [ra.value for ra in RaceEthnicity if ra.value != 6],
-        ):  # NHANES does not include any asian...
+            sorted(df[StaticRiskFactorsType.RACE_ETHNICITY.value].unique()),
+        ):
             proportionForTreatments[ageGroup, gender, raceEthnicity] = dict()
             weightForTreatments = dict()
             sumForKey = 0
@@ -2001,10 +2021,11 @@ class PopulationFactory:
         return PopulationFactory.append_dataframe_with_continuous(df, distributions)
 
     @staticmethod
-    def append_dataframe_with_continuous(dfWithCategoricals, distributions):
+    def append_dataframe_with_continuous(dfWithCategoricals, distributions, poolHispanics=False):
         """Takes a dataframe where all categorical variables exist for each row, and uses the
         distributions to append columns with all continuous variables.
-        The complete dataframe is returned."""
+        The complete dataframe is returned. poolHispanics selects the group means, and must match
+        the one the distributions were fit with."""
         nhanesContinuousVariables = PopulationFactory.continuous_variables_drawn()
         # a draw is a point of its own distribution, and what is wanted is a point of the group the
         # person belongs to, so the draw is kept as its distance from the mean of the distribution
@@ -2021,7 +2042,9 @@ class PopulationFactory:
                 drawMeans[rowsOfKey] = np.insert(distributions["mean"][distKey], alcIdx, 0.0)
             else:
                 drawMeans[rowsOfKey] = distributions["mean"][distKey]
-        groupMeans = PopulationFactory.get_group_means_for_dataframe(dfWithCategoricals, drawMeans)
+        groupMeans = PopulationFactory.get_group_means_for_dataframe(
+            dfWithCategoricals, drawMeans, poolHispanics
+        )
         # the shift is handed to the draw rather than added to the draw afterwards because the
         # value that is kept is the shifted one, so the shifted one is what the bounds have to hold
         # for: a draw inside the bounds of its distribution can be shifted outside of them, and
@@ -2191,20 +2214,20 @@ class PopulationFactory:
         return draws, pending.shape[0]
 
     @staticmethod
-    def get_group_means_for_dataframe(dfWithCategoricals, drawMeans):
+    def get_group_means_for_dataframe(dfWithCategoricals, drawMeans, poolHispanics=False):
         """Returns, for every row of dfWithCategoricals, the mean of its group, and for the rows
         whose group NHANES does not hold at all the mean of the distribution the row was drawn
         from, which leaves that row where its draw put it."""
-        groupMeans = PopulationFactory.look_up_group_means(dfWithCategoricals)
+        groupMeans = PopulationFactory.look_up_group_means(dfWithCategoricals, poolHispanics)
         return np.where(np.isnan(groupMeans), drawMeans, groupMeans)
 
     @staticmethod
-    def look_up_group_means(dfWithCategoricals):
+    def look_up_group_means(dfWithCategoricals, poolHispanics=False):
         """Looks up the mean of the group of every row, np.nan for the rows whose group is not
         there."""
         keyFrame = PopulationFactory.group_key_frame(dfWithCategoricals)
         return (
-            PopulationFactory.get_group_means()
+            PopulationFactory.get_group_means(poolHispanics)
             .reindex(pd.MultiIndex.from_frame(keyFrame))
             .to_numpy()
         )
@@ -2254,24 +2277,24 @@ class PopulationFactory:
         )
 
     @staticmethod
-    def get_group_means():
+    def get_group_means(poolHispanics=False):
         """The mean of every continuous variable, for every group of NHANES people.
 
         This is all the draws need from those groups: a draw is re-centered on the mean of the
         group of the person it is for. A group is far too small to fit a covariance matrix on,
         which is why the distributions themselves are fit on a much coarser partition, but it is
-        big enough for a mean."""
-        if PopulationFactory._groupMeans is None:
-            df = (
-                PopulationFactory.get_nhanesDf_resampled()
+        big enough for a mean. poolHispanics: groups of the df recoded by pool_hispanics."""
+        if poolHispanics not in PopulationFactory._groupMeans:
+            df = PopulationFactory.get_nhanesDf_resampled(
+                poolHispanics
             )  # same bootstrap as the fits, so shift and draw agree on the weights
             keyFrame = PopulationFactory.group_key_frame(df)
-            PopulationFactory._groupMeans = (
+            PopulationFactory._groupMeans[poolHispanics] = (
                 df[PopulationFactory.continuous_variables_drawn()]
                 .groupby([keyFrame[column] for column in keyFrame.columns], observed=True)
                 .mean()
             )
-        return PopulationFactory._groupMeans
+        return PopulationFactory._groupMeans[poolHispanics]
 
     @staticmethod
     def year_correction_key_frame(df):

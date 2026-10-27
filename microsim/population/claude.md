@@ -198,6 +198,13 @@ not carry is filled in from NHANES:
   The projections mark 5-15% of children inactive while NHANES codes everyone under 20 active,
   so children's groups ignore activity (`ACTIVITY_MIN_GROUP_AGE`) and inactive children are
   shifted like active ones instead of not at all (they were ~2.5% of state people).
+- **Hispanics** are pooled. The projections code every Hispanic as Other Hispanic (2), so every
+  NHANES read in the state pipeline passes `poolHispanics=True`: the treatment proportions, the
+  fits, the group means and the race check. That recodes Mexican Americans (1) to 2 through
+  `pool_hispanics`, and state Hispanics come from both groups (Mexican Americans are 59% of the
+  weighted NHANES adult Hispanics) instead of from Other Hispanics alone. NHANES populations
+  never pool. State persons still carry code 2, so the non-CV death model's
+  `raceEthnicity[T.2]` term (-0.29) applies to all of them.
 
 Parameters:
 - `samplingRate`: the fraction of the state population simulated. Each (cell, age, statin,
@@ -214,10 +221,11 @@ Parameters:
   population, so a filter shrinks the population to the filtered subpopulation at the same
   sampling rate. Unlike NHANES, `None` means no filter — the whole state population,
   children included, is the point of this builder; pass `["adult"]` for adults.
-- The projection's `raceEthnicity` codes must be ones NHANES holds people of (1-5): the
-  whole pipeline (treatment proportions and risk-factor distributions) is NHANES-based, so
-  an unsupported code (e.g. ASIAN, 6) is refused up front with a message naming the codes,
-  rather than failing as a `KeyError` deep in an apply.
+- The projection's `raceEthnicity` codes must be ones the pooled NHANES df holds people of
+  (2-5): the whole pipeline (treatment proportions and risk-factor distributions) is
+  NHANES-based, so an unsupported code (e.g. ASIAN, 6, or MEXICAN_AMERICAN, 1, which is pooled
+  into 2) is refused up front with a message naming the codes, rather than failing as a
+  `KeyError` deep in an apply.
 
 ### Generic dispatcher
 
@@ -388,6 +396,13 @@ internally; callers rarely need to instantiate it directly.
    The redraw is vectorized over the distribution groups rather than the rows. The old advice to
    prefer `distributions=False` for speed no longer holds; choose between them on what you want the
    population to be, not on cost.
+
+   `_crudeDistributions` and `_groupMeans` are dicts keyed by `poolHispanics`: `False` for NHANES
+   populations, `True` for the state ones (see the state section). The pooled set recodes the
+   same bootstrap, so its race 3-5 fits are identical. Each set is built on first use, so only a
+   process that builds both NHANES `distributions=True` and state populations pays the ~5 s fit
+   twice. `append_dataframe_with_continuous` takes the same flag to choose the group means, and
+   it must match the distributions passed in.
 
    The Gaussians and the fine group means are computed on a survey-weight bootstrap of the
    NHANES rows (`get_nhanesDf_resampled`, unseeded, cached per process), so the fitted statistics

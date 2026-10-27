@@ -151,8 +151,10 @@ class TestWorkersNeedNoCaches(_RestoreCaches):
         tasks = PopulationFactory.get_nhanes_draw_tasks(
             2, n=20, year=1999, personFilters=None, nhanesWeights=True, distributions=True
         )
-        for c in self.CACHES:
-            setattr(PopulationFactory, c, None)
+        for c in self.CACHES:  # the state a spawned worker starts in
+            setattr(
+                PopulationFactory, c, {} if c in ("_crudeDistributions", "_groupMeans") else None
+            )
         refuse = mock.Mock(side_effect=AssertionError("a worker rebuilt a cache"))
         with (
             mock.patch.object(PopulationFactory, "get_nhanesDf", refuse),

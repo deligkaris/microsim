@@ -79,8 +79,12 @@ class TestStatePopulationCounts(unittest.TestCase):
             year=2025, state="WY", samplingRate=0.01
         )
         children = df[df["age"].astype(int) < PopulationFactory.ACTIVITY_MIN_GROUP_AGE]
-        active = PopulationFactory.look_up_group_means(children.assign(anyPhysicalActivity=1))
-        inactive = PopulationFactory.look_up_group_means(children.assign(anyPhysicalActivity=0))
+        active = PopulationFactory.look_up_group_means(
+            children.assign(anyPhysicalActivity=1), poolHispanics=True
+        )
+        inactive = PopulationFactory.look_up_group_means(
+            children.assign(anyPhysicalActivity=0), poolHispanics=True
+        )
         self.assertFalse(np.isnan(inactive).any())
         np.testing.assert_array_equal(inactive, active)
 
@@ -90,7 +94,7 @@ class TestStatePopulationCounts(unittest.TestCase):
             year=2025, state="IA", samplingRate=0.01
         )
         df = PopulationFactory.append_dataframe_with_continuous(
-            df, PopulationFactory.get_crude_distributions()
+            df, PopulationFactory.get_crude_distributions(poolHispanics=True), poolHispanics=True
         )
         drawn = PopulationFactory.continuous_variables_drawn()
         self.assertFalse(df[drawn].isna().any().any())
@@ -115,6 +119,53 @@ class TestStatePopulationCounts(unittest.TestCase):
             self.assertIn(f"\n  {variable}\n", report)
             for code in marginal.index:
                 self.assertIn(f"    {Validation._state_category_label(variable, code)} ", report)
+
+
+class TestStateHispanicsPooled(unittest.TestCase):
+    """The projections code every Hispanic as Other Hispanic (2), so the state pipeline reads
+    NHANES with Mexican Americans (1) recoded to 2; NHANES populations keep the two apart."""
+
+    def test_fits_pool_hispanics_and_keep_other_races(self):
+        pooled = PopulationFactory.get_crude_distributions(poolHispanics=True)["mean"]
+        unpooled = PopulationFactory.get_crude_distributions()["mean"]
+        self.assertFalse(any(key[1] == 1 for key in pooled))
+        self.assertTrue(any(key[1] == 1 for key in unpooled))
+        for gender in [1, 2]:
+            for raceEthnicity in [2, 3, 4, 5]:
+                for age in range(82):
+                    self.assertIn((gender, raceEthnicity, age), pooled)
+        # the pooled fits recode the same bootstrap, so the other races fit the same rows
+        for key in unpooled:
+            if key[1] > 2:
+                np.testing.assert_array_equal(unpooled[key], pooled[key])
+
+    def test_group_means_pool_hispanics(self):
+        df = PopulationFactory.get_nhanesDf_resampled()
+        keys = PopulationFactory.group_key_frame(df)
+        hispanic = keys["raceEthnicity"].isin([1, 2])
+        others = keys.drop(columns="raceEthnicity")
+        # the group holding the most Mexican Americans, which holds Other Hispanics too
+        group = others[keys["raceEthnicity"] == 1].value_counts().index[0]
+        inGroup = hispanic & (others == group).all(axis=1)
+        self.assertGreater((keys.loc[inGroup, "raceEthnicity"] == 2).sum(), 0)
+        expected = df.loc[inGroup, PopulationFactory.continuous_variables_drawn()].mean()
+        pooled = PopulationFactory.get_group_means(poolHispanics=True)
+        key = (group[0], 2, *group[1:])
+        np.testing.assert_allclose(pooled.loc[key].to_numpy(), expected.to_numpy())
+        self.assertNotIn(1, pooled.index.get_level_values("raceEthnicity"))
+        self.assertIn(
+            1, PopulationFactory.get_group_means().index.get_level_values("raceEthnicity")
+        )
+
+    def test_treatment_proportions_pool_hispanics(self):
+        df = PopulationFactory.get_nhanesDf()
+        ageGroup = df["age"].apply(PopulationFactory.get_ageGroup_from_age)
+        rows = df[(ageGroup == 12) & (df["gender"] == 2) & df["raceEthnicity"].isin([1, 2])]
+        onBoth = rows["statin"] & (rows["antiHypertensiveCount"] == 1)
+        expected = rows.loc[onBoth, "WTINT2YR"].sum() / rows["WTINT2YR"].sum()
+        proportions = PopulationFactory.get_proportionForDefaultTreatments()
+        self.assertAlmostEqual(expected, proportions[12, 2, 2][True, 1.0])
+        self.assertNotIn((12, 2, 1), proportions)
 
 
 if __name__ == "__main__":
